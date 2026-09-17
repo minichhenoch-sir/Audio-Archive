@@ -66,21 +66,16 @@ class PlayerPage {
         $csp->addAllowedImageDomain('data:');
 
         /*
-         * Nextcloud setzt fuer Skripte 'strict-dynamic'. Dabei ignoriert der
-         * Browser Pfadfreigaben wie 'self' vollstaendig - es zaehlt nur noch
-         * ein passendes Nonce. Weil diese Seite ihr Markup selbst liefert
-         * (siehe oben) und damit nicht durch Util::addScript laeuft, das das
-         * Nonce sonst automatisch vergibt, sind hier zwei Wege noetig:
-         *   1. 'strict-dynamic' fuer diese eine Seite abschalten, sofern die
-         *      Nextcloud-Fassung das anbietet, und
-         *   2. das Nonce zusaetzlich selbst an das <script>-Tag schreiben.
-         * Jeder der beiden Wege genuegt fuer sich; zusammen sind sie
-         * unabhaengig von der Nextcloud-Fassung verlaesslich.
+         * Hinweis zu 'strict-dynamic':
+         * Nextcloud setzt fuer Skripte 'strict-dynamic'. Der Browser ignoriert
+         * dann Pfadfreigaben wie 'self' vollstaendig - es zaehlt nur noch ein
+         * passendes Nonce. Es waere naheliegend, das ueber
+         * useStrictDynamicOnScripts(false) fuer diese Seite abzuschalten; das
+         * greift aber nicht, weil beim Zusammenfuehren mit der
+         * Standardrichtlinie der jeweils strengere Wert gewinnt. Der einzige
+         * gangbare Weg ist deshalb, das Nonce selbst an das <script>-Tag zu
+         * schreiben (siehe cspNonce()).
          */
-        if (method_exists($csp, 'useStrictDynamicOnScripts')) {
-            $csp->useStrictDynamicOnScripts(false);
-        }
-
         $response->setContentSecurityPolicy($csp);
 
         return $response;
@@ -89,14 +84,19 @@ class PlayerPage {
     /**
      * Liefert das Nonce, mit dem Nextcloud Skripte auf dieser Anfrage erlaubt.
      *
-     * Nextcloud bildet es aus dem Anfrage-Token (genau das steckt auch hinter
-     * dem bekannten btoa(OC.requestToken) auf der JavaScript-Seite).
+     * Der Anfrage-Token hat die Form "base64(wert XOR geheimnis):base64(geheimnis)".
+     * Als Nonce verwendet Nextcloud ausschliesslich den hinteren Teil, also das
+     * Geheimnis - der vordere Teil traegt keine zusaetzliche Zufaelligkeit bei.
+     * Deshalb wird hier am Doppelpunkt zerlegt und das letzte Stueck genommen.
      */
     private function cspNonce(): string {
         try {
-            return base64_encode(\OCP\Util::callRegister());
+            $token = \OCP\Util::callRegister();
         } catch (\Throwable $e) {
             return '';
         }
+
+        $parts = explode(':', $token);
+        return (string)end($parts);
     }
 }
