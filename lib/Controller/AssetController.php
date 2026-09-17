@@ -8,6 +8,7 @@ use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
+use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\IAppConfig;
 use OCP\IRequest;
@@ -47,6 +48,19 @@ class AssetController extends Controller {
             Http::STATUS_OK,
             ['Content-Type' => 'application/javascript; charset=utf-8']
         );
+
+        /*
+         * WICHTIG: Ein Service Worker erbt die Sicherheitsrichtlinie der
+         * Antwort, mit der er SELBST ausgeliefert wurde - nicht die der
+         * Seite, die er steuert. Antworten aus Controllern bekommen in
+         * Nextcloud standardmaessig "default-src 'none'". Ohne die folgende
+         * Zeile darf der Worker also gar nichts abrufen: Jedes fetch() in
+         * ihm scheitert, und weil er Anfragen abfaengt, fallen damit auch
+         * Stylesheet, Skript und Bilder der Seite aus.
+         */
+        $csp = new ContentSecurityPolicy();
+        $csp->addAllowedConnectDomain("'self'");
+        $response->setContentSecurityPolicy($csp);
 
         // Der Worker wird bewusst nicht zwischengespeichert, damit ein
         // App-Update auf den Geraeten auch wirklich ankommt.
