@@ -192,7 +192,22 @@ const Player = (() => {
   // Dateien entsprechend mehrere Titel im Voraus. Nach oben begrenzt ein
   // Datenlimit, damit auf Mobilfunk nicht unbemerkt sehr viel geladen wird.
   // ------------------------------------------------------------------
-  const PREFETCH_CACHE = 'gemeinde-prefetch-audio';
+  const PREFETCH_CACHE = 'audioarchive-prefetch-audio';
+
+  /*
+   * Vorausladen vorerst ABGESCHALTET.
+   *
+   * Es laedt den laufenden Titel im Hintergrund vollstaendig herunter, damit
+   * ein Verbindungsabbruch die Wiedergabe nicht unterbricht. Nutzen bringt
+   * das aber nur, wenn der Service Worker die gepufferte Datei anschliessend
+   * auch ausliefert - und der ist seit dem CSP-Zwischenfall bewusst passiv.
+   * Bis dahin wuerde der Hintergrund-Download nur Bandbreite kosten und sich
+   * mit der laufenden Wiedergabe darum streiten: genau das fuehrte zu
+   * staendigem Nachladen (im Netzwerk-Mitschnitt gut sichtbar als
+   * zusaetzlicher Abruf der vollstaendigen Datei parallel zum Stream).
+   * Wird in Schritt 4 zusammen mit dem Offline-Betrieb wieder eingeschaltet.
+   */
+  const PREFETCH_ENABLED = false;
 
   /** Zielgroesse des Puffers in Sekunden Wiedergabe (90 Minuten). */
   const PREFETCH_TARGET_SECONDS = 90 * 60;
@@ -291,7 +306,7 @@ const Player = (() => {
   }
 
   function startPrefetch(index) {
-    if (!prefetchSupported) return;
+    if (!PREFETCH_ENABLED || !prefetchSupported) return;
 
     if (prefetchController) prefetchController.abort();
     prefetchController = new AbortController();
