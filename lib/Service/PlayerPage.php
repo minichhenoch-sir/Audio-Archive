@@ -48,6 +48,7 @@ class PlayerPage {
                 Application::APP_ID . '.page.index'
             ),
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
+            'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
         ];
 
@@ -79,6 +80,32 @@ class PlayerPage {
         $response->setContentSecurityPolicy($csp);
 
         return $response;
+    }
+
+    /**
+     * Kennung zum Anhaengen an Stylesheet- und Skript-Adressen.
+     *
+     * Ohne sie behaelt der Browser einmal geladene Dateien beliebig lange -
+     * nach einem App-Update laeuft dann weiter die alte Fassung, und zwar
+     * ohne jeden Hinweis. Nextcloud haengt bei Util::addScript von sich aus
+     * eine Kennung an; weil diese Seite ihr Markup selbst liefert, muss das
+     * hier von Hand geschehen.
+     *
+     * Verwendet wird der juengste Aenderungszeitpunkt der ausgelieferten
+     * Dateien - damit aendert sich die Kennung bei jedem Einspielen,
+     * unabhaengig davon, ob die Versionsnummer erhoeht wurde.
+     */
+    private function assetVersion(): string {
+        $newest = 0;
+
+        foreach (['/../../css/style.css', '/../../js/boot.js'] as $relative) {
+            $mtime = @filemtime(__DIR__ . $relative);
+            if ($mtime !== false && $mtime > $newest) {
+                $newest = $mtime;
+            }
+        }
+
+        return (string)$newest;
     }
 
     /**

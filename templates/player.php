@@ -23,7 +23,7 @@ $escape = static fn (?string $value): string => htmlspecialchars((string)$value,
 <link rel="apple-touch-icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
 <link rel="icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
 
-<link rel="stylesheet" href="<?php echo $escape($_['assetBase']); ?>css/style.css">
+<link rel="stylesheet" href="<?php echo $escape($_['assetBase']); ?>css/style.css?v=<?php echo $escape($_['assetVersion']); ?>">
 </head>
 <body>
 
@@ -61,6 +61,6 @@ $escape = static fn (?string $value): string => htmlspecialchars((string)$value,
 </main>
 
 <script nonce="<?php echo $escape($_['cspNonce'] ?? ''); ?>"
-        src="<?php echo $escape($_['assetBase']); ?>js/boot.js"></script>
+        src="<?php echo $escape($_['assetBase']); ?>js/boot.js?v=<?php echo $escape($_['assetVersion']); ?>"></script>
 </body>
 </html>
