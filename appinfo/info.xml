@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+      xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+    <id>audioarchive</id>
+    <name>Audio Archive</name>
+    <summary>Audio player for recordings stored in Nextcloud, installable and usable offline</summary>
+    <description><![CDATA[
+Plays audio recordings from a folder in Nextcloud.
+
+* Browses the real folder structure, however deeply nested
+* Keeps playing when the screen is off, with lock screen controls
+* Can be installed on the home screen and used offline
+* Optional public access with a shared password, for listeners without an account
+    ]]></description>
+    <version>0.1.0</version>
+    <licence>agpl</licence>
+    <author>Gemeinde</author>
+    <namespace>AudioArchive</namespace>
+    <category>multimedia</category>
+
+    <dependencies>
+        <nextcloud min-version="29" max-version="34"/>
+    </dependencies>
+
+    <settings>
+        <admin>OCA\AudioArchive\Settings\Admin</admin>
+        <admin-section>OCA\AudioArchive\Settings\AdminSection</admin-section>
+    </settings>
+
+    <navigations>
+        <navigation>
+            <name>Audio Archive</name>
+            <route>audioarchive.page.index</route>
+        </navigation>
+    </navigations>
+</info>

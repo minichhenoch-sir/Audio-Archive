@@ -1,0 +1,37 @@
+/* Vorlaeufiges Aussehen der Pruefseite. Das vollstaendige Design der
+   eigenstaendigen App wird in einem spaeteren Schritt uebernommen. */
+html, body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  color: #faf3e8;
+}
+
+#bg-layer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(160deg, #d9ac74 0%, #a86a3d 40%, #4a3320 75%, #241a12 100%);
+}
+
+.prototype-check {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 32px 20px;
+}
+
+.prototype-check h1 {
+  font-size: 1.6rem;
+  font-weight: 500;
+}
+
+.prototype-check p {
+  background: rgba(41, 28, 18, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 14px;
+  padding: 12px 16px;
+  font-size: 0.92rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
