@@ -473,25 +473,6 @@
     return dirList.concat(files);
   }
 
-  /**
-   * Liest die gespeicherte Ordnerliste. Gibt null zurueck, wenn fuer diesen
-   * Ordner nichts hinterlegt ist.
-   */
-  async function offlineEntriesFromCache(path) {
-    if (!offlineSupportedStorage()) return null;
-
-    try {
-      const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
-      const cached = await cache.match(listUrlFor(path));
-      if (!cached) return null;
-
-      const data = await cached.json();
-      return Array.isArray(data.entries) ? data.entries : null;
-    } catch (err) {
-      return null;
-    }
-  }
-
   function enterOfflineMode() {
     offlineMode = true;
     document.body.classList.add('is-offline');
@@ -647,21 +628,10 @@
     libraryStatus.textContent = 'Lade Aufnahmen \u2026';
     listContainer.innerHTML = '';
 
-    // Ohne Verbindung: Ansicht aus dem Offline-Speicher aufbauen
+    // Ohne Verbindung: Ansicht aus den lokal gespeicherten Ordnern aufbauen
     if (offlineMode) {
       view = { path };
-
-      /*
-       * Zuerst die gespeicherte Ordnerliste versuchen - sie enthaelt
-       * Kuenstler, Album und Spieldauer. Der Service Worker beantwortet den
-       * Aufruf ohne Verbindung aus dem Speicher. Erst wenn dort nichts
-       * liegt, greift das lokale Verzeichnis als Rueckfall; dort fehlen
-       * diese Angaben moeglicherweise.
-       */
-      currentEntries = await offlineEntriesFromCache(path);
-      if (currentEntries === null) {
-        currentEntries = offlineEntriesFor(path);
-      }
+      currentEntries = offlineEntriesFor(path);
       renderBreadcrumb();
 
       if (currentEntries.length === 0) {
@@ -980,33 +950,6 @@
       : `${stored} von ${files.length} offline verfügbar`;
   }
 
-  /** Adresse der Ordnerliste - wird zusammen mit den Dateien gespeichert. */
-  function listUrlFor(path) {
-    return new URL(
-      AudioArchive.api('list') + '?path=' + encodeURIComponent(path || ''),
-      location.href
-    ).href;
-  }
-
-  /**
-   * Legt die Ordnerliste mit in den Offline-Speicher.
-   *
-   * Kuenstler, Album und Spieldauer stehen NUR in dieser Antwort - die
-   * Audiodateien selbst enthalten sie nicht in einer Form, die die App ohne
-   * Server auslesen koennte. Ohne diesen Schritt saehe man ohne Verbindung
-   * nur die Dateinamen.
-   */
-  async function storeFolderListing(path) {
-    try {
-      const cache = await caches.open(OFFLINE_AUDIO_CACHE);
-      const url = listUrlFor(path);
-      const res = await fetch(url, { credentials: 'same-origin' });
-      if (res.ok) await cache.put(url, res);
-    } catch (err) {
-      // Nicht kritisch: Dann greift ersatzweise das lokale Verzeichnis.
-    }
-  }
-
   async function downloadFolderOffline(files) {
     const cache = await caches.open(OFFLINE_AUDIO_CACHE);
     let done = 0;
@@ -1039,8 +982,6 @@
     for (const file of files) {
       await cache.delete(streamUrlFor(file.path));
     }
-    // Die mitgespeicherte Ordnerliste ebenfalls entfernen
-    await cache.delete(listUrlFor(view.path));
   }
 
   /**
@@ -1117,36 +1058,10 @@
       if (removing) {
         offlineInfo.textContent = 'Entferne …';
         await removeFolderOffline(files);
-        // Auch aus dem Verzeichnis nehmen, sonst bliebe der Ordner offline
-        // sichtbar, obwohl seine Aufnahmen geloescht sind.
-        removeOfflineFolder(view.path);
         offlineInfo.textContent = 'Offline-Aufnahmen entfernt.';
       } else {
         offlineInfo.textContent = `Speichere … 0 von ${files.length}`;
         const { done, failed } = await downloadFolderOffline(files);
-
-        /*
-         * Entscheidend: Die Dateiliste MIT allen Angaben ins Verzeichnis
-         * schreiben. Im Audio-Speicher liegen nur die Aufnahmen selbst -
-         * Kuenstler, Album und Spieldauer stehen ausschliesslich hier.
-         * Ohne diesen Schritt muss die App ohne Verbindung alles aus den
-         * Dateinamen rekonstruieren, und genau diese Angaben fehlen dann.
-         */
-        if (done > 0) {
-          /*
-           * Zwei Ablagen mit Absicht:
-           *   - die Antwort des Servers im Offline-Speicher (vollstaendig,
-           *     ueberlebt das Loeschen der Browserdaten nicht, wohl aber
-           *     einen leeren localStorage)
-           *   - dieselben Angaben im lokalen Verzeichnis (Grundlage fuer die
-           *     Ordneransicht ohne Verbindung)
-           * Kuenstler, Album und Spieldauer stehen NUR hier - die
-           * Audiodateien selbst liefern sie der App nicht.
-           */
-          await storeFolderListing(view.path);
-          setOfflineFolder(view.path, files);
-        }
-
         offlineInfo.textContent = failed === 0
           ? `${done} Aufnahmen offline verfügbar.`
           : `${done} gespeichert, ${failed} fehlgeschlagen.`;
