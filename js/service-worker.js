@@ -9,7 +9,7 @@
  * Vorausladen und das Herausschneiden von Byte-Bereichen aus
  * zwischengespeicherten Dateien - wird in einem spaeteren Schritt uebernommen.
  */
-const SHELL_CACHE = 'audioarchive-shell-v2';
+const SHELL_CACHE = 'audioarchive-shell-v3';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -28,9 +28,25 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Vorerst nur durchreichen. Der Handler ist trotzdem noetig, damit die
-  // Seite als installierbar gilt.
   if (event.request.method !== 'GET') {
+    return;
+  }
+
+  /*
+   * Seitenaufrufe bewusst NICHT abfangen.
+   *
+   * Nextcloud beantwortet die Adresse der App mit einer Weiterleitung. Ein
+   * Service Worker, der ihr folgt, erhaelt eine als "weitergeleitet"
+   * markierte Antwort - und die darf bei einem Seitenaufruf nicht an
+   * respondWith() uebergeben werden. Der Browser erzeugt daraus einen
+   * Netzwerkfehler, der dann faelschlich wie ein Serverausfall aussieht.
+   * Ohne respondWith() laedt der Browser die Seite ganz normal selbst.
+   *
+   * Fuer den spaeteren Offline-Betrieb wird das hier gezielt wieder
+   * aufgegriffen - dann aber mit einer Antwort aus dem Cache statt einer
+   * weitergereichten Netzwerkantwort.
+   */
+  if (event.request.mode === 'navigate') {
     return;
   }
 
