@@ -13,6 +13,9 @@ class Application extends App implements IBootstrap {
 
     /** Schluessel der Einstellungen in der App-Konfiguration. */
     public const SETTING_FOLDER = 'source_folder';
+    /** Besitzer des Quellordners - beim oeffentlichen Zugang gibt es keinen
+     *  angemeldeten Nutzer, ueber den sich der Ordner sonst aufloesen liesse. */
+    public const SETTING_FOLDER_OWNER = 'source_folder_owner';
     public const SETTING_PUBLIC_ENABLED = 'public_enabled';
     public const SETTING_PUBLIC_TOKEN = 'public_token';
     public const SETTING_PUBLIC_PASSWORD = 'public_password_hash';

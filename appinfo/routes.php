@@ -10,6 +10,10 @@ return [
         // Admin-Einstellungen und wirkt wie der Link einer Dateifreigabe.
         ['name' => 'publicPlayer#index', 'url' => '/s/{token}', 'verb' => 'GET'],
 
+        // Verwaltungs-Einstellungen speichern (nur fuer Administratoren,
+        // siehe Hinweis im SettingsController)
+        ['name' => 'settings#setAdmin', 'url' => '/settings/admin', 'verb' => 'POST'],
+
         // PWA-Bausteine. Beide MUESSEN unterhalb von /apps/audioarchive/
         // ausgeliefert werden, damit der Service Worker genau diesen Bereich
         // abdecken darf - ein Worker kann nie oberhalb seines eigenen Pfades

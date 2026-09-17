@@ -9,6 +9,7 @@ use OCP\AppFramework\Services\IInitialState;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 use OCP\Settings\ISettings;
+use OCP\Util;
 
 class Admin implements ISettings {
 
@@ -27,6 +28,21 @@ class Admin implements ISettings {
         $this->initialState->provideInitialState('settings', [
             'sourceFolder' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_FOLDER, ''
+            ),
+            'sourceFolderOwner' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_FOLDER_OWNER, ''
+            ),
+            'hasPublicPassword' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_PUBLIC_PASSWORD, ''
+            ) !== '',
+            'themeAccent' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_THEME_ACCENT, '#b9793f'
+            ),
+            'themeBar' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
+            ),
+            'themeBase' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_THEME_BASE, '#a86a3d'
             ),
             'publicEnabled' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_PUBLIC_ENABLED, false
@@ -48,6 +64,12 @@ class Admin implements ISettings {
                 Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
             ),
         ]);
+
+        // Ueber addScript/addStyle eingebunden, nicht als eigenes <script>-Tag:
+        // Auf dieser Seite laeuft Nextclouds normales Seitengeruest, und dabei
+        // vergibt Nextcloud das CSP-Nonce von sich aus.
+        Util::addScript(Application::APP_ID, 'settings');
+        Util::addStyle(Application::APP_ID, 'settings');
 
         return new TemplateResponse(Application::APP_ID, 'settings-admin');
     }

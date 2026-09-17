@@ -1,14 +1,13 @@
-# Audio Archive – Nextcloud-App (Schritt 1: Grundgerüst und Prototyp)
+# Audio Archive – Nextcloud-App (Schritt 2: Einstellungen)
 
-Dieser Stand ist **noch kein fertiger Player**. Er beantwortet zuerst die eine
-Frage, von der die weitere Struktur abhängt:
+**Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
+als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
+`/apps/audioarchive/`, eigenes Manifest, und der Browser bietet die
+Installation an. Damit ist bestätigt, dass Nextcloud-Integration, öffentlicher
+Zugang und Offline-Betrieb gleichzeitig möglich sind.
 
-> Lässt sich die App innerhalb von Nextcloud als eigene App auf dem
-> Homescreen installieren – mit eigenem Service Worker, also mit der
-> Grundlage für den Offline-Betrieb?
-
-Erst wenn das geklärt ist, lohnt es sich, Player, Offline-Speicherung und
-Einstellungen zu portieren.
+**Dieser Stand (Schritt 2)** ergänzt die Verwaltungs-Einstellungen. Der Player
+selbst folgt in Schritt 3.
 
 ## Was enthalten ist
 
@@ -62,3 +61,29 @@ erscheinen; Inhalt folgt.
 Bitte den genauen Text der drei Zeilen zurückmelden, besonders ob
 „Installierbar: ja" erscheint. Davon hängt ab, ob der Player unverändert
 übernommen werden kann oder ob die Seitenstruktur anders gelöst werden muss.
+
+---
+
+## Schritt 2: Einstellungen prüfen
+
+Einstellungen → Verwaltung → **Audio Archive**. Zu prüfen:
+
+1. **Quellordner** – „Auswählen …" öffnet Nextclouds Dateidialog. Einen Ordner
+   mit mp3-Dateien wählen und speichern. Darunter erscheint danach ein Hinweis,
+   aus wessen Dateien gelesen wird.
+2. **Öffentlicher Zugang** – Häkchen setzen, ein Passwort eintragen, speichern.
+   Es erscheint ein Link mit Token. Dieser Link muss sich öffnen lassen
+   (zeigt aktuell noch die Prüfseite, nicht den Player).
+   Ohne Häkchen muss derselbe Link 404 liefern.
+3. **Darstellung und Funktionen** – Werte speichern, Seite neu laden: Die Werte
+   müssen erhalten bleiben.
+
+### Wichtig zum Quellordner
+Gespeichert wird nicht nur der Pfad, sondern auch, **wem** die Dateien gehören.
+Beim öffentlichen Zugang gibt es keinen angemeldeten Nutzer, über den sich der
+Ordner sonst auflösen ließe. Wer die Einstellungen speichert, legt damit fest,
+aus wessen Dateien gelesen wird.
+
+### Was noch nicht geht
+Der Player selbst: Ordnerliste, Wiedergabe, Offline-Speicherung. Beides folgt
+in Schritt 3, wenn die Controller portiert sind.
