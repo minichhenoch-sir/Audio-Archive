@@ -81,8 +81,8 @@ class AssetController extends Controller {
         $base = $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index');
 
         $start = $s !== ''
-            ? $this->urlGenerator->linkToRoute(Application::APP_ID . '.publicPlayer.index', ['token' => $s])
-            : $base;
+            ? $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.publicPlayer.index', ['token' => $s])
+            : $this->urlGenerator->getAbsoluteURL($base);
 
         $title = $this->appConfig->getValueString(
             Application::APP_ID,
@@ -96,7 +96,15 @@ class AssetController extends Controller {
             '#291c12'
         );
 
-        $icon = fn (string $file) => $this->urlGenerator->imagePath(Application::APP_ID, $file);
+        /*
+         * Bewusst absolute Adressen: Das Manifest wird auch von der
+         * oeffentlichen Seite unter /s/<token> geladen. Eine relative
+         * Angabe wuerde der Browser dann gegen diesen Pfad aufloesen und
+         * die Icons nicht finden.
+         */
+        $icon = fn (string $file) => $this->urlGenerator->getAbsoluteURL(
+            $this->urlGenerator->imagePath(Application::APP_ID, $file)
+        );
 
         $manifest = [
             'name' => $title,
@@ -104,7 +112,7 @@ class AssetController extends Controller {
             'start_url' => $start,
             // Der Geltungsbereich umfasst beide Eingaenge der App und deckt
             // sich mit dem Bereich des Service Workers.
-            'scope' => $base,
+            'scope' => $this->urlGenerator->getAbsoluteURL($base),
             'display' => 'standalone',
             'orientation' => 'any',
             'background_color' => $barColor,

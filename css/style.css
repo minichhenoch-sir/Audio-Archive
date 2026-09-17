@@ -1,67 +1,755 @@
-/* Vorlaeufiges Aussehen der Pruefseite. Das vollstaendige Design der
-   eigenstaendigen App wird in einem spaeteren Schritt uebernommen. */
+:root {
+  /* ===== Grundfarben (Text, Akzent) - warmes Braun bleibt die Markenfarbe ===== */
+  --color-ink: #332316;          /* dunkles Braun - Text auf hellem Glas */
+  --color-ink-soft: #6b5847;
+  --color-cream: #faf3e8;        /* helles Cream - Text auf dunklem Glas */
+  --color-cream-soft: #d8c7b3;
+  --color-accent: #b9793f;       /* warmes Terracotta-Braun/Gold */
+  --color-accent-deep: #8a5429;
+  --color-danger: #a5432f;
+
+  /* ===== Liquid Glass: helle Flaechen (Karten, Zeilen, Eingabefelder) ===== */
+  --glass-light-bg: rgba(255, 250, 242, 0.55);
+  /* Etwas deckender als --glass-light-bg, da Listenzeilen bewusst ohne
+     backdrop-filter auskommen (siehe .explorer-row). */
+  --glass-row-bg: rgba(255, 250, 242, 0.82);
+  --glass-light-bg-strong: rgba(255, 250, 242, 0.72);
+  --glass-light-border: rgba(255, 255, 255, 0.65);
+  --glass-light-shadow: 0 10px 30px rgba(58, 34, 16, 0.16), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-blur: blur(20px) saturate(180%);
+
+  /* ===== Liquid Glass: dunkle Flaechen (Kopfzeile, Login-Karte, Player) ===== */
+  --glass-dark-bg: rgba(41, 28, 18, 0.55);
+  --glass-dark-bg-strong: rgba(41, 28, 18, 0.7);
+  --glass-dark-border: rgba(255, 255, 255, 0.16);
+  --glass-dark-shadow: 0 14px 36px rgba(20, 12, 6, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+
+  --font-display: "Iowan Old Style", "Palatino Linotype", "URW Palladio L", Georgia, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-top: env(safe-area-inset-top, 0px);
+}
+
+* { box-sizing: border-box; }
+
 html, body {
   margin: 0;
   padding: 0;
-  min-height: 100%;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  color: #faf3e8;
+  height: 100%;
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  -webkit-tap-highlight-color: transparent;
+  /* Wichtig: body selbst scrollt NICHT (siehe .screen weiter unten). Das
+     verhindert, dass der fixe Hintergrund-Layer beim Scrollen auf
+     schwächeren/älteren Mobile-Browsern kurz weiß aufblitzt oder
+     "mitwischt" - ein bekanntes Kompositions-Problem von
+     "position: fixed"-Hintergründen kombiniert mit Seiten-Scroll.
+     Da body hier nie scrollt, muss der Hintergrund nie neu positioniert
+     werden und bleibt absolut ruhig. */
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
+/*
+ * Fixe Hintergrund-Ebene statt "background-attachment: fixed" auf body:
+ * Das ist zuverlässiger bei langen/scrollbaren Seiten (z. B. Admin-Dashboard)
+ * und auf iOS Safari, wo "background-attachment: fixed" bekanntermaßen
+ * unzuverlässig ist. app.js setzt ein eigenes Hintergrundbild (falls vom
+ * Admin hochgeladen) per JS direkt auf dieses Element.
+ */
 #bg-layer {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(160deg, #d9ac74 0%, #a86a3d 40%, #4a3320 75%, #241a12 100%);
+  background-size: cover;
+  background-position: center;
+  /* Bunter, weicher Verlaufs-"Mesh"-Hintergrund als Standard - Liquid Glass
+     braucht einen lebendigen Untergrund, damit die Glasflächen etwas zum
+     Durchscheinen/Brechen haben. */
+  background-image:
+    radial-gradient(circle at 12% 18%, rgba(224, 168, 104, 0.65), transparent 42%),
+    radial-gradient(circle at 88% 12%, rgba(184, 104, 66, 0.55), transparent 46%),
+    radial-gradient(circle at 82% 82%, rgba(122, 74, 40, 0.55), transparent 48%),
+    radial-gradient(circle at 15% 85%, rgba(58, 40, 26, 0.6), transparent 46%),
+    linear-gradient(160deg, #d9ac74 0%, #a86a3d 40%, #4a3320 75%, #241a12 100%);
 }
 
-.prototype-check {
-  max-width: 640px;
-  margin: 0 auto;
-  padding: 32px 20px;
+/* Wenn der Admin ein eigenes Foto als Hintergrund hochgeladen hat, etwas
+   stärker blurren - Fotos haben mehr Detail als der Verlauf und würden
+   sonst vom Text ablenken bzw. die Lesbarkeit verschlechtern. */
+body.has-bg-image .player-bar,
+body.has-bg-image .explorer-row.active {
+  backdrop-filter: blur(30px) saturate(180%);
+  -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
 
-.prototype-check h1 {
-  font-size: 1.6rem;
-  font-weight: 500;
+.screen {
+  position: fixed;
+  inset: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+  /*
+   * WICHTIG: Hier KEIN transform / will-change setzen!
+   * Ein transform auf diesem Container macht ihn zum "containing block"
+   * fuer alle position:fixed-Kinder. Die Player-Leiste (position: fixed)
+   * haengt darin - sie wuerde dann mitscrollen statt unten stehen zu
+   * bleiben, und ihre Hoehe wuerde die scrollbare Flaeche kuenstlich
+   * verlaengern (man konnte weit ueber das Listenende hinausscrollen).
+   */
 }
 
-.prototype-check p {
-  background: rgba(41, 28, 18, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 14px;
-  padding: 12px 16px;
-  font-size: 0.92rem;
-  line-height: 1.4;
-  word-break: break-word;
+/*
+ * Wichtig: #login-screen / #main-screen setzen unten "display: flex" bzw.
+ * eigene Regeln per ID-Selektor. Ein ID-Selektor schlägt IMMER die native
+ * [hidden]-Regel des Browsers (die hat nur UA-Spezifität) - das JS setzt
+ * zwar screen.hidden = true, aber ohne diese Regel hier bleibt das Element
+ * trotzdem sichtbar.
+ */
+.screen[hidden] {
+  display: none !important;
 }
 
-/* Bedienelemente der Prueffassung */
-.prototype-check button {
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: inherit;
-  border-radius: 10px;
-  padding: 6px 12px;
-  cursor: pointer;
-  font: inherit;
+/*
+ * Gleiches Problem bei SVG-Icons: Chromium wendet die native [hidden]-Regel
+ * auf <svg>-Elemente nicht zuverlässig an (eigener Default-"display"-Wert
+ * im SVG-Namespace). Play-/Pause-Icon würden sonst gleichzeitig sichtbar
+ * sein. Deshalb hier explizit erzwingen.
+ */
+svg[hidden] {
+  display: none !important;
 }
 
-.prototype-check input[type="password"] {
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  background: rgba(255, 255, 255, 0.1);
-  color: inherit;
-  font: inherit;
+/*
+ * Play-/Pause-Icon nutzen zusätzlich diese Klasse statt sich NUR auf
+ * [hidden] zu verlassen: In der Praxis hat sich gezeigt, dass Chrome bei
+ * diesen beiden SVGs das [hidden]-Attribut nach nachträglichen,
+ * dynamischen Änderungen (per JS) nicht immer neu auswertet - das Icon
+ * blieb dann optisch dauerhaft im allerersten Render-Zustand stehen,
+ * obwohl das Attribut selbst korrekt toggelte. Eine simple CSS-Klasse
+ * ist hier zuverlässiger.
+ */
+.icon-hidden {
+  display: none !important;
 }
 
-.prototype-check audio {
-  display: block;
-  margin-top: 6px;
+/* ===================== LOGIN ===================== */
+
+#login-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  padding-top: calc(24px + var(--safe-top));
+  padding-bottom: calc(24px + var(--safe-bottom));
+}
+
+.login-card {
   width: 100%;
-  max-width: 420px;
+  max-width: 380px;
+  text-align: center;
+  padding: 34px 28px;
+  border-radius: 28px;
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow);
+  position: relative;
+  overflow: hidden;
 }
 
-#public-login[hidden],
-#api-heading[hidden] { display: none !important; }
+/* Dezenter "Glanz"-Schimmer oben links - typisches Liquid-Glass-Detail */
+.login-card::before {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 160%;
+  height: 140%;
+  background: radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.16), transparent 55%);
+  pointer-events: none;
+}
+
+.login-title {
+  font-family: var(--font-display);
+  color: var(--color-cream);
+  font-size: 1.9rem;
+  font-weight: 500;
+  margin: 0 0 8px;
+  letter-spacing: 0.01em;
+  position: relative;
+}
+
+.login-subtitle {
+  color: var(--color-cream-soft);
+  font-size: 0.95rem;
+  margin: 0 0 28px;
+  position: relative;
+}
+
+#login-form { position: relative; }
+
+#login-form input[type="password"] {
+  width: 100%;
+  padding: 14px 18px;
+  font-size: 1rem;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: rgba(255, 255, 255, 0.10);
+  color: var(--color-cream);
+  margin-bottom: 14px;
+  outline: none;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+#login-form input[type="password"]::placeholder {
+  color: rgba(216, 199, 179, 0.7);
+}
+
+#login-form input[type="password"]:focus {
+  border-color: var(--color-accent);
+  background: rgba(255, 255, 255, 0.14);
+  box-shadow: 0 0 0 3px rgba(185, 121, 63, 0.28);
+}
+
+#login-submit {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 1rem;
+  font-weight: 600;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(224, 158, 100, 0.95), var(--color-accent) 70%);
+  color: #2a1a0e;
+  cursor: pointer;
+  transition: filter 0.15s ease, transform 0.1s ease;
+  box-shadow: 0 6px 18px rgba(138, 84, 41, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+#login-submit:active { filter: brightness(0.94); transform: scale(0.99); }
+#login-submit:disabled { opacity: 0.7; cursor: default; }
+
+.login-error {
+  margin-top: 14px;
+  color: #ffc4ae;
+  font-size: 0.9rem;
+  position: relative;
+}
+
+/* ===================== HAUPTANSICHT ===================== */
+
+#main-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+/*
+ * Die Kopfzeile selbst ist bewusst KEINE durchgehende Glasfläche mehr,
+ * sondern nur ein transparenter Rahmen, der zwei eigenständige,
+ * getrennte Glas-Elemente (Titel-Pille + Logout-Knopf) auf dem
+ * Hintergrund "schweben" lässt - passend zum Rest des Liquid-Glass-Stils,
+ * wo z.B. auch die Breadcrumb-Leiste ein eigenständiges Glasstück ist,
+ * statt alles in einer großen Fläche zu verschmelzen.
+ */
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: calc(14px + var(--safe-top)) 14px 10px;
+  color: var(--color-cream);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(180deg, rgba(20, 13, 7, 0.35), transparent);
+  pointer-events: none;
+}
+
+.topbar > * { pointer-events: auto; }
+
+/*
+ * Bewusst OHNE backdrop-filter: Der Glas-/Blur-Effekt bleibt gezielt nur
+ * dort, wo er wirkt und guenstig ist - an der Player-Leiste und am gerade
+ * laufenden Titel. Alle uebrigen Flaechen sind schlicht eingefaerbt, das
+ * haelt die Oberflaeche ruhig und das Scrollen fluessig.
+ */
+.glass-pill {
+  background: var(--glass-dark-bg);
+  border: 1px solid var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow);
+}
+
+.topbar-titles {
+  min-width: 0;
+  padding: 8px 18px;
+  border-radius: 18px;
+}
+
+.topbar h1 {
+  font-family: var(--font-display);
+  font-size: 1.3rem;
+  font-weight: 500;
+  margin: 0;
+  letter-spacing: 0.01em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topbar-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-cream-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.icon-btn {
+  color: var(--color-cream);
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 999px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s ease, transform 0.08s ease;
+}
+
+.icon-btn:active {
+  background: rgba(255, 255, 255, 0.28);
+  transform: scale(0.92);
+}
+
+.library {
+  flex: 1;
+  padding: 18px 16px calc(var(--player-bar-space, 24px) + 24px);
+  max-width: 640px;
+  width: 100%;
+  margin: 0 auto;
+  transition: padding-bottom 0.15s ease;
+}
+
+.status-text {
+  text-align: center;
+  color: var(--color-cream);
+  margin-top: 40px;
+  font-size: 0.95rem;
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* ===================== BREADCRUMB (Explorer-Pfad) ===================== */
+
+.breadcrumb {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 14px;
+  min-height: 20px;
+  font-size: 0.9rem;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  width: fit-content;
+  max-width: 100%;
+}
+
+.crumb {
+  background: none;
+  border: none;
+  color: var(--color-accent-deep);
+  font-weight: 600;
+  font-size: 0.88rem;
+  padding: 2px 4px;
+  margin: -2px -4px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.1s ease;
+}
+
+.crumb:active {
+  transform: scale(0.94);
+  background: rgba(185, 121, 63, 0.16);
+}
+
+.crumb--current {
+  color: var(--color-ink-soft);
+  font-weight: 400;
+}
+
+.crumb-sep {
+  color: var(--color-ink-soft);
+  opacity: 0.5;
+}
+
+/* ===================== OFFLINE-LEISTE ===================== */
+
+.offline-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.offline-btn {
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-accent-deep);
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 9px 16px;
+  border-radius: 999px;
+  cursor: pointer;
+  transition: background 0.12s ease, transform 0.08s ease, opacity 0.12s ease;
+}
+
+.offline-btn:active {
+  transform: scale(0.96);
+  background: rgba(255, 250, 242, 0.95);
+}
+
+.offline-btn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* Ordner liegt vollstaendig offline vor - Knopf entfernt die Dateien wieder */
+.offline-btn.is-stored {
+  color: var(--color-cream);
+  background: var(--glass-dark-bg);
+  border-color: var(--glass-dark-border);
+}
+
+.offline-info {
+  font-size: 0.78rem;
+  color: var(--color-cream);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
+}
+
+/* ===================== EXPLORER-LISTE ===================== */
+
+.explorer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Sanfte Ein-Animation, wenn eine neue Ebene (Monat/Tag/Dateien) gerendert
+   wird - macht die Navigation im Explorer spürbar "lebendig" statt eines
+   harten Sprungs. Wird per JS-Klasse beim Neuzeichnen getriggert. */
+.explorer-list.entering .explorer-row {
+  animation: row-in 0.22s ease backwards;
+}
+.explorer-list.entering .explorer-row:nth-child(n+2) { animation-delay: 0.02s; }
+.explorer-list.entering .explorer-row:nth-child(n+3) { animation-delay: 0.04s; }
+.explorer-list.entering .explorer-row:nth-child(n+4) { animation-delay: 0.06s; }
+.explorer-list.entering .explorer-row:nth-child(n+5) { animation-delay: 0.08s; }
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .explorer-list.entering .explorer-row { animation: none; }
+}
+
+.explorer-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--glass-light-border);
+  /* Bewusst OHNE backdrop-filter: Ein Blur pro Listenzeile bedeutet bei
+     langen Listen Dutzende teure Blur-Ebenen gleichzeitig - das war die
+     Hauptursache fuer ruckeliges Scrollen (besonders auf Tablets und
+     aelteren Geraeten). Ein etwas deckenderer Hintergrund sieht praktisch
+     identisch aus, kostet aber nichts. Der Glas-Effekt bleibt dort, wo
+     nur wenige Flaechen betroffen sind: Kopfzeile, Breadcrumb, Player. */
+  background: var(--glass-row-bg);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  text-align: left;
+  font-size: 0.98rem;
+  cursor: pointer;
+  /* Rendering der Zeilen voneinander entkoppeln - der Browser muss beim
+     Scrollen nicht die gesamte Liste neu berechnen. */
+  contain: layout style paint;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.explorer-row:active {
+  transform: scale(0.97);
+  background: rgba(255, 250, 242, 0.95);
+}
+
+/*
+ * Nur die gerade laufende Zeile bekommt den Glas-/Blur-Effekt - dadurch
+ * hebt sie sich deutlich von den uebrigen Zeilen ab, und es ist immer nur
+ * EINE teure Blur-Flaeche in der Liste aktiv (kein Scroll-Ruckeln).
+ */
+.explorer-row.active {
+  border-color: rgba(var(--color-accent-rgb, 185, 121, 63), 0.75);
+  background: rgba(255, 250, 242, 0.45);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-left: 4px solid var(--color-accent-deep);
+  box-shadow: var(--glass-light-shadow), 0 0 0 1px rgba(var(--color-accent-rgb, 185, 121, 63), 0.35);
+}
+
+.explorer-row.active .explorer-row-meta {
+  color: var(--color-accent-deep);
+  font-weight: 700;
+}
+
+/* Kleine animierte Equalizer-Balken als eindeutiges "läuft gerade"-Symbol */
+.eq-icon {
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 18px;
+  height: 16px;
+}
+
+.eq-bar {
+  width: 3px;
+  background: var(--color-accent-deep);
+  border-radius: 2px;
+  animation: eq-bounce 0.9s ease-in-out infinite;
+}
+
+/* Bei Pause bleiben die Balken sichtbar links am Titel stehen, die
+   Animation friert nur ein - so ist weiterhin erkennbar, welcher Titel
+   ausgewählt ist, ohne dass es aussieht, als würde noch etwas laufen. */
+.explorer-row.paused .eq-bar {
+  animation-play-state: paused;
+}
+
+.eq-bar:nth-child(1) { height: 40%; animation-delay: -0.6s; }
+.eq-bar:nth-child(2) { height: 100%; animation-delay: -0.3s; }
+.eq-bar:nth-child(3) { height: 65%; animation-delay: 0s; }
+
+@keyframes eq-bounce {
+  0%, 100% { transform: scaleY(0.4); }
+  50% { transform: scaleY(1); }
+}
+
+.explorer-row-icon {
+  flex-shrink: 0;
+  color: var(--color-accent);
+  display: flex;
+}
+
+.explorer-row.active .explorer-row-icon {
+  color: var(--color-accent-deep);
+}
+
+.explorer-row-label {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.explorer-row.active .explorer-row-label {
+  color: var(--color-accent-deep);
+  font-weight: 600;
+}
+
+.explorer-row-meta {
+  flex-shrink: 0;
+  font-size: 0.78rem;
+  color: var(--color-ink-soft);
+}
+
+/* ===================== PLAYER-LEISTE (schwebende Glas-Kapsel) ===================== */
+
+.player-bar {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + var(--safe-bottom));
+  color: var(--color-cream);
+  padding: 14px 20px 16px;
+  border-radius: 26px;
+  background: var(--glass-dark-bg-strong);
+  border: 1px solid var(--glass-dark-border);
+  box-shadow: var(--glass-dark-shadow);
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  z-index: 10;
+}
+.player-bar[hidden] { display: none !important; }
+
+.player-info {
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.player-track-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1.02rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.player-track-context {
+  margin: 2px 0 0;
+  font-size: 0.78rem;
+  color: var(--color-cream-soft);
+}
+
+.player-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.player-time {
+  font-size: 0.72rem;
+  color: var(--color-cream-soft);
+  min-width: 32px;
+  text-align: center;
+}
+
+.player-seek {
+  flex: 1;
+  accent-color: var(--color-accent);
+  height: 22px;
+}
+
+.player-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+.control-btn {
+  position: relative;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: var(--color-cream);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  padding: 0;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+.control-btn:active { background: rgba(255, 255, 255, 0.18); transform: scale(0.92); }
+
+.control-btn-label {
+  position: absolute;
+  bottom: 1px;
+  font-size: 0.52rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  pointer-events: none;
+}
+
+.control-btn--main {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, rgba(224, 158, 100, 0.95), var(--color-accent) 75%);
+  color: #2a1a0e;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  box-shadow: 0 6px 18px rgba(138, 84, 41, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
+}
+
+.control-btn--main:active { filter: brightness(0.95); transform: scale(0.93); }
+
+/* ===================== MOBILE-ANPASSUNGEN ===================== */
+
+/*
+ * Auf schmalen Bildschirmen wird der Untertitel (zweite Zeile unter
+ * "Gemeinde-Aufnahmen") nicht mehr einzeilig abgeschnitten, sondern darf
+ * umbrechen und mehrzeilig unter dem Titel stehen. Sonst geht bei
+ * laengeren Saetzen (z.B. einem Bibelvers) der halbe Text verloren.
+ */
+@media (max-width: 640px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .topbar h1 {
+    white-space: normal;
+    overflow: visible;
+    font-size: 1.15rem;
+    line-height: 1.25;
+  }
+
+  .topbar-subtitle {
+    white-space: normal;
+    overflow: visible;
+    line-height: 1.35;
+  }
+
+  .topbar-titles {
+    padding: 10px 14px;
+  }
+}
+
+@media (min-width: 700px) {
+  .player-bar {
+    max-width: 620px;
+    margin: 0 auto;
+    left: 0;
+    right: 0;
+  }
+}
+
+/* Hinweis im Offline-Betrieb: erklaert, warum nur ein Teil der Aufnahmen
+   sichtbar ist. Wird von app.js eingeblendet, wenn der Server nicht
+   erreichbar ist und lokal gespeicherte Aufnahmen vorliegen. */
+.offline-banner {
+  margin: 0 0 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font-size: 0.84rem;
+  text-align: center;
+}
+
+.offline-banner[hidden] { display: none !important; }
+
+/* Download-Knopf am rechten Rand einer Dateizeile. Nur sichtbar, wenn der
+   Admin das Herunterladen freigegeben hat. */
+.row-download {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin: -6px -6px -6px 2px;
+  border-radius: 50%;
+  color: var(--color-accent-deep);
+  text-decoration: none;
+  transition: background 0.12s ease, transform 0.08s ease;
+}
+
+.row-download:active {
+  transform: scale(0.9);
+  background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.18);
+}

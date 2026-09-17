@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (Schritt 3a: Aufnahmen und Zugangsschutz)
+# Audio Archive – Nextcloud-App (Schritt 3b: vollständige Oberfläche)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -136,3 +136,38 @@ occ app:disable audioarchive && occ app:enable audioarchive
 ```
 Sonst liefern die neuen Routen 404 (Nextcloud hält die Routen im
 Zwischenspeicher).
+
+---
+
+## Schritt 3b: Oberfläche
+
+Aus der Prüfseite ist die richtige App geworden. Übernommen aus der
+eigenständigen Fassung:
+
+- Explorer mit Breadcrumb über die echte Ordnerstruktur
+- Schwebende Player-Leiste mit 15-Sekunden-Sprüngen, vor/zurück, Fortschritt
+- Media Session: Titel und Steuerung auf dem Sperrbildschirm
+- Laufender Titel in der Liste hervorgehoben, Equalizer-Symbol hält bei Pause an
+- Farbsystem aus den Einstellungen (Akzent, Leisten, Grundton)
+- Download-Knopf je Aufnahme, sofern freigegeben
+
+### Was sich gegenüber der eigenständigen Fassung geändert hat
+- Titel, Untertitel und Farben stehen bereits im Dokument; kein eigener Abruf
+  mehr nötig, dadurch kein Umspringen beim Laden.
+- Alle Adressen laufen über `js/config.js`, damit die übrigen Dateien nicht
+  wissen müssen, unter welchem Pfad die App liegt.
+- Der Abmelde-Knopf erscheint nur auf der öffentlichen Seite. Angemeldete
+  Nextcloud-Nutzer melden sich über Nextcloud ab.
+
+### Noch nicht enthalten
+- **Offline-Wiedergabe.** Der Knopf „Offline verfügbar machen" speichert die
+  Dateien zwar, aber der Service Worker liefert sie noch nicht aus – er ist
+  seit dem CSP-Zwischenfall bewusst passiv. Kommt in Schritt 4. Bis dahin
+  kann der Schalter in den Einstellungen aus bleiben.
+- **Eigenes Hintergrundbild.** Der Upload fehlt in den Einstellungen; bis
+  dahin wird der Verlauf aus dem Grundton gezeigt.
+
+### Prüfen
+Ordner öffnen, Aufnahme starten, spulen, nächster/vorheriger Titel, Bildschirm
+sperren (läuft die Wiedergabe weiter, erscheint die Steuerung?), Zurück-Geste
+(geht sie eine Ordnerebene zurück statt die App zu schließen?).

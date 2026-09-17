@@ -38,6 +38,12 @@ class PlayerPage {
             'themeBar' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
             ),
+            'themeAccent' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_THEME_ACCENT, '#b9793f'
+            ),
+            'themeBase' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_THEME_BASE, '#a86a3d'
+            ),
             'manifestUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.asset.manifest'
             ) . ($publicToken !== '' ? '?s=' . urlencode($publicToken) : ''),
@@ -98,7 +104,14 @@ class PlayerPage {
     private function assetVersion(): string {
         $newest = 0;
 
-        foreach (['/../../css/style.css', '/../../js/boot.js'] as $relative) {
+        $files = [
+            '/../../css/style.css',
+            '/../../js/config.js',
+            '/../../js/player.js',
+            '/../../js/app.js',
+        ];
+
+        foreach ($files as $relative) {
             $mtime = @filemtime(__DIR__ . $relative);
             if ($mtime !== false && $mtime > $newest) {
                 $newest = $mtime;

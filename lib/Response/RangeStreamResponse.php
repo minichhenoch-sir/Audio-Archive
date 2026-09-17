@@ -9,22 +9,25 @@ use OCP\AppFramework\Http\IOutput;
 use OCP\AppFramework\Http\Response;
 
 /**
- * Gibt einen BEGRENZTEN Abschnitt eines Datenstroms aus.
+ * Gibt einen Datenstrom fortlaufend aus - wahlweise vollstaendig oder nur
+ * einen angeforderten Abschnitt (HTTP-Range, Antwort 206).
  *
- * Nextclouds StreamResponse liefert immer den gesamten Strom - fuer
- * HTTP-Range-Antworten (206) ist das unbrauchbar. Diese Klasse schreibt
- * genau so viele Bytes, wie angefordert wurden, ab der Stelle, an der der
- * Strom gerade steht.
- *
- * Ausgegeben wird abschnittsweise statt am Stueck, damit auch grosse
- * Aufnahmen nicht vollstaendig in den Arbeitsspeicher geladen werden.
+ * Warum nicht Nextclouds StreamResponse?
+ * Erstens gibt sie immer den GANZEN Strom aus und taugt damit nicht fuer
+ * Teilbereiche. Zweitens - und das ist der wichtigere Grund - schreibt
+ * Nextclouds Ausgabe mit einem einfachen print(), und PHP puffert das.
+ * Ohne das Leeren der Puffer unten verlaesst kein einziges Byte den Server,
+ * bevor das Skript fertig ist. Weil ein <audio>-Element beim ersten Abruf in
+ * der Regel die vollstaendige Datei anfordert, staut sich dabei die gesamte
+ * Aufnahme im Arbeitsspeicher: Die Wiedergabe beginnt spaet, stockt und muss
+ * staendig nachladen.
  */
 class RangeStreamResponse extends Response implements ICallbackResponse {
 
     private const CHUNK_SIZE = 256 * 1024;
 
     /**
-     * @param resource $handle Bereits auf den Startpunkt gesetzter Strom
+     * @param resource $handle Strom, bereits auf den Startpunkt gesetzt
      * @param int $length Anzahl auszugebender Bytes
      */
     public function __construct(
@@ -36,7 +39,21 @@ class RangeStreamResponse extends Response implements ICallbackResponse {
 
     public function callback(IOutput $output): void {
         if ($output->getHttpResponseCode() === Http::STATUS_NOT_MODIFIED) {
+            fclose($this->handle);
             return;
+        }
+
+        // Lange Aufnahmen duerfen nicht am Zeitlimit scheitern
+        @set_time_limit(0);
+
+        // Bricht der Hoerer ab oder springt weiter, soll das Skript enden
+        // statt die Datei sinnlos zu Ende zu lesen.
+        @ignore_user_abort(false);
+
+        // Vorhandene Ausgabepuffer leeren, damit die folgenden Bloecke
+        // wirklich sofort hinausgehen.
+        while (ob_get_level() > 0) {
+            @ob_end_flush();
         }
 
         $remaining = $this->length;
@@ -48,7 +65,13 @@ class RangeStreamResponse extends Response implements ICallbackResponse {
             }
 
             $output->setOutput($chunk);
+            @flush();
+
             $remaining -= strlen($chunk);
+
+            if (connection_aborted()) {
+                break;
+            }
         }
 
         fclose($this->handle);

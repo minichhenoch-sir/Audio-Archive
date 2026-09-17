@@ -13,10 +13,10 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
-use OCP\AppFramework\Http\StreamResponse;
 use OCP\Files\File;
 use OCP\IAppConfig;
 use OCP\IRequest;
+use OCP\ISession;
 
 /**
  * Liefert eine Aufnahme aus.
@@ -34,6 +34,7 @@ class StreamController extends Controller {
         private AccessGuard $guard,
         private AudioFolder $audioFolder,
         private IAppConfig $appConfig,
+        private ISession $session,
     ) {
         parent::__construct($appName, $request);
     }
@@ -79,14 +80,31 @@ class StreamController extends Controller {
             return new DataResponse(['error' => 'Datei nicht lesbar.'], Http::STATUS_INTERNAL_SERVER_ERROR);
         }
 
+        /*
+         * Sitzung schliessen, bevor die Ausgabe beginnt.
+         *
+         * PHP haelt die Sitzung waehrend eines Aufrufs gesperrt. Eine
+         * Aufnahme laeuft aber minutenlang - so lange wuerde jede weitere
+         * Anfrage derselben Person warten (Ordner oeffnen, Titelwechsel).
+         * Ab hier wird nichts mehr in die Sitzung geschrieben, das Schliessen
+         * ist also gefahrlos.
+         */
+        $this->session->close();
+
         $size = (int)$node->getSize();
         $range = $this->parseRange($this->request->getHeader('Range'), $size);
 
         $disposition = ($wantsDownload ? 'attachment' : 'inline')
             . '; filename="' . rawurlencode($node->getName()) . '"';
 
+        /*
+         * Auch ohne Range-Kopf wird bewusst die eigene Antwortklasse
+         * verwendet statt Nextclouds StreamResponse: Nur sie leert die
+         * PHP-Ausgabepuffer und sendet fortlaufend. Sonst wartet der Hoerer,
+         * bis die komplette Aufnahme im Speicher liegt.
+         */
         if ($range === null) {
-            $response = new StreamResponse($handle);
+            $response = new RangeStreamResponse($handle, $size);
             $response->addHeader('Content-Type', 'audio/mpeg');
             $response->addHeader('Content-Length', (string)$size);
             $response->addHeader('Accept-Ranges', 'bytes');
