@@ -128,9 +128,12 @@ const Player = (() => {
       title: trackTitle(track),
       artist: (track.artist && track.artist.trim()) || '',
       album: (track.album && track.album.trim()) || '',
+      // Titelbild fuer den Sperrbildschirm. Ueber AudioArchive.asset(),
+      // damit die Adresse absolut ist - relativ wuerde sie auf der
+      // oeffentlichen Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
       artwork: [
-        { src: 'app-icons/icon-192.png', sizes: '192x192', type: 'image/png' },
-        { src: 'app-icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+        { src: AudioArchive.asset('img/icon-192.png'), sizes: '192x192', type: 'image/png' },
+        { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
       ],
     });
 
