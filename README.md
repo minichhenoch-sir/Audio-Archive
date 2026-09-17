@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (Schritt 2: Einstellungen)
+# Audio Archive – Nextcloud-App (Schritt 3a: Aufnahmen und Zugangsschutz)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -87,3 +87,52 @@ aus wessen Dateien gelesen wird.
 ### Was noch nicht geht
 Der Player selbst: Ordnerliste, Wiedergabe, Offline-Speicherung. Beides folgt
 in Schritt 3, wenn die Controller portiert sind.
+
+---
+
+## Schritt 3a: Aufnahmen lesen und ausliefern
+
+Neu sind die Endpunkte unter `/apps/audioarchive/api/`:
+
+| Endpunkt | Zweck |
+|---|---|
+| `GET api/list?path=` | Inhalt eines Ordners als JSON, inkl. Dauer und ID3-Tags |
+| `GET api/stream?path=` | Ausgabe einer Aufnahme, mit Range-Unterstützung |
+| `POST api/public/login` | Passwort der öffentlichen Seite prüfen |
+| `POST api/public/logout` | öffentliche Sitzung beenden |
+| `GET api/public/status` | Zugangszustand abfragen |
+
+### Wichtig: Die Sicherheitslücke ist geschlossen
+Die öffentliche Seite fragt jetzt das Passwort ab. Zwei Punkte dabei:
+- **Ohne gesetztes Passwort gibt es keinen Zugang** – sonst wäre ein
+  aktivierter öffentlicher Zugang ohne Passwort für jeden offen, der den Link
+  kennt.
+- In der Sitzung wird der **Token** hinterlegt, nicht nur ein Ja/Nein. Wechselt
+  der Token oder wird der Zugang abgeschaltet, verlieren bestehende Sitzungen
+  sofort ihre Gültigkeit.
+
+### Prüfen
+
+**a) Als angemeldeter Nutzer:** `/apps/audioarchive/` öffnen. Unter „Aufnahmen"
+muss der Inhalt des eingestellten Quellordners erscheinen. Ordner sind
+anklickbar, Dateien haben einen Abspieler.
+
+Dabei zu beachten:
+- Stimmen die angezeigten Längen (z. B. `[11:19]`)?
+- Erscheinen Künstler und Album bei Dateien mit ID3-Tags?
+- Lässt sich **im Abspieler spulen**? Das prüft die Range-Unterstützung –
+  ohne sie springt die Wiedergabe zurück an den Anfang oder startet nicht.
+
+**b) Öffentlicher Zugang:** In den Einstellungen aktivieren, Passwort setzen,
+Link in einem privaten Fenster öffnen. Es muss nach dem Passwort gefragt
+werden. Mit falschem Passwort: Fehlermeldung. Mit richtigem: dieselbe Liste.
+
+**c) Download-Schalter:** Bei ausgeschaltetem Schalter muss
+`api/stream?path=...&download=1` mit 403 antworten.
+
+### Nach dem Einspielen nicht vergessen
+```bash
+occ app:disable audioarchive && occ app:enable audioarchive
+```
+Sonst liefern die neuen Routen 404 (Nextcloud hält die Routen im
+Zwischenspeicher).

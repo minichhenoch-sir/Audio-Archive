@@ -1,0 +1,440 @@
+<?php
+declare(strict_types=1);
+
+namespace OCA\AudioArchive\Service;
+
+use OCP\Files\File;
+use OCP\ICache;
+use OCP\ICacheFactory;
+
+/**
+ * Liest Spieldauer und ID3-Tags (Kuenstler, Album, Titel) aus mp3-Dateien.
+ *
+ * Uebernommen aus der eigenstaendigen Fassung, aber auf Datei-STROEME
+ * umgestellt: In Nextcloud liegen Dateien nicht zwingend als Pfad im
+ * Dateisystem vor (externer Speicher, Objektspeicher), deshalb wird hier mit
+ * dem von der Datei-API gelieferten Strom gearbeitet.
+ *
+ * Zur Dauer: Bei variabler Bitrate wird die exakte Frame-Anzahl aus dem
+ * Xing-/Info-Tag genommen; nur bei konstanter Bitrate wird aus der
+ * Dateigroesse gerechnet.
+ *
+ * Zur Textkodierung: iconv statt mbstring, denn mbstring ist in den
+ * ueblichen PHP-Abbildern NICHT aktiviert, iconv dagegen fest einkompiliert.
+ * Als letzte Ebene gibt es eine Umrechnung in reinem PHP.
+ */
+class MetadataReader {
+
+    private ICache $cache;
+
+    public function __construct(ICacheFactory $cacheFactory) {
+        $this->cache = $cacheFactory->createDistributed('audioarchive_meta_');
+    }
+
+    /**
+     * Liefert Dauer und Tags einer Datei.
+     *
+     * Zwischengespeichert wird ueber Dateikennung und Aenderungszeitpunkt -
+     * aendert sich die Datei, wird automatisch neu gelesen. Der Cache liegt
+     * bewusst NICHT im App-Ordner: Schreibzugriffe dort wuerden die
+     * Code-Signierung der Store-Fassung verletzen.
+     *
+     * @return array{duration: ?float, artist: ?string, album: ?string, title: ?string}
+     */
+    public function read(File $file): array {
+        $key = $file->getId() . '-' . $file->getMTime();
+
+        $cached = $this->cache->get($key);
+        if (is_string($cached)) {
+            $decoded = json_decode($cached, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        $result = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null];
+
+        try {
+            $fh = $file->fopen('r');
+        } catch (\Throwable $e) {
+            return $result;
+        }
+
+        if ($fh === false) {
+            return $result;
+        }
+
+        try {
+            $size = (int)$file->getSize();
+            $result['duration'] = $this->readDuration($fh, $size);
+
+            $tags = $this->readTags($fh, $size);
+            $result['artist'] = $tags['artist'];
+            $result['album'] = $tags['album'];
+            $result['title'] = $tags['title'];
+        } catch (\Throwable $e) {
+            // Beschaedigte Datei: Dann bleibt es bei den Standardwerten.
+        } finally {
+            fclose($fh);
+        }
+
+        $this->cache->set($key, (string)json_encode($result), 60 * 60 * 24 * 30);
+
+        return $result;
+    }
+
+    /**
+     * Liest die Spieldauer einer mp3-Datei in Sekunden aus den Datei-Headern.
+     *
+     * Bewusst ohne externe Bibliothek (ffmpeg/getID3 sind im Container nicht
+     * vorhanden). Gelesen werden nur die ersten Kilobytes:
+     *   1. Ein evtl. vorhandener ID3v2-Tag wird uebersprungen.
+     *   2. Der erste MPEG-Audio-Frame-Header wird ausgewertet.
+     *   3. Enthaelt dieser Frame einen Xing-/Info-Tag (variable Bitrate), wird
+     *      die exakte Frame-Anzahl daraus genommen - das ist die genaue Dauer.
+     *   4. Sonst wird mit konstanter Bitrate gerechnet (Dateigroesse / Bitrate).
+     *
+     * Rueckgabe: Dauer in Sekunden (float) oder null, wenn nicht ermittelbar.
+     */
+    private function readDuration($fh, int $size): ?float
+    {
+        if ($size <= 0) {
+            return null;
+        }
+
+        // Der Strom wird von aussen gereicht und mehrfach gelesen, deshalb
+        // jedes Mal an den Anfang zuruecksetzen.
+        rewind($fh);
+
+        $offset = 0;
+
+        // --- 1) ID3v2-Tag ueberspringen (falls vorhanden) ---
+        $head = fread($fh, 10);
+        if ($head !== false && strlen($head) === 10 && substr($head, 0, 3) === 'ID3') {
+            $b = array_values(unpack('C*', substr($head, 6, 4)));
+            // Syntasafe Integer: je Byte nur 7 nutzbare Bits
+            $tagSize = ($b[0] << 21) | ($b[1] << 14) | ($b[2] << 7) | $b[3];
+            $offset = 10 + $tagSize;
+        }
+
+        // --- 2) Ersten gueltigen Frame-Header suchen ---
+        fseek($fh, $offset);
+        $buffer = fread($fh, 8192);
+        if ($buffer === false || strlen($buffer) < 4) {
+            return null;
+        }
+
+        $bitrates = [
+            1 => [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320], // MPEG1 Layer III
+            2 => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],     // MPEG2/2.5 Layer III
+        ];
+        $sampleRates = [
+            3 => [44100, 48000, 32000], // MPEG1
+            2 => [22050, 24000, 16000], // MPEG2
+            0 => [11025, 12000, 8000],  // MPEG2.5
+        ];
+
+        $len = strlen($buffer);
+        for ($i = 0; $i < $len - 4; $i++) {
+            if (ord($buffer[$i]) !== 0xFF || (ord($buffer[$i + 1]) & 0xE0) !== 0xE0) {
+                continue;
+            }
+
+            $b1 = ord($buffer[$i + 1]);
+            $b2 = ord($buffer[$i + 2]);
+            $b3 = ord($buffer[$i + 3]);
+
+            $versionId = ($b1 >> 3) & 0x03; // 3=MPEG1, 2=MPEG2, 0=MPEG2.5
+            $layer     = ($b1 >> 1) & 0x03; // 1 = Layer III
+            if ($versionId === 1 || $layer !== 1) {
+                continue; // reserviert bzw. kein Layer III
+            }
+
+            $bitrateIndex    = ($b2 >> 4) & 0x0F;
+            $sampleRateIndex = ($b2 >> 2) & 0x03;
+            $padding         = ($b2 >> 1) & 0x01;
+            $channelMode     = ($b3 >> 6) & 0x03; // 3 = mono
+
+            if ($bitrateIndex === 0 || $bitrateIndex === 0x0F || $sampleRateIndex === 3) {
+                continue; // "frei"/ungueltig
+            }
+            if (!isset($sampleRates[$versionId])) {
+                continue;
+            }
+
+            $isMpeg1    = ($versionId === 3);
+            $bitrate    = $bitrates[$isMpeg1 ? 1 : 2][$bitrateIndex] * 1000;
+            $sampleRate = $sampleRates[$versionId][$sampleRateIndex];
+            if ($bitrate <= 0 || $sampleRate <= 0) {
+                continue;
+            }
+
+            $samplesPerFrame = $isMpeg1 ? 1152 : 576;
+            $frameLength = (int) floor(($isMpeg1 ? 144 : 72) * $bitrate / $sampleRate) + $padding;
+
+            // --- 3) Xing-/Info-Tag im ersten Frame (variable Bitrate)? ---
+            $sideInfo = $isMpeg1
+                ? ($channelMode === 3 ? 17 : 32)
+                : ($channelMode === 3 ? 9 : 17);
+            $xingPos = $i + 4 + $sideInfo;
+
+            if ($xingPos + 12 <= $len) {
+                $marker = substr($buffer, $xingPos, 4);
+                if ($marker === 'Xing' || $marker === 'Info') {
+                    $flags = unpack('N', substr($buffer, $xingPos + 4, 4))[1];
+                    if ($flags & 0x01) { // Frames-Feld vorhanden
+                        $frames = unpack('N', substr($buffer, $xingPos + 8, 4))[1];
+                        if ($frames > 0) {
+                            return $frames * $samplesPerFrame / $sampleRate;
+                        }
+                    }
+                }
+            }
+
+            // --- 4) Konstante Bitrate: Dauer aus der Dateigroesse ---
+            $audioBytes = $size - ($offset + $i);
+            return $audioBytes > 0 ? ($audioBytes * 8) / $bitrate : null;
+        }
+
+        return null;
+    }
+
+
+    /**
+     * Liest Künstler, Album und Titel aus den ID3-Tags einer mp3-Datei.
+     *
+     * Unterstützt ID3v2.2/2.3/2.4 (inkl. der vier Text-Kodierungen) und faellt
+     * auf den alten ID3v1-Tag am Dateiende zurueck. Rueckgabe ist immer ein
+     * Array mit den Schluesseln artist/album/title; nicht vorhandene Angaben
+     * sind null.
+     */
+    private function readTags($fh, int $size): array
+    {
+        $result = ['artist' => null, 'album' => null, 'title' => null];
+
+        rewind($fh);
+
+        $header = fread($fh, 10);
+        if ($header !== false && strlen($header) === 10 && substr($header, 0, 3) === 'ID3') {
+            $major = ord($header[3]);
+            $flags = ord($header[5]);
+            $b = array_values(unpack('C*', substr($header, 6, 4)));
+            $tagSize = ($b[0] << 21) | ($b[1] << 14) | ($b[2] << 7) | $b[3];
+
+            $body = $tagSize > 0 ? fread($fh, min($tagSize, 1024 * 512)) : '';
+            if ($body !== false && $body !== '') {
+                $pos = 0;
+
+                // Erweiterten Header ueberspringen, falls gesetzt
+                if ($flags & 0x40 && strlen($body) >= 4) {
+                    $extSize = unpack('N', substr($body, 0, 4))[1];
+                    $pos += ($major >= 4) ? $extSize : $extSize + 4;
+                }
+
+                // ID3v2.2 nutzt 3-stellige Frame-IDs und 3-Byte-Laengen
+                $isV2 = ($major === 2);
+                $idLen = $isV2 ? 3 : 4;
+                $headLen = $isV2 ? 6 : 10;
+
+                $wanted = $isV2
+                    ? ['TP1' => 'artist', 'TAL' => 'album', 'TT2' => 'title']
+                    : ['TPE1' => 'artist', 'TALB' => 'album', 'TIT2' => 'title'];
+
+                $bodyLen = strlen($body);
+                while ($pos + $headLen <= $bodyLen) {
+                    $frameId = substr($body, $pos, $idLen);
+                    if (!preg_match('/^[A-Z0-9]+$/', $frameId)) {
+                        break; // Padding bzw. Ende der Frames erreicht
+                    }
+
+                    if ($isV2) {
+                        $s = array_values(unpack('C*', substr($body, $pos + 3, 3)));
+                        $frameSize = ($s[0] << 16) | ($s[1] << 8) | $s[2];
+                    } elseif ($major >= 4) {
+                        // v2.4: syncsafe Laenge
+                        $s = array_values(unpack('C*', substr($body, $pos + 4, 4)));
+                        $frameSize = ($s[0] << 21) | ($s[1] << 14) | ($s[2] << 7) | $s[3];
+                    } else {
+                        $frameSize = unpack('N', substr($body, $pos + 4, 4))[1];
+                    }
+
+                    if ($frameSize <= 0 || $pos + $headLen + $frameSize > $bodyLen) {
+                        break;
+                    }
+
+                    if (isset($wanted[$frameId])) {
+                        $raw = substr($body, $pos + $headLen, $frameSize);
+                        $value = $this->decodeId3Text($raw);
+                        if ($value !== '') {
+                            $result[$wanted[$frameId]] = $value;
+                        }
+                    }
+
+                    $pos += $headLen + $frameSize;
+                }
+            }
+        }
+
+        // --- Rueckfall auf ID3v1 (letzte 128 Byte), falls noch etwas fehlt ---
+        if ($result['artist'] === null || $result['album'] === null || $result['title'] === null) {
+            if (fseek($fh, -128, SEEK_END) === 0) {
+                $v1 = fread($fh, 128);
+                if ($v1 !== false && strlen($v1) === 128 && substr($v1, 0, 3) === 'TAG') {
+                    $clean = function ($s) {
+                        $s = trim(str_replace("\0", '', $s));
+                        return $s === '' ? null : $this->toUtf8($s);
+                    };
+                    $result['title']  = $result['title']  ?? $clean(substr($v1, 3, 30));
+                    $result['artist'] = $result['artist'] ?? $clean(substr($v1, 33, 30));
+                    $result['album']  = $result['album']  ?? $clean(substr($v1, 63, 30));
+                }
+            }
+        }
+
+        return $result;
+    }
+
+    /** Prueft, ob ein String bereits gueltiges UTF-8 ist (ohne mbstring). */
+    private function isUtf8(string $s): bool
+    {
+        return (bool) preg_match('//u', $s);
+    }
+
+    /**
+     * Wandelt Text nach UTF-8 um.
+     *
+     * Reihenfolge bewusst: iconv zuerst, denn mbstring ist im offiziellen
+     * php:8.2-apache-Image NICHT aktiviert, iconv dagegen fest einkompiliert.
+     * Als letzte Ebene eine reine PHP-Umrechnung, damit Umlaute auch dann
+     * korrekt ankommen, wenn beide Erweiterungen fehlen.
+     */
+    private function convertEncoding(string $s, string $from): string
+    {
+        if ($s === '') {
+            return '';
+        }
+
+        if (function_exists('iconv')) {
+            // //IGNORE: einzelne kaputte Bytes verwerfen statt alles abzubrechen
+            $out = @iconv($from, 'UTF-8//IGNORE', $s);
+            if ($out !== false) {
+                return $out;
+            }
+        }
+
+        if (function_exists('mb_convert_encoding')) {
+            $out = @mb_convert_encoding($s, 'UTF-8', $from);
+            if ($out !== false && $out !== '') {
+                return $out;
+            }
+        }
+
+        // --- Rueckfall ohne Erweiterungen ---
+        $upper = strtoupper($from);
+
+        if ($upper === 'ISO-8859-1') {
+            $out = '';
+            $len = strlen($s);
+            for ($i = 0; $i < $len; $i++) {
+                $c = ord($s[$i]);
+                $out .= ($c < 0x80)
+                    ? chr($c)
+                    : chr(0xC0 | ($c >> 6)) . chr(0x80 | ($c & 0x3F));
+            }
+            return $out;
+        }
+
+        if ($upper === 'UTF-16BE' || $upper === 'UTF-16LE') {
+            $little = ($upper === 'UTF-16LE');
+            $out = '';
+            $len = strlen($s) - (strlen($s) % 2);
+
+            for ($i = 0; $i < $len; $i += 2) {
+                $a = ord($s[$i]);
+                $b = ord($s[$i + 1]);
+                $code = $little ? ($b << 8) | $a : ($a << 8) | $b;
+
+                // Surrogat-Paare (Zeichen ausserhalb der Basisebene) zusammensetzen
+                if ($code >= 0xD800 && $code <= 0xDBFF && $i + 3 < $len) {
+                    $c = ord($s[$i + 2]);
+                    $d = ord($s[$i + 3]);
+                    $low = $little ? ($d << 8) | $c : ($c << 8) | $d;
+                    if ($low >= 0xDC00 && $low <= 0xDFFF) {
+                        $code = 0x10000 + (($code - 0xD800) << 10) + ($low - 0xDC00);
+                        $i += 2;
+                    }
+                }
+
+                if ($code < 0x80) {
+                    $out .= chr($code);
+                } elseif ($code < 0x800) {
+                    $out .= chr(0xC0 | ($code >> 6)) . chr(0x80 | ($code & 0x3F));
+                } elseif ($code < 0x10000) {
+                    $out .= chr(0xE0 | ($code >> 12))
+                          . chr(0x80 | (($code >> 6) & 0x3F))
+                          . chr(0x80 | ($code & 0x3F));
+                } else {
+                    $out .= chr(0xF0 | ($code >> 18))
+                          . chr(0x80 | (($code >> 12) & 0x3F))
+                          . chr(0x80 | (($code >> 6) & 0x3F))
+                          . chr(0x80 | ($code & 0x3F));
+                }
+            }
+            return $out;
+        }
+
+        return $s;
+    }
+
+    /** ID3v1-Texte sind ISO-8859-1 kodiert. */
+    private function toUtf8(string $s): string
+    {
+        return $this->isUtf8($s) ? $s : $this->convertEncoding($s, 'ISO-8859-1');
+    }
+
+    /**
+     * Dekodiert ein ID3v2-Textfeld. Das erste Byte gibt die Kodierung an:
+     * 0 = ISO-8859-1, 1 = UTF-16 mit BOM, 2 = UTF-16BE ohne BOM, 3 = UTF-8.
+     */
+    private function decodeId3Text(string $raw): string
+    {
+        if ($raw === '') {
+            return '';
+        }
+
+        $encoding = ord($raw[0]);
+        $text = substr($raw, 1);
+
+        switch ($encoding) {
+            case 1: // UTF-16 mit Byte Order Mark
+                if (strlen($text) >= 2) {
+                    $bom = substr($text, 0, 2);
+                    if ($bom === "\xFF\xFE") {
+                        $text = $this->convertEncoding(substr($text, 2), 'UTF-16LE');
+                    } elseif ($bom === "\xFE\xFF") {
+                        $text = $this->convertEncoding(substr($text, 2), 'UTF-16BE');
+                    } else {
+                        $text = $this->convertEncoding($text, 'UTF-16LE');
+                    }
+                }
+                break;
+
+            case 2: // UTF-16 Big Endian ohne BOM
+                $text = $this->convertEncoding($text, 'UTF-16BE');
+                break;
+
+            case 3: // bereits UTF-8
+                if (!$this->isUtf8($text)) {
+                    $text = $this->convertEncoding($text, 'ISO-8859-1');
+                }
+                break;
+
+            default: // ISO-8859-1
+                $text = $this->toUtf8($text);
+        }
+
+        return trim(str_replace("\0", '', $text));
+    }
+
+
+}

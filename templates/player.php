@@ -47,6 +47,17 @@ $escape = static fn (?string $value): string => htmlspecialchars((string)$value,
   <p id="sw-state">Service Worker: wird geprüft …</p>
   <p id="manifest-state">Manifest: wird geprüft …</p>
   <p id="mode-state"></p>
+
+  <!-- Anmeldung der oeffentlichen Seite (nur dort sichtbar) -->
+  <div id="public-login" hidden>
+    <p>Diese Seite ist passwortgeschützt.</p>
+    <input type="password" id="public-password" placeholder="Passwort" autocomplete="current-password">
+    <button type="button" id="public-login-btn">Anmelden</button>
+    <p id="public-login-error"></p>
+  </div>
+
+  <h2 id="api-heading" hidden>Aufnahmen</h2>
+  <div id="api-result"></div>
 </main>
 
 <script nonce="<?php echo $escape($_['cspNonce'] ?? ''); ?>"
