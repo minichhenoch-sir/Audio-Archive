@@ -24,6 +24,11 @@ return [
         // Verwaltungs-Einstellungen speichern (nur fuer Administratoren,
         // siehe Hinweis im SettingsController)
         ['name' => 'settings#setAdmin', 'url' => '/settings/admin', 'verb' => 'POST'],
+        ['name' => 'settings#uploadBackground', 'url' => '/settings/background', 'verb' => 'POST'],
+        ['name' => 'settings#removeBackground', 'url' => '/settings/background/remove', 'verb' => 'POST'],
+
+        // Ausgabe des Hintergrundbilds - auch fuer die oeffentliche Seite
+        ['name' => 'asset#background', 'url' => '/background', 'verb' => 'GET'],
 
         // PWA-Bausteine. Beide MUESSEN unterhalb von /apps/audioarchive/
         // ausgeliefert werden, damit der Service Worker genau diesen Bereich

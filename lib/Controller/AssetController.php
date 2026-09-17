@@ -4,12 +4,14 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
+use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\DataDisplayResponse;
+use OCP\AppFramework\Http\Response;
 use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IURLGenerator;
@@ -33,6 +35,7 @@ class AssetController extends Controller {
         IRequest $request,
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
+        private BackgroundImage $backgroundImage,
     ) {
         parent::__construct($appName, $request);
     }
@@ -75,6 +78,34 @@ class AssetController extends Controller {
      *
      * @param string $s Token der oeffentlichen Seite (leer = angemeldete Nutzung)
      */
+    /**
+     * Gibt das Hintergrundbild aus.
+     *
+     * Oeffentlich erreichbar, weil es auch auf dem Anmelde-Bildschirm der
+     * Freigabe-Seite gezeigt wird - also bevor jemand angemeldet ist. Es
+     * enthaelt keine schutzwuerdigen Angaben.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function background(): Response {
+        $file = $this->backgroundImage->get();
+
+        if ($file === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+
+        $response = new DataDisplayResponse(
+            $file->getContent(),
+            Http::STATUS_OK,
+            ['Content-Type' => $file->getMimeType()]
+        );
+
+        // Einen Tag zwischenspeichern; bei Aenderung sorgt die
+        // Versionskennung in der Adresse fuer ein Neuladen.
+        $response->cacheFor(60 * 60 * 24);
+        return $response;
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function manifest(string $s = ''): DataDisplayResponse {

@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Service;
 
 use OCA\AudioArchive\AppInfo\Application;
+use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
 use OCP\IAppConfig;
@@ -23,6 +24,7 @@ class PlayerPage {
     public function __construct(
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
+        private BackgroundImage $backgroundImage,
     ) {
     }
 
@@ -56,6 +58,12 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
+            // Leer, wenn kein Bild gesetzt ist - dann zeigt die App den
+            // Verlauf aus dem Grundton.
+            'backgroundUrl' => $this->backgroundImage->exists()
+                ? $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.background')
+                  . '?v=' . $this->assetVersion()
+                : '',
         ];
 
         $response = new TemplateResponse(

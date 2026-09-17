@@ -19,6 +19,7 @@ const AudioArchive = (() => {
     serviceWorker: el.dataset.serviceWorker || '',
     scope: el.dataset.scope || '',
     assetBase: el.dataset.assetBase || '',
+    backgroundUrl: el.dataset.background || '',
     themeAccent: el.dataset.themeAccent || '#b9793f',
     themeBar: el.dataset.themeBar || '#291c12',
     themeBase: el.dataset.themeBase || '#a86a3d',

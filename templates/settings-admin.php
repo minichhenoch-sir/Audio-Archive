@@ -66,6 +66,20 @@
         </div>
     </div>
 
+    <div class="aa-field">
+        <label>Hintergrundbild</label>
+        <p class="settings-hint">
+            Optional. Wird hinter der Oberfläche durchscheinend gezeigt.
+            PNG, JPEG oder WebP, höchstens 8 MB. Ohne Bild erscheint ein
+            Verlauf aus dem Grundton.
+        </p>
+        <div class="aa-row">
+            <input type="file" id="aa-background-file" accept="image/png,image/jpeg,image/webp">
+            <button type="button" id="aa-background-remove" hidden>Entfernen</button>
+        </div>
+        <p class="settings-hint" id="aa-background-state"></p>
+    </div>
+
     <!-- ============ Funktionen ============ -->
     <h3>Funktionen</h3>
     <p>

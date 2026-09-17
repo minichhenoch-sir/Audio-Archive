@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
+use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -35,6 +36,7 @@ class SettingsController extends Controller {
         private IHasher $hasher,
         private ISecureRandom $secureRandom,
         private IURLGenerator $urlGenerator,
+        private BackgroundImage $backgroundImage,
     ) {
         parent::__construct($appName, $request);
     }
@@ -176,6 +178,46 @@ class SettingsController extends Controller {
         }
 
         return new DataResponse(['publicUrl' => $this->publicUrl()]);
+    }
+
+    /**
+     * Nimmt ein Hintergrundbild entgegen.
+     *
+     * Gesendet wird als klassischer Datei-Upload, nicht als JSON - deshalb
+     * kommt der Inhalt ueber $_FILES und nicht ueber die Parameter.
+     */
+    public function uploadBackground(): DataResponse {
+        $file = $_FILES['file'] ?? null;
+
+        if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            return new DataResponse(['error' => 'Es wurde keine Datei empfangen.'], Http::STATUS_BAD_REQUEST);
+        }
+
+        try {
+            $error = $this->backgroundImage->store((string)$file['tmp_name'], (int)$file['size']);
+        } catch (\Throwable $e) {
+            /*
+             * Die Meldung wird mitgegeben, weil diesen Endpunkt nur
+             * Administratoren erreichen. Ohne sie erscheint in der
+             * Oberflaeche nur ein nichtssagendes "Hochladen fehlgeschlagen",
+             * und die Ursache bleibt im Verborgenen.
+             */
+            return new DataResponse(
+                ['error' => 'Unerwarteter Fehler: ' . $e->getMessage()],
+                Http::STATUS_INTERNAL_SERVER_ERROR
+            );
+        }
+
+        if ($error !== '') {
+            return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
+        }
+
+        return new DataResponse(['hasBackground' => true]);
+    }
+
+    public function removeBackground(): DataResponse {
+        $this->backgroundImage->remove();
+        return new DataResponse(['hasBackground' => false]);
     }
 
     /** Vollstaendiger Link der oeffentlichen Seite, leer wenn nicht freigegeben. */

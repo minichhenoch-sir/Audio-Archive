@@ -75,6 +75,64 @@
   }
   showPublicUrl(state.publicUrl);
 
+  // ---------- Hintergrundbild ----------
+  const backgroundFile = el('aa-background-file');
+  const backgroundRemove = el('aa-background-remove');
+  const backgroundState = el('aa-background-state');
+
+  function showBackgroundState(hasImage) {
+    backgroundRemove.hidden = !hasImage;
+    backgroundState.textContent = hasImage
+      ? 'Ein Hintergrundbild ist gesetzt.'
+      : 'Kein Hintergrundbild gesetzt.';
+  }
+  showBackgroundState(state.hasBackground === true);
+
+  backgroundFile.addEventListener('change', async () => {
+    const file = backgroundFile.files[0];
+    if (!file) return;
+
+    backgroundState.textContent = 'Lade hoch …';
+
+    // Klassischer Datei-Upload statt JSON - der Inhalt geht als FormData raus
+    const form = new FormData();
+    form.append('file', file);
+
+    try {
+      const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/background'), {
+        method: 'POST',
+        headers: { requesttoken: OC.requestToken },
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        backgroundState.textContent = data.error || 'Hochladen fehlgeschlagen.';
+        return;
+      }
+
+      showBackgroundState(true);
+      backgroundState.textContent = 'Hintergrundbild gespeichert.';
+    } catch (err) {
+      backgroundState.textContent = 'Verbindung fehlgeschlagen.';
+    } finally {
+      backgroundFile.value = '';
+    }
+  });
+
+  backgroundRemove.addEventListener('click', async () => {
+    try {
+      await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/background/remove'), {
+        method: 'POST',
+        headers: { requesttoken: OC.requestToken },
+      });
+      showBackgroundState(false);
+      backgroundState.textContent = 'Hintergrundbild entfernt.';
+    } catch (err) {
+      backgroundState.textContent = 'Entfernen fehlgeschlagen.';
+    }
+  });
+
   // ---------- Ordnerauswahl ----------
   el('aa-folder-pick').addEventListener('click', () => {
     // Nextclouds eigener Dateidialog. Ist er nicht verfügbar (ältere oder

@@ -168,10 +168,9 @@
   // Merkt sich den aktuellen Stand, damit Verlauf und Hintergrundbild
   // unabhaengig voneinander gesetzt werden koennen.
   let themeGradient = '';
-  // Eigenes Hintergrundbild ist in der Nextcloud-Fassung noch nicht
-  // eingebaut (Upload fehlt in den Einstellungen) - bis dahin wird immer
-  // der Verlauf aus dem Grundton gezeigt.
-  let backgroundImageUrl = '';
+  // Vom Administrator gesetztes Hintergrundbild; leer bedeutet: Verlauf
+  // aus dem Grundton.
+  let backgroundImageUrl = AudioArchive.backgroundUrl || '';
 
   function applyBackgroundLayer() {
     const layer = document.getElementById('bg-layer');

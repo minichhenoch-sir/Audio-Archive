@@ -46,6 +46,7 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
      data-theme-accent="<?php echo $escape($_['themeAccent']); ?>"
      data-theme-bar="<?php echo $escape($_['themeBar']); ?>"
      data-theme-base="<?php echo $escape($_['themeBase']); ?>"
+     data-background="<?php echo $escape($_['backgroundUrl']); ?>"
      hidden></div>
 
 <div id="bg-layer" aria-hidden="true"></div>

@@ -8,6 +8,7 @@ use OCP\AppFramework\Http\TemplateResponse;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
+use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\Settings\ISettings;
 use OCP\Util;
 
@@ -17,6 +18,7 @@ class Admin implements ISettings {
         private IAppConfig $appConfig,
         private IInitialState $initialState,
         private IURLGenerator $urlGenerator,
+        private BackgroundImage $backgroundImage,
     ) {
     }
 
@@ -57,6 +59,7 @@ class Admin implements ISettings {
             'headerSubtitle' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
             ),
+            'hasBackground' => $this->backgroundImage->exists(),
             'featureOffline' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
             ),

@@ -230,3 +230,28 @@ werden, fehlten sie deshalb. Zwei Vorkehrungen:
 **Zur PIN:** Sie wird nur abgefragt, wenn noch gar keine Offline-Anmeldung
 eingerichtet ist. Wer sich zuvor über die öffentliche Seite angemeldet hat,
 dessen Prüfwert liegt bereits vor – dann erscheint keine Abfrage.
+
+---
+
+## Schritt 5a: Hintergrundbild
+
+Der Administrator kann unter Einstellungen → Verwaltung → Audio Archive ein
+Hintergrundbild hochladen (PNG, JPEG oder WebP, höchstens 8 MB). Ohne Bild
+zeigt die App den Verlauf aus dem Grundton.
+
+**Ablage im AppData-Bereich, nicht im App-Ordner.** Bei der Code-Signierung
+für den App Store werden Prüfsummen aller Dateien im App-Ordner hinterlegt –
+ein Upload dorthin würde die Integritätsprüfung bei jedem Speichern anschlagen
+lassen.
+
+**Typprüfung am Inhalt**, nicht am Dateinamen: Ein passender Name sagt nichts
+darüber aus, was tatsächlich in der Datei steht.
+
+Die Ausgabe unter `/apps/audioarchive/background` ist bewusst öffentlich
+erreichbar – das Bild erscheint auch auf dem Anmelde-Bildschirm der
+Freigabe-Seite, also bevor jemand angemeldet ist.
+
+### Noch offen für den Store
+- Mehrsprachigkeit (Englisch ist Pflicht, Oberfläche ist derzeit deutsch)
+- Bildschirmfotos und Beschreibung
+- Öffentliches Repository, Zertifikat, signierte Veröffentlichung
