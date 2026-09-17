@@ -244,8 +244,8 @@
   // die App am fremden Geraet einfach oeffnet - wer vollen Zugriff auf das
   // Geraet hat, koennte die Dateien im Browser-Cache ohnehin auslesen.
   // ==================================================================
-  const LS_AUTH = 'gp_offline_auth';
-  const LS_INDEX = 'gp_offline_index';
+  const LS_AUTH = 'audioarchive_offline_auth';
+  const LS_INDEX = 'audioarchive_offline_index';
 
   let offlineMode = false;
 
@@ -281,8 +281,22 @@
     }
   }
 
+  /** Liest den Pruefwert, notfalls aus dem Schluessel der aelteren Fassung. */
+  function storedAuth() {
+    const current = lsGet(LS_AUTH);
+    if (current) return current;
+
+    const legacy = lsGet('gp_offline_auth');
+    if (legacy) {
+      lsSet(LS_AUTH, legacy);
+      return legacy;
+    }
+
+    return null;
+  }
+
   async function checkPasswordOffline(password) {
-    const stored = lsGet(LS_AUTH);
+    const stored = storedAuth();
     if (!stored || !stored.salt || !stored.hash) return false;
     if (!window.crypto || !crypto.subtle) return false;
     try {
@@ -294,7 +308,23 @@
 
   /** Verzeichnis der offline gespeicherten Ordner: { pfad: {entries, savedAt} } */
   function offlineIndex() {
-    return lsGet(LS_INDEX) || {};
+    const current = lsGet(LS_INDEX);
+    if (current) return current;
+
+    /*
+     * Uebernahme aus einer aelteren Fassung: Die Schluessel hiessen frueher
+     * "gp_...". Ohne diesen Schritt waere ein bestehendes Verzeichnis
+     * unsichtbar, und die App wuerde es aus dem Audio-Speicher
+     * rekonstruieren - dabei gingen Kuenstler, Album und Spieldauer
+     * verloren, weil im Speicher nur die Dateien selbst liegen.
+     */
+    const legacy = lsGet('gp_offline_index');
+    if (legacy) {
+      lsSet(LS_INDEX, legacy);
+      return legacy;
+    }
+
+    return {};
   }
 
   function setOfflineFolder(path, entries) {
@@ -325,8 +355,14 @@
     if (!offlineSupportedStorage()) return false;
 
     try {
-      const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
-      const keys = await cache.keys();
+      // Auch den Speichernamen der aelteren Fassung mitlesen
+      const keys = [];
+      for (const name of [OFFLINE_AUDIO_CACHE_NAME, 'gemeinde-offline-audio']) {
+        try {
+          const cache = await caches.open(name);
+          keys.push(...await cache.keys());
+        } catch (e) { /* Speicher existiert nicht */ }
+      }
       if (keys.length === 0) return false;
 
       const folders = {};
@@ -375,31 +411,99 @@
     return 'caches' in window;
   }
 
-  const OFFLINE_AUDIO_CACHE_NAME = 'gemeinde-offline-audio';
+  const OFFLINE_AUDIO_CACHE_NAME = 'audioarchive-offline-audio';
 
   /**
    * Baut im Offline-Betrieb die Ordneransicht aus dem lokalen Verzeichnis.
    * Auf der obersten Ebene werden die gespeicherten Ordner selbst als
    * Eintraege gezeigt, darunter deren Dateien.
    */
+  /**
+   * Baut die Offline-Ansicht als echten Ordnerbaum auf.
+   *
+   * Gespeichert wird je Ordner unter seinem VOLLEN Pfad. Damit die Ansicht
+   * ohne Verbindung genauso aussieht wie online, werden die Zwischenebenen
+   * aus diesen Pfaden abgeleitet: Liegt etwa "2026_08/Sonntag" vor, zeigt die
+   * oberste Ebene "2026_08" und darin erst "Sonntag" - statt wie zuvor alle
+   * gespeicherten Ordner flach nebeneinander.
+   */
   function offlineEntriesFor(path) {
     const index = offlineIndex();
+    const prefix = path === '' ? '' : path + '/';
 
-    if (path === '') {
-      return Object.keys(index).sort().map((folderPath) => ({
-        type: 'dir',
-        name: folderPath.split('/').pop() || folderPath,
-        path: folderPath,
-        count: (index[folderPath].entries || []).filter((e) => e.type === 'file').length,
-      }));
+    const dirs = new Map();
+    const files = [];
+
+    Object.keys(index).forEach((folderPath) => {
+      if (folderPath === path) {
+        // Dateien genau dieses Ordners
+        (index[folderPath].entries || []).forEach((entry) => files.push(entry));
+        return;
+      }
+
+      if (prefix !== '' && !folderPath.startsWith(prefix)) return;
+      if (prefix === '' && folderPath === '') return;
+
+      // Naechste Ebene unterhalb des aktuellen Pfades
+      const rest = folderPath.slice(prefix.length);
+      if (rest === '') return;
+
+      const name = rest.split('/')[0];
+      const childPath = prefix + name;
+
+      if (!dirs.has(childPath)) {
+        dirs.set(childPath, { type: 'dir', name, path: childPath, count: 0 });
+      }
+    });
+
+    // Aufnahmen je Unterordner zaehlen - auch die in tieferen Ebenen
+    dirs.forEach((dir) => {
+      Object.keys(index).forEach((folderPath) => {
+        if (folderPath === dir.path || folderPath.startsWith(dir.path + '/')) {
+          dir.count += (index[folderPath].entries || []).filter((e) => e.type === 'file').length;
+        }
+      });
+    });
+
+    const dirList = Array.from(dirs.values())
+      .sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+
+    files.sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+
+    return dirList.concat(files);
+  }
+
+  /**
+   * Liest die gespeicherte Ordnerliste. Gibt null zurueck, wenn fuer diesen
+   * Ordner nichts hinterlegt ist.
+   */
+  async function offlineEntriesFromCache(path) {
+    if (!offlineSupportedStorage()) return null;
+
+    try {
+      const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
+      const cached = await cache.match(listUrlFor(path));
+      if (!cached) return null;
+
+      const data = await cached.json();
+      return Array.isArray(data.entries) ? data.entries : null;
+    } catch (err) {
+      return null;
     }
-
-    return (index[path] && index[path].entries) ? index[path].entries : [];
   }
 
   function enterOfflineMode() {
     offlineMode = true;
     document.body.classList.add('is-offline');
+
+    // Angemeldete Nutzer geben hier ihre selbst vergebene PIN ein, nicht
+    // das Nextcloud-Passwort - das muss auf dem Bildschirm stehen.
+    const hint = document.querySelector('.login-hint');
+    if (hint) {
+      hint.textContent = AudioArchive.isPublic()
+        ? 'Keine Internetverbindung – bitte das Zugangspasswort eingeben.'
+        : 'Keine Internetverbindung – bitte die Offline-PIN eingeben.';
+    }
 
     const banner = document.getElementById('offline-banner');
     if (banner) banner.hidden = false;
@@ -432,7 +536,7 @@
       // Pruefwert hinterlegt, ist die Anmeldung trotzdem moeglich.
       await rebuildOfflineIndexFromCache();
 
-      if (lsGet(LS_AUTH)) {
+      if (storedAuth()) {
         enterOfflineMode();
       } else if (hasOfflineContent()) {
         offlineHint(
@@ -507,7 +611,7 @@
     } catch (err) {
       await rebuildOfflineIndexFromCache();
 
-      if (lsGet(LS_AUTH) && await checkPasswordOffline(entered)) {
+      if (storedAuth() && await checkPasswordOffline(entered)) {
         // Verbindung erst jetzt verloren - trotzdem in den Offline-Betrieb
         enterOfflineMode();
         loginPassword.value = '';
@@ -543,16 +647,40 @@
     libraryStatus.textContent = 'Lade Aufnahmen \u2026';
     listContainer.innerHTML = '';
 
-    // Ohne Verbindung: Ansicht aus den lokal gespeicherten Ordnern aufbauen
+    // Ohne Verbindung: Ansicht aus dem Offline-Speicher aufbauen
     if (offlineMode) {
       view = { path };
-      currentEntries = offlineEntriesFor(path);
+
+      /*
+       * Zuerst die gespeicherte Ordnerliste versuchen - sie enthaelt
+       * Kuenstler, Album und Spieldauer. Der Service Worker beantwortet den
+       * Aufruf ohne Verbindung aus dem Speicher. Erst wenn dort nichts
+       * liegt, greift das lokale Verzeichnis als Rueckfall; dort fehlen
+       * diese Angaben moeglicherweise.
+       */
+      currentEntries = await offlineEntriesFromCache(path);
+      if (currentEntries === null) {
+        currentEntries = offlineEntriesFor(path);
+      }
       renderBreadcrumb();
 
       if (currentEntries.length === 0) {
         offlineBar.hidden = true;
         libraryStatus.textContent = 'Keine offline gespeicherten Aufnahmen vorhanden.';
         return;
+      }
+
+      /*
+       * Ist dieser Ordner bereits offline gespeichert, das hinterlegte
+       * Verzeichnis mit den frischen Angaben auffrischen. Dadurch fuellen
+       * sich Kuenstler, Album und Spieldauer auch bei Eintraegen wieder auf,
+       * die aus dem Audio-Speicher rekonstruiert werden mussten - sie sind
+       * dort nicht enthalten.
+       */
+      const index = offlineIndex();
+      if (index[view.path]) {
+        const files = currentEntries.filter((e) => e.type === 'file');
+        if (files.length > 0) setOfflineFolder(view.path, files);
       }
 
       libraryStatus.hidden = true;
@@ -597,6 +725,19 @@
           ? 'Es wurden noch keine Aufnahmen gefunden.'
           : 'Dieser Ordner ist leer.';
         return;
+      }
+
+      /*
+       * Ist dieser Ordner bereits offline gespeichert, das hinterlegte
+       * Verzeichnis mit den frischen Angaben auffrischen. Dadurch fuellen
+       * sich Kuenstler, Album und Spieldauer auch bei Eintraegen wieder auf,
+       * die aus dem Audio-Speicher rekonstruiert werden mussten - sie sind
+       * dort nicht enthalten.
+       */
+      const index = offlineIndex();
+      if (index[view.path]) {
+        const files = currentEntries.filter((e) => e.type === 'file');
+        if (files.length > 0) setOfflineFolder(view.path, files);
       }
 
       libraryStatus.hidden = true;
@@ -787,7 +928,7 @@
   // von dort aus, wenn keine Verbindung besteht. Beim Abmelden bzw. ueber den
   // Knopf lassen sie sich wieder entfernen.
   // ------------------------------------------------------------------
-  const OFFLINE_AUDIO_CACHE = 'gemeinde-offline-audio';
+  const OFFLINE_AUDIO_CACHE = 'audioarchive-offline-audio';
   const offlineSupported = 'caches' in window;
   let offlineBusy = false;
 
@@ -839,6 +980,33 @@
       : `${stored} von ${files.length} offline verfügbar`;
   }
 
+  /** Adresse der Ordnerliste - wird zusammen mit den Dateien gespeichert. */
+  function listUrlFor(path) {
+    return new URL(
+      AudioArchive.api('list') + '?path=' + encodeURIComponent(path || ''),
+      location.href
+    ).href;
+  }
+
+  /**
+   * Legt die Ordnerliste mit in den Offline-Speicher.
+   *
+   * Kuenstler, Album und Spieldauer stehen NUR in dieser Antwort - die
+   * Audiodateien selbst enthalten sie nicht in einer Form, die die App ohne
+   * Server auslesen koennte. Ohne diesen Schritt saehe man ohne Verbindung
+   * nur die Dateinamen.
+   */
+  async function storeFolderListing(path) {
+    try {
+      const cache = await caches.open(OFFLINE_AUDIO_CACHE);
+      const url = listUrlFor(path);
+      const res = await fetch(url, { credentials: 'same-origin' });
+      if (res.ok) await cache.put(url, res);
+    } catch (err) {
+      // Nicht kritisch: Dann greift ersatzweise das lokale Verzeichnis.
+    }
+  }
+
   async function downloadFolderOffline(files) {
     const cache = await caches.open(OFFLINE_AUDIO_CACHE);
     let done = 0;
@@ -871,6 +1039,58 @@
     for (const file of files) {
       await cache.delete(streamUrlFor(file.path));
     }
+    // Die mitgespeicherte Ordnerliste ebenfalls entfernen
+    await cache.delete(listUrlFor(view.path));
+  }
+
+  /**
+   * Fragt eine Offline-PIN ab und legt ihren Pruefwert lokal ab.
+   *
+   * Warum ueberhaupt eine PIN? Angemeldete Nextcloud-Nutzer haben kein
+   * App-Passwort, und ihre Nextcloud-Anmeldung laesst sich ohne Verbindung
+   * nicht pruefen - das Kontopasswort darf dafuer keinesfalls lokal liegen.
+   * Die PIN schuetzt deshalb ausschliesslich den Zugriff auf die bereits
+   * heruntergeladenen Aufnahmen am Geraet. Gespeichert wird wie beim
+   * oeffentlichen Passwort nur ein gesalzener Pruefwert, nie die PIN selbst.
+   */
+  function askOfflinePin() {
+    return new Promise((resolve) => {
+      const box = document.createElement('div');
+      box.className = 'offline-pin';
+      box.innerHTML = `
+        <p>Lege eine PIN fest. Sie wird abgefragt, wenn du die gespeicherten
+        Aufnahmen ohne Internetverbindung hörst.</p>
+        <input type="password" id="offline-pin-input" inputmode="numeric"
+               autocomplete="new-password" placeholder="PIN">
+        <div class="offline-pin-actions">
+          <button type="button" id="offline-pin-ok">Übernehmen</button>
+          <button type="button" id="offline-pin-cancel">Abbrechen</button>
+        </div>
+        <p class="offline-pin-error" id="offline-pin-error" hidden></p>
+      `;
+      offlineBar.after(box);
+
+      const input = box.querySelector('#offline-pin-input');
+      const error = box.querySelector('#offline-pin-error');
+      input.focus();
+
+      const finish = (value) => { box.remove(); resolve(value); };
+
+      box.querySelector('#offline-pin-ok').addEventListener('click', () => {
+        const value = input.value.trim();
+        if (value.length < 4) {
+          error.textContent = 'Bitte mindestens vier Zeichen.';
+          error.hidden = false;
+          return;
+        }
+        finish(value);
+      });
+
+      box.querySelector('#offline-pin-cancel').addEventListener('click', () => finish(null));
+      input.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') box.querySelector('#offline-pin-ok').click();
+      });
+    });
   }
 
   offlineBtn.addEventListener('click', async () => {
@@ -879,6 +1099,17 @@
 
     const removing = offlineBtn.classList.contains('is-stored');
 
+    /*
+     * Vor dem ersten Speichern sicherstellen, dass ueberhaupt eine
+     * Offline-Anmeldung moeglich ist. Ohne sie waeren die Aufnahmen zwar
+     * gespeichert, aber ohne Verbindung nicht erreichbar.
+     */
+    if (!removing && !storedAuth()) {
+      const pin = await askOfflinePin();
+      if (pin === null) return;
+      await rememberPasswordForOffline(pin);
+    }
+
     offlineBusy = true;
     offlineBtn.disabled = true;
 
@@ -886,10 +1117,36 @@
       if (removing) {
         offlineInfo.textContent = 'Entferne …';
         await removeFolderOffline(files);
+        // Auch aus dem Verzeichnis nehmen, sonst bliebe der Ordner offline
+        // sichtbar, obwohl seine Aufnahmen geloescht sind.
+        removeOfflineFolder(view.path);
         offlineInfo.textContent = 'Offline-Aufnahmen entfernt.';
       } else {
         offlineInfo.textContent = `Speichere … 0 von ${files.length}`;
         const { done, failed } = await downloadFolderOffline(files);
+
+        /*
+         * Entscheidend: Die Dateiliste MIT allen Angaben ins Verzeichnis
+         * schreiben. Im Audio-Speicher liegen nur die Aufnahmen selbst -
+         * Kuenstler, Album und Spieldauer stehen ausschliesslich hier.
+         * Ohne diesen Schritt muss die App ohne Verbindung alles aus den
+         * Dateinamen rekonstruieren, und genau diese Angaben fehlen dann.
+         */
+        if (done > 0) {
+          /*
+           * Zwei Ablagen mit Absicht:
+           *   - die Antwort des Servers im Offline-Speicher (vollstaendig,
+           *     ueberlebt das Loeschen der Browserdaten nicht, wohl aber
+           *     einen leeren localStorage)
+           *   - dieselben Angaben im lokalen Verzeichnis (Grundlage fuer die
+           *     Ordneransicht ohne Verbindung)
+           * Kuenstler, Album und Spieldauer stehen NUR hier - die
+           * Audiodateien selbst liefern sie der App nicht.
+           */
+          await storeFolderListing(view.path);
+          setOfflineFolder(view.path, files);
+        }
+
         offlineInfo.textContent = failed === 0
           ? `${done} Aufnahmen offline verfügbar.`
           : `${done} gespeichert, ${failed} fehlgeschlagen.`;

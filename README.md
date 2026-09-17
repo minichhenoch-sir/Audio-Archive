@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (Schritt 3b: vollständige Oberfläche)
+# Audio Archive – Nextcloud-App (Schritt 4: Offline-Betrieb)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -171,3 +171,62 @@ eigenständigen Fassung:
 Ordner öffnen, Aufnahme starten, spulen, nächster/vorheriger Titel, Bildschirm
 sperren (läuft die Wiedergabe weiter, erscheint die Steuerung?), Zurück-Geste
 (geht sie eine Ordnerebene zurück statt die App zu schließen?).
+
+---
+
+## Schritt 4: Offline-Betrieb
+
+Der Service Worker ist wieder aktiv – aber gezielt:
+
+| Anfrage | Verhalten |
+|---|---|
+| Seitenaufruf | Netz, bei Ausfall die zuletzt geladene Seite aus dem Speicher |
+| `api/stream` | zuerst Offline-Speicher, sonst Netz |
+| übrige `api/…` | immer Netz (zu veränderlich zum Speichern) |
+| CSS, JS, Bilder | Netz, bei Ausfall aus dem Speicher |
+
+### Byte-Bereiche
+Audio wird vom Browser abschnittsweise angefordert, im Speicher liegt aber die
+ganze Datei. Der Service Worker schneidet den angeforderten Bereich selbst
+heraus. Alle Sonderformen sind geprüft: offener Anfang (`bytes=0-`), fester
+Bereich, offenes Ende, Suffix (`bytes=-50`), Anforderung über das Dateiende
+hinaus sowie ungültige Bereiche (Antwort 416).
+
+### Offline-PIN
+Angemeldete Nextcloud-Nutzer haben kein App-Passwort, und ihre Anmeldung lässt
+sich ohne Verbindung nicht prüfen – das Kontopasswort darf dafür keinesfalls
+lokal liegen. Deshalb vergeben sie beim **ersten** Speichern eines Ordners eine
+eigene PIN. Gespeichert wird nur ein gesalzener Prüfwert. Sie schützt
+ausschließlich den Zugriff auf die bereits heruntergeladenen Aufnahmen.
+
+Auf der öffentlichen Seite bleibt es beim gemeinsamen Passwort.
+
+### Vorausladen
+Wieder eingeschaltet, aber nur wenn ein Service Worker die Seite tatsächlich
+steuert – sonst würde der Hintergrund-Download nur Bandbreite kosten und die
+laufende Wiedergabe ausbremsen.
+
+### Prüfen
+1. Ordner öffnen, „Offline verfügbar machen" – PIN vergeben, Fortschritt abwarten
+2. Flugmodus einschalten, App neu starten
+3. PIN eingeben → nur die gespeicherten Ordner erscheinen
+4. Aufnahme abspielen **und spulen** – das prüft die Bereichs-Logik
+
+### Nachtrag zu Schritt 4
+
+**Offline-Ansicht als echter Ordnerbaum.** Gespeichert wird je Ordner unter
+seinem vollen Pfad; die Zwischenebenen werden daraus abgeleitet. Liegt etwa
+`2026_08/Sonntag` vor, zeigt die oberste Ebene `2026_08` und erst darin
+`Sonntag` – statt alle gespeicherten Ordner flach nebeneinander.
+
+**Künstler und Album offline.** Diese Angaben stehen nur im Verzeichnis, nicht
+im Audio-Speicher. Musste das Verzeichnis aus dem Speicher rekonstruiert
+werden, fehlten sie deshalb. Zwei Vorkehrungen:
+- Übernahme aus den Schlüsseln der älteren Fassung (`gp_…`), damit ein
+  bestehendes Verzeichnis nicht verloren geht
+- Wird ein gespeicherter Ordner online geöffnet, frischt die App das
+  hinterlegte Verzeichnis auf. Unvollständige Einträge heilen damit von selbst.
+
+**Zur PIN:** Sie wird nur abgefragt, wenn noch gar keine Offline-Anmeldung
+eingerichtet ist. Wer sich zuvor über die öffentliche Seite angemeldet hat,
+dessen Prüfwert liegt bereits vor – dann erscheint keine Abfrage.

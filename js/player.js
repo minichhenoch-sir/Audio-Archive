@@ -196,21 +196,24 @@ const Player = (() => {
   // Datenlimit, damit auf Mobilfunk nicht unbemerkt sehr viel geladen wird.
   // ------------------------------------------------------------------
   const PREFETCH_CACHE = 'audioarchive-prefetch-audio';
+  const OFFLINE_AUDIO_CACHE_PLAYER = 'audioarchive-offline-audio';
 
   /*
-   * Vorausladen vorerst ABGESCHALTET.
+   * Vorausladen gegen Verbindungsabbrueche.
    *
-   * Es laedt den laufenden Titel im Hintergrund vollstaendig herunter, damit
-   * ein Verbindungsabbruch die Wiedergabe nicht unterbricht. Nutzen bringt
-   * das aber nur, wenn der Service Worker die gepufferte Datei anschliessend
-   * auch ausliefert - und der ist seit dem CSP-Zwischenfall bewusst passiv.
-   * Bis dahin wuerde der Hintergrund-Download nur Bandbreite kosten und sich
-   * mit der laufenden Wiedergabe darum streiten: genau das fuehrte zu
-   * staendigem Nachladen (im Netzwerk-Mitschnitt gut sichtbar als
-   * zusaetzlicher Abruf der vollstaendigen Datei parallel zum Stream).
-   * Wird in Schritt 4 zusammen mit dem Offline-Betrieb wieder eingeschaltet.
+   * WICHTIG - der Hintergrund-Download teilt sich die Bandbreite mit der
+   * laufenden Wiedergabe. Solange der Service Worker die gepufferte Datei
+   * nicht ausliefert, kostet er also nur Bandbreite und laesst die
+   * Wiedergabe stocken (genau das war zwischenzeitlich der Fall). Er wird
+   * deshalb erst gestartet, wenn ein Service Worker die Seite auch wirklich
+   * steuert.
    */
-  const PREFETCH_ENABLED = false;
+  const PREFETCH_ENABLED = true;
+
+  /** Steuert ein Service Worker diese Seite? Nur dann nuetzt das Vorausladen. */
+  function serviceWorkerActive() {
+    return 'serviceWorker' in navigator && !!navigator.serviceWorker.controller;
+  }
 
   /** Zielgroesse des Puffers in Sekunden Wiedergabe (90 Minuten). */
   const PREFETCH_TARGET_SECONDS = 90 * 60;
@@ -262,7 +265,7 @@ const Player = (() => {
 
     return planned;
   }
-  const OFFLINE_AUDIO_CACHE = 'gemeinde-offline-audio';
+
   const prefetchSupported = 'caches' in window;
   let prefetchController = null;
 
@@ -291,7 +294,7 @@ const Player = (() => {
 
     try {
       // Schon dauerhaft offline gespeichert? Dann ist nichts zu tun.
-      const offline = await caches.open(OFFLINE_AUDIO_CACHE);
+      const offline = await caches.open(OFFLINE_AUDIO_CACHE_PLAYER);
       if (await offline.match(url)) return;
 
       const cache = await caches.open(PREFETCH_CACHE);
@@ -309,7 +312,7 @@ const Player = (() => {
   }
 
   function startPrefetch(index) {
-    if (!PREFETCH_ENABLED || !prefetchSupported) return;
+    if (!PREFETCH_ENABLED || !prefetchSupported || !serviceWorkerActive()) return;
 
     if (prefetchController) prefetchController.abort();
     prefetchController = new AbortController();
@@ -330,10 +333,40 @@ const Player = (() => {
     })();
   }
 
+  /*
+   * Wird beim Titelwechsel gesetzt und erst geloescht, wenn die Angaben
+   * danach wieder sicher beim System angekommen sind.
+   *
+   * Hintergrund: Beim Zuweisen einer neuen Quelle setzt der Browser das
+   * Audio-Element zurueck. Android raeumt in dieser Luecke die
+   * Medien-Benachrichtigung ab - und zwar teils NACH unserem Setzen der
+   * Angaben, sodass ein einmaliges Setzen vor dem Laden verpufft. Deshalb
+   * werden sie bei den naechsten Ereignissen erneut gesetzt, bis es sitzt.
+   */
+  let mediaSessionNeedsRefresh = false;
+
+  function refreshMediaSession() {
+    if (!mediaSessionNeedsRefresh) return;
+
+    const track = playlist[currentIndex];
+    if (!track) return;
+
+    updateMediaSession(track);
+    setMediaSessionPlaybackState(audio.paused ? 'paused' : 'playing');
+    updatePositionState();
+
+    // Erst wenn die Laufzeit feststeht, ist die Sitzung wirklich vollstaendig
+    if (isFinite(audio.duration) && audio.duration > 0) {
+      mediaSessionNeedsRefresh = false;
+    }
+  }
+
   function loadTrack(index, autoplay = true) {
     if (index < 0 || index >= playlist.length) return;
     currentIndex = index;
     const track = playlist[index];
+
+    mediaSessionNeedsRefresh = true;
 
     audio.src = AudioArchive.api('stream') + '?path=' + encodeURIComponent(track.path);
     els.title.textContent = trackTitle(track);
@@ -391,6 +424,10 @@ const Player = (() => {
     if (Date.now() - lastPositionReport > 5000) {
       updatePositionState();
     }
+
+    // Letzte Sicherung: Sollten die Angaben nach einem Wechsel noch nicht
+    // sitzen, werden sie hier nachgereicht.
+    refreshMediaSession();
     /*
      * WICHTIG: Hier bewusst KEIN updatePositionState()!
      * 'timeupdate' feuert rund 4x pro Sekunde. Jeder setPositionState()-Aufruf
@@ -406,6 +443,7 @@ const Player = (() => {
   audio.addEventListener('loadedmetadata', () => {
     els.timeDuration.textContent = formatTime(audio.duration);
     updatePositionState();
+    refreshMediaSession();
   });
 
   /*
@@ -415,14 +453,9 @@ const Player = (() => {
    * mitunter. Deshalb werden Titelangaben und Zustand hier noch einmal
    * gesetzt, statt sich auf das Setzen vor dem Laden zu verlassen.
    */
-  audio.addEventListener('playing', () => {
-    const track = playlist[currentIndex];
-    if (track) {
-      updateMediaSession(track);
-    }
-    setMediaSessionPlaybackState('playing');
-    updatePositionState();
-  });
+  audio.addEventListener('playing', refreshMediaSession);
+  audio.addEventListener('loadeddata', refreshMediaSession);
+  audio.addEventListener('durationchange', refreshMediaSession);
 
   // Kritisch: Beim Ende automatisch den nächsten Titel im selben Ordner starten
   audio.addEventListener('ended', () => {

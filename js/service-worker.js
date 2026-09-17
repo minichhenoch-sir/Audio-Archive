@@ -1,15 +1,32 @@
 /**
  * Service Worker der App.
  *
- * In dieser Ausbaustufe bewusst schlank: Er muss vor allem existieren, einen
- * fetch-Handler besitzen (ohne den stuft der Browser die Seite als nicht
- * installierbar ein) und im richtigen Geltungsbereich laufen.
+ * Aufgaben:
+ *   1. Audio aus dem Offline-Speicher ausliefern (inkl. Byte-Bereichen)
+ *   2. Oberflaeche (Seite, Stylesheet, Skripte, Bilder) offline bereithalten
  *
- * Die vorhandene Logik der eigenstaendigen App - Offline-Cache der Aufnahmen,
- * Vorausladen und das Herausschneiden von Byte-Bereichen aus
- * zwischengespeicherten Dateien - wird in einem spaeteren Schritt uebernommen.
+ * Zwei Erfahrungen aus frueheren Fassungen stecken hier drin:
+ *
+ * a) Ein Service Worker erbt die Sicherheitsrichtlinie der ANTWORT, mit der
+ *    er selbst ausgeliefert wurde. Er kommt hier aus einem Controller, der
+ *    ihm ausdruecklich "connect-src 'self'" mitgibt - sonst duerfte er gar
+ *    nichts abrufen und wuerde die ganze Seite lahmlegen.
+ *
+ * b) Wer respondWith() aufruft, uebernimmt die volle Verantwortung fuer die
+ *    Antwort. Deshalb wird hier so wenig wie moeglich abgefangen, und jeder
+ *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
-const SHELL_CACHE = 'audioarchive-shell-v4';
+
+const SHELL_CACHE = 'audioarchive-shell-v6';
+
+// Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
+// App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
+// gehen.
+const OFFLINE_AUDIO_CACHE = 'audioarchive-offline-audio';
+const PREFETCH_CACHE = 'audioarchive-prefetch-audio';
+
+/** Adresse der zuletzt erfolgreich geladenen Seite, fuer den Offline-Start. */
+const PAGE_CACHE_KEY = 'audioarchive-last-page';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -20,29 +37,197 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key.startsWith('audioarchive-shell-') && key !== SHELL_CACHE)
-            .map((key) => caches.delete(key))
+        keys
+          .filter((key) => key.startsWith('audioarchive-shell-') && key !== SHELL_CACHE)
+          .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
   );
 });
 
+/**
+ * Beantwortet eine Audio-Anfrage aus einem der beiden Speicher.
+ *
+ * Besonderheit: Das <audio>-Element fordert Audio praktisch immer per
+ * HTTP-Range-Request an. Im Speicher liegt aber die vollstaendige Datei als
+ * gewoehnliche 200-Antwort, weil sich Teilantworten (206) nicht ablegen
+ * lassen. Deshalb wird das angeforderte Stueck hier selbst herausgeschnitten -
+ * ohne das koennte man offline nicht spulen, und auf manchen Geraeten wuerde
+ * die Wiedergabe gar nicht erst starten.
+ */
+async function serveAudioFromCache(request) {
+  let cached = null;
+
+  for (const name of [OFFLINE_AUDIO_CACHE, PREFETCH_CACHE]) {
+    const cache = await caches.open(name);
+    // Ohne ignoreSearch: Der Pfad steckt im Abfrageteil und muss genau passen.
+    cached = await cache.match(request.url);
+    if (cached) break;
+  }
+
+  if (!cached) return null;
+
+  const rangeHeader = request.headers.get('range');
+  if (!rangeHeader) return cached;
+
+  const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
+  if (!match) return cached;
+
+  const buffer = await cached.arrayBuffer();
+  const total = buffer.byteLength;
+
+  let start = match[1] === '' ? null : parseInt(match[1], 10);
+  let end = match[2] === '' ? null : parseInt(match[2], 10);
+
+  if (start === null && end !== null) {
+    // Form "bytes=-500": die letzten N Bytes
+    start = Math.max(0, total - end);
+    end = total - 1;
+  } else {
+    if (start === null) start = 0;
+    if (end === null || end >= total) end = total - 1;
+  }
+
+  if (start > end || start >= total) {
+    return new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': `bytes */${total}` },
+    });
+  }
+
+  const slice = buffer.slice(start, end + 1);
+
+  return new Response(slice, {
+    status: 206,
+    statusText: 'Partial Content',
+    headers: {
+      'Content-Type': cached.headers.get('Content-Type') || 'audio/mpeg',
+      'Content-Length': String(slice.byteLength),
+      'Content-Range': `bytes ${start}-${end}/${total}`,
+      'Accept-Ranges': 'bytes',
+    },
+  });
+}
+
 self.addEventListener('fetch', (event) => {
-  /*
-   * Der Handler muss vorhanden sein, damit der Browser die Seite als
-   * installierbar einstuft - er greift aber (noch) NICHT in die Anfragen ein.
-   *
-   * Hintergrund: Wer hier respondWith() aufruft, uebernimmt die volle
-   * Verantwortung fuer die Antwort. Schlaegt der Abruf im Worker fehl,
-   * faellt nicht nur eine Datei aus, sondern die Seite verliert auf einen
-   * Schlag Stylesheet, Skript und Bilder - und der wahre Grund ist hinter
-   * der Ersatzantwort nicht mehr zu sehen.
-   *
-   * Der Offline-Betrieb wird hier in einem spaeteren Schritt gezielt
-   * ergaenzt: dann nur fuer die Audio-Endpunkte und mit Antwort aus dem
-   * Cache statt einer weitergereichten Netzwerkantwort.
-   */
-  if (event.request.method !== 'GET') {
+  const request = event.request;
+
+  if (request.method !== 'GET') {
     return;
+  }
+
+  const url = new URL(request.url);
+  const sameOrigin = url.origin === self.location.origin;
+
+  // ---------- Seitenaufrufe ----------
+  if (request.mode === 'navigate') {
+    /*
+     * redirect: 'manual' ist hier entscheidend. Nextcloud beantwortet die
+     * App-Adresse mit einer Weiterleitung; folgt der Worker ihr selbst,
+     * erhaelt er eine als "weitergeleitet" markierte Antwort - und die darf
+     * bei einem Seitenaufruf nicht an respondWith() uebergeben werden. Mit
+     * 'manual' bekommt er stattdessen eine Antwort, die der Browser selbst
+     * aufloest.
+     */
+    event.respondWith(
+      fetch(request, { redirect: 'manual' })
+        .then((response) => {
+          // Letzte funktionierende Seite fuer den Offline-Start aufheben
+          if (response && response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put(PAGE_CACHE_KEY, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(PAGE_CACHE_KEY);
+          return cached || new Response(
+            '<!DOCTYPE html><meta charset="utf-8"><p>Keine Verbindung.</p>',
+            { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+          );
+        })
+    );
+    return;
+  }
+
+  if (!sameOrigin) {
+    return;
+  }
+
+  // ---------- Audio ----------
+  if (url.pathname.endsWith('/api/stream')) {
+    event.respondWith(
+      serveAudioFromCache(request)
+        .then((cached) => cached || fetch(request))
+        .catch(() => fetch(request))
+    );
+    return;
+  }
+
+  // ---------- Ordnerliste ----------
+  /*
+   * Erst Netz, bei Ausfall aus dem Speicher.
+   *
+   * Beim Offline-Speichern eines Ordners wird dessen Liste mit abgelegt.
+   * Dadurch stehen ohne Verbindung auch Kuenstler, Album und Spieldauer zur
+   * Verfuegung - die stecken naemlich NUR in dieser Antwort, nicht in den
+   * Audiodateien selbst. Jeder Aufruf mit Verbindung frischt den Speicher
+   * nebenbei auf.
+   */
+  if (url.pathname.endsWith('/api/list')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(OFFLINE_AUDIO_CACHE).then((cache) => {
+              // Nur auffrischen, was bereits gespeichert ist - sonst wuerde
+              // sich der Speicher mit Ordnern fuellen, die gar nicht offline
+              // verfuegbar sind.
+              cache.match(request.url).then((existing) => {
+                if (existing) cache.put(request.url, copy);
+              });
+            });
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cache = await caches.open(OFFLINE_AUDIO_CACHE);
+          const cached = await cache.match(request.url);
+          return cached || new Response(
+            JSON.stringify({ error: 'offline' }),
+            { status: 503, headers: { 'Content-Type': 'application/json' } }
+          );
+        })
+    );
+    return;
+  }
+
+  // ---------- Uebrige Schnittstellen: immer aus dem Netz ----------
+  // Anmeldung und Einstellungen sind zu veraenderlich zum Speichern.
+  if (url.pathname.includes('/api/')) {
+    return;
+  }
+
+  // ---------- Oberflaeche ----------
+  // Stylesheet, Skripte und Bilder: erst Netz, dann Speicher. So kommen
+  // Aenderungen sofort an, und offline sieht die App trotzdem nicht kaputt
+  // aus. Die Adressen tragen eine Versionskennung, alte Fassungen werden
+  // also nie faelschlich weiterverwendet.
+  if (/\.(css|js|png|svg|webmanifest)$/.test(url.pathname) || url.search.includes('v=')) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            caches.open(SHELL_CACHE).then((cache) => cache.put(request, copy));
+          }
+          return response;
+        })
+        .catch(async () => {
+          const cached = await caches.match(request);
+          return cached || new Response('', { status: 504 });
+        })
+    );
   }
 });
