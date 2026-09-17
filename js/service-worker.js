@@ -9,7 +9,7 @@
  * Vorausladen und das Herausschneiden von Byte-Bereichen aus
  * zwischengespeicherten Dateien - wird in einem spaeteren Schritt uebernommen.
  */
-const SHELL_CACHE = 'recordings-player-shell-v1';
+const SHELL_CACHE = 'audioarchive-shell-v2';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();
@@ -20,7 +20,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
       .then((keys) => Promise.all(
-        keys.filter((key) => key.startsWith('recordings-player-shell-') && key !== SHELL_CACHE)
+        keys.filter((key) => key.startsWith('audioarchive-shell-') && key !== SHELL_CACHE)
             .map((key) => caches.delete(key))
       ))
       .then(() => self.clients.claim())
@@ -33,5 +33,23 @@ self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') {
     return;
   }
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+
+  event.respondWith(
+    fetch(event.request).catch(async () => {
+      const cached = await caches.match(event.request);
+
+      /*
+       * Wichtig: respondWith() braucht IMMER eine Response. Liefert
+       * caches.match() nichts (undefined), entsteht sonst ein
+       * "Failed to convert value to 'Response'" - und der eigentliche
+       * Grund des fehlgeschlagenen Abrufs wird dadurch verschleiert.
+       * Deshalb hier eine klare eigene Antwort erzeugen.
+       */
+      return cached || new Response('Offline und nicht gespeichert.', {
+        status: 504,
+        statusText: 'Gateway Timeout',
+        headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      });
+    })
+  );
 });
