@@ -128,12 +128,9 @@ const Player = (() => {
       title: trackTitle(track),
       artist: (track.artist && track.artist.trim()) || '',
       album: (track.album && track.album.trim()) || '',
-      // Titelbild fuer den Sperrbildschirm. Ueber AudioArchive.asset(),
-      // damit die Adresse absolut ist - relativ wuerde sie auf der
-      // oeffentlichen Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
       artwork: [
-        { src: AudioArchive.asset('img/icon-192.png'), sizes: '192x192', type: 'image/png' },
-        { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
+        { src: 'app-icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+        { src: 'app-icons/icon-512.png', sizes: '512x512', type: 'image/png' },
       ],
     });
 
@@ -195,22 +192,7 @@ const Player = (() => {
   // Dateien entsprechend mehrere Titel im Voraus. Nach oben begrenzt ein
   // Datenlimit, damit auf Mobilfunk nicht unbemerkt sehr viel geladen wird.
   // ------------------------------------------------------------------
-  const PREFETCH_CACHE = 'audioarchive-prefetch-audio';
-
-  /*
-   * Vorausladen vorerst ABGESCHALTET.
-   *
-   * Es laedt den laufenden Titel im Hintergrund vollstaendig herunter, damit
-   * ein Verbindungsabbruch die Wiedergabe nicht unterbricht. Nutzen bringt
-   * das aber nur, wenn der Service Worker die gepufferte Datei anschliessend
-   * auch ausliefert - und der ist seit dem CSP-Zwischenfall bewusst passiv.
-   * Bis dahin wuerde der Hintergrund-Download nur Bandbreite kosten und sich
-   * mit der laufenden Wiedergabe darum streiten: genau das fuehrte zu
-   * staendigem Nachladen (im Netzwerk-Mitschnitt gut sichtbar als
-   * zusaetzlicher Abruf der vollstaendigen Datei parallel zum Stream).
-   * Wird in Schritt 4 zusammen mit dem Offline-Betrieb wieder eingeschaltet.
-   */
-  const PREFETCH_ENABLED = false;
+  const PREFETCH_CACHE = 'gemeinde-prefetch-audio';
 
   /** Zielgroesse des Puffers in Sekunden Wiedergabe (90 Minuten). */
   const PREFETCH_TARGET_SECONDS = 90 * 60;
@@ -309,7 +291,7 @@ const Player = (() => {
   }
 
   function startPrefetch(index) {
-    if (!PREFETCH_ENABLED || !prefetchSupported) return;
+    if (!prefetchSupported) return;
 
     if (prefetchController) prefetchController.abort();
     prefetchController = new AbortController();
