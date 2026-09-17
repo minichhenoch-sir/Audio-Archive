@@ -27,6 +27,13 @@ class Application extends App implements IBootstrap {
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 
+    // Beta-Hinweis: Kennzeichnung in der Kopfzeile plus ein frei
+    // formulierbarer Streifen ueber dem Pfad.
+    public const SETTING_BETA_ENABLED = 'beta_enabled';
+    public const SETTING_BETA_TEXT = 'beta_text';
+    public const SETTING_BETA_LINK_URL = 'beta_link_url';
+    public const SETTING_BETA_LINK_LABEL = 'beta_link_label';
+
     public function __construct(array $urlParams = []) {
         parent::__construct(self::APP_ID, $urlParams);
     }

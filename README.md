@@ -255,3 +255,19 @@ Freigabe-Seite, also bevor jemand angemeldet ist.
 - Mehrsprachigkeit (Englisch ist Pflicht, Oberfläche ist derzeit deutsch)
 - Bildschirmfotos und Beschreibung
 - Öffentliches Repository, Zertifikat, signierte Veröffentlichung
+
+## Beta-Hinweis
+
+In den Einstellungen unter „Beta-Hinweis" einschaltbar. Zeigt dann:
+- ein „Beta"-Zeichen neben dem Titel in der Kopfzeile
+- einen Hinweisstreifen über dem Pfad mit frei formuliertem Text
+
+Der Link wird nur mit seiner **Beschriftung** angezeigt, nicht mit der vollen
+Adresse – so bleibt der Hinweis auch auf dem Telefon kurz. Erlaubt sind nur
+`http://` und `https://`; ohne diese Prüfung ließe sich dort `javascript:`
+hinterlegen, und der Hinweis erscheint allen Nutzern, auch denen der
+öffentlichen Seite. Text und Beschriftung werden als reiner Text eingesetzt,
+nie als Markup.
+
+Der Streifen erscheint auf beiden Zugangswegen, aber nicht auf dem
+Anmelde-Bildschirm.

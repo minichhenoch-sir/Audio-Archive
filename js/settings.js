@@ -40,6 +40,10 @@
   const accent = el('aa-accent');
   const bar = el('aa-bar');
   const base = el('aa-base');
+  const betaEnabled = el('aa-beta-enabled');
+  const betaText = el('aa-beta-text');
+  const betaLinkUrl = el('aa-beta-link-url');
+  const betaLinkLabel = el('aa-beta-link-label');
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const status = el('aa-status');
@@ -52,6 +56,10 @@
   accent.value = state.themeAccent || '#b9793f';
   bar.value = state.themeBar || '#291c12';
   base.value = state.themeBase || '#a86a3d';
+  betaEnabled.checked = state.betaEnabled === true;
+  betaText.value = state.betaText || '';
+  betaLinkUrl.value = state.betaLinkUrl || '';
+  betaLinkLabel.value = state.betaLinkLabel || '';
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
 
@@ -173,6 +181,10 @@
       themeBase: base.value,
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
+      betaEnabled: betaEnabled.checked,
+      betaText: betaText.value,
+      betaLinkUrl: betaLinkUrl.value,
+      betaLinkLabel: betaLinkLabel.value,
     };
 
     // Leeres Feld bedeutet: Passwort unverändert lassen

@@ -52,6 +52,59 @@
    * eigenstaendigen Fassung ist dafuer kein eigener Abruf noetig, und die
    * Seite steht sofort richtig da, ohne kurzes Umspringen.
    */
+  /**
+   * Zeigt die Beta-Kennzeichnung: ein kleines Zeichen neben dem Titel und
+   * darunter den vom Administrator formulierten Hinweis ueber dem Pfad.
+   *
+   * Der Link wird bewusst NUR mit seiner Beschriftung angezeigt, nicht mit
+   * der vollen Adresse - lange Adressen sprengen auf dem Telefon die Zeile.
+   */
+  function applyBetaNotice() {
+    if (!AudioArchive.betaEnabled) return;
+
+    // Kennzeichnung in der Kopfzeile
+    const badge = document.createElement('span');
+    badge.className = 'beta-badge';
+    badge.textContent = 'Beta';
+    // In die Ueberschrift hinein, nicht daneben: Als eigenstaendiges
+    // Element neben dem h1 wuerde es in einer eigenen Zeile landen.
+    topbarTitle.appendChild(badge);
+
+    const notice = document.getElementById('beta-notice');
+    if (!notice) return;
+
+    const text = AudioArchive.betaText.trim();
+    const url = AudioArchive.betaLinkUrl.trim();
+    const label = AudioArchive.betaLinkLabel.trim() || 'Mehr erfahren';
+
+    if (text === '' && url === '') return;
+
+    notice.textContent = '';
+
+    if (text !== '') {
+      const span = document.createElement('span');
+      span.textContent = text;
+      notice.appendChild(span);
+    }
+
+    if (url !== '') {
+      const link = document.createElement('a');
+      /*
+       * textContent statt innerHTML: Der Text stammt zwar vom
+       * Administrator, wird aber allen Nutzern angezeigt - auch denen der
+       * oeffentlichen Seite. So kann daraus kein Markup werden.
+       */
+      link.textContent = label;
+      link.href = url;
+      link.target = '_blank';
+      link.rel = 'noreferrer noopener';
+      notice.appendChild(document.createTextNode(' '));
+      notice.appendChild(link);
+    }
+
+    notice.hidden = false;
+  }
+
   function applySettingsFromDocument() {
     applyTheme(AudioArchive.themeAccent, AudioArchive.themeBar, AudioArchive.themeBase);
 
@@ -79,6 +132,8 @@
     if (!AudioArchive.isPublic()) {
       logoutBtn.hidden = true;
     }
+
+    applyBetaNotice();
   }
 
   // ------------------------------------------------------------------

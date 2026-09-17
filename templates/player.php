@@ -47,6 +47,10 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
      data-theme-bar="<?php echo $escape($_['themeBar']); ?>"
      data-theme-base="<?php echo $escape($_['themeBase']); ?>"
      data-background="<?php echo $escape($_['backgroundUrl']); ?>"
+     data-beta="<?php echo $escape($_['betaEnabled']); ?>"
+     data-beta-text="<?php echo $escape($_['betaText']); ?>"
+     data-beta-link-url="<?php echo $escape($_['betaLinkUrl']); ?>"
+     data-beta-link-label="<?php echo $escape($_['betaLinkLabel']); ?>"
      hidden></div>
 
 <div id="bg-layer" aria-hidden="true"></div>
@@ -92,6 +96,9 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
     <p id="offline-banner" class="offline-banner" hidden>
       Keine Internetverbindung &ndash; es werden nur gespeicherte Aufnahmen angezeigt.
     </p>
+
+    <!-- Hinweisstreifen, vom Administrator gefuellt (siehe Einstellungen) -->
+    <div id="beta-notice" class="beta-notice" hidden></div>
 
     <nav id="breadcrumb" class="breadcrumb"></nav>
 

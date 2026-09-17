@@ -58,6 +58,18 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
+            'betaEnabled' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
+            ) ? '1' : '',
+            'betaText' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_TEXT, ''
+            ),
+            'betaLinkUrl' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''
+            ),
+            'betaLinkLabel' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
+            ),
             // Leer, wenn kein Bild gesetzt ist - dann zeigt die App den
             // Verlauf aus dem Grundton.
             'backgroundUrl' => $this->backgroundImage->exists()

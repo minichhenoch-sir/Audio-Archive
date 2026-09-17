@@ -60,6 +60,18 @@ class Admin implements ISettings {
                 Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
             ),
             'hasBackground' => $this->backgroundImage->exists(),
+            'betaEnabled' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
+            ),
+            'betaText' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_TEXT, ''
+            ),
+            'betaLinkUrl' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''
+            ),
+            'betaLinkLabel' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
+            ),
             'featureOffline' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
             ),

@@ -64,6 +64,10 @@ class SettingsController extends Controller {
         ?string $themeBase = null,
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
+        ?bool $betaEnabled = null,
+        ?string $betaText = null,
+        ?string $betaLinkUrl = null,
+        ?string $betaLinkLabel = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -174,6 +178,48 @@ class SettingsController extends Controller {
         if ($featureDownload !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, $featureDownload
+            );
+        }
+
+        // ---------- Beta-Hinweis ----------
+        if ($betaEnabled !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_BETA_ENABLED, $betaEnabled
+            );
+        }
+
+        if ($betaText !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_BETA_TEXT, trim($betaText)
+            );
+        }
+
+        if ($betaLinkUrl !== null) {
+            $url = trim($betaLinkUrl);
+
+            /*
+             * Nur http und https zulassen. Ohne diese Pruefung liesse sich
+             * hier "javascript:..." hinterlegen - und der Hinweis wird allen
+             * Nutzern angezeigt, auch denen der oeffentlichen Seite.
+             */
+            if ($url !== '') {
+                $scheme = strtolower((string)parse_url($url, PHP_URL_SCHEME));
+                if (!in_array($scheme, ['http', 'https'], true)) {
+                    return new DataResponse(
+                        ['error' => 'Die Adresse muss mit http:// oder https:// beginnen.'],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
+            }
+
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_URL, $url
+            );
+        }
+
+        if ($betaLinkLabel !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, trim($betaLinkLabel)
             );
         }
 

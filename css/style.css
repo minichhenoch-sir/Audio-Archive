@@ -803,3 +803,42 @@ svg[hidden] {
 }
 
 .offline-pin-error[hidden] { display: none !important; }
+
+/* ===================== BETA-KENNZEICHNUNG ===================== */
+
+/* Kleines Zeichen neben dem Titel - soll auffallen, aber nicht stoeren */
+.beta-badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--color-accent);
+  color: #2a1a0e;
+  font-family: var(--font-body);
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* Hinweisstreifen ueber dem Pfad */
+.beta-notice {
+  margin: 0 0 12px;
+  padding: 10px 16px;
+  border-radius: 14px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font-size: 0.84rem;
+  line-height: 1.4;
+}
+
+.beta-notice a {
+  color: var(--color-accent-deep);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.beta-notice[hidden] { display: none !important; }

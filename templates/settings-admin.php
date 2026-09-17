@@ -99,6 +99,34 @@
         lässt sich danach frei weitergeben.
     </p>
 
+    <!-- ============ Beta-Hinweis ============ -->
+    <h3>Beta-Hinweis</h3>
+    <p class="settings-hint">
+        Kennzeichnet die App als in Entwicklung: ein „Beta"-Zeichen neben dem
+        Titel und ein Hinweisstreifen über dem Pfad.
+    </p>
+    <p>
+        <input type="checkbox" id="aa-beta-enabled" class="checkbox">
+        <label for="aa-beta-enabled">Beta-Hinweis anzeigen</label>
+    </p>
+    <div class="aa-field">
+        <label for="aa-beta-text">Text im Hinweisstreifen</label>
+        <input type="text" id="aa-beta-text"
+               placeholder="Diese App wird noch entwickelt. Rückmeldungen sind willkommen.">
+    </div>
+    <div class="aa-field">
+        <label for="aa-beta-link-url">Link-Adresse (optional)</label>
+        <input type="text" id="aa-beta-link-url" placeholder="https://…">
+    </div>
+    <div class="aa-field">
+        <label for="aa-beta-link-label">Link-Beschriftung</label>
+        <input type="text" id="aa-beta-link-label" placeholder="Rückmeldung geben">
+        <p class="settings-hint">
+            Wird anstelle der Adresse angezeigt – so bleibt der Hinweis auch
+            auf dem Telefon kurz.
+        </p>
+    </div>
+
     <p class="aa-actions">
         <button type="button" id="aa-save" class="primary">Speichern</button>
         <span id="aa-status" class="aa-status"></span>
