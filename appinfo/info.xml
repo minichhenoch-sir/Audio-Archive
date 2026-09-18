@@ -12,13 +12,21 @@ Plays audio recordings from a folder in Nextcloud.
 * Can be installed on the home screen and used offline
 * Optional public access with a shared password, for listeners without an account
     ]]></description>
-    <version>0.7.0</version>
+    <version>0.7.1</version>
     <licence>agpl</licence>
     <author>Gemeinde</author>
     <namespace>AudioArchive</namespace>
     <category>multimedia</category>
 
     <dependencies>
+        <!--
+          Nur eine Mindestversion, bewusst KEINE Obergrenze: Auf dem
+          Zielsystem laeuft bereits PHP 8.5, und eine zu eng gesetzte
+          Obergrenze wuerde die Installation dort blockieren.
+          8.1 ist die Untergrenze, weil Nextcloud ab Fassung 30 nichts
+          Aelteres mehr unterstuetzt.
+        -->
+        <php min-version="8.1"/>
         <nextcloud min-version="29" max-version="34"/>
     </dependencies>
 
