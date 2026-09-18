@@ -298,6 +298,324 @@ class MetadataReader {
     }
 
     /**
+     * Ausfuehrliche Angaben fuer die Info-Ansicht (ab 0.15): weitere Tags
+     * und technische Daten. Nur fuer EINE Datei auf Abruf - die Ordnerliste
+     * bleibt bewusst schlank.
+     *
+     * @return array<string, mixed>
+     */
+    public function readDetails(File $file): array {
+        $key = 'd2-' . $file->getId() . '-' . $file->getMTime();
+        $cached = $this->cache->get($key);
+        if (is_string($cached)) {
+            $decoded = json_decode($cached, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        $result = [
+            'title' => null, 'artist' => null, 'album' => null, 'albumArtist' => null,
+            'year' => null, 'genre' => null, 'track' => null, 'disc' => null,
+            'composer' => null, 'comment' => null,
+            'duration' => null, 'bitrate' => null, 'vbr' => null, 'sampleRate' => null,
+            'channels' => null, 'format' => null, 'id3' => null,
+        ];
+
+        try {
+            $fh = $file->fopen('r');
+        } catch (\Throwable $e) {
+            return $result;
+        }
+        if ($fh === false) {
+            return $result;
+        }
+
+        try {
+            $size = (int)$file->getSize();
+            $result = array_merge($result, $this->readExtendedTags($fh, $size));
+            $audio = $this->readAudioInfo($fh, $size);
+            foreach ($audio as $k => $v) {
+                $result[$k] = $v;
+            }
+        } catch (\Throwable $e) {
+            // Beschaedigte Datei: was bis dahin gelesen wurde, bleibt
+        } finally {
+            fclose($fh);
+        }
+
+        $this->cache->set($key, (string)json_encode($result), 60 * 60 * 24 * 30);
+        return $result;
+    }
+
+    /**
+     * Technische Angaben aus dem ersten MPEG-Frame. Bei variabler Bitrate
+     * (Xing/VBRI... hier Xing/Info) wird die mittlere Bitrate aus Groesse und
+     * Dauer berechnet.
+     *
+     * @param resource $fh
+     */
+    private function readAudioInfo($fh, int $size): array {
+        $out = [];
+        rewind($fh);
+        $offset = 0;
+        $head = fread($fh, 10);
+        if ($head !== false && strlen($head) === 10 && substr($head, 0, 3) === 'ID3') {
+            $b = array_values(unpack('C*', substr($head, 6, 4)));
+            $offset = 10 + (($b[0] << 21) | ($b[1] << 14) | ($b[2] << 7) | $b[3]);
+            $out['id3'] = 'ID3v2.' . ord($head[3]);
+        }
+        fseek($fh, $offset);
+        $buffer = fread($fh, 8192);
+        if ($buffer === false || strlen($buffer) < 4) {
+            return $out;
+        }
+
+        $bitrates = [
+            1 => [0, 32, 40, 48, 56, 64, 80, 96, 112, 128, 160, 192, 224, 256, 320],
+            2 => [0, 8, 16, 24, 32, 40, 48, 56, 64, 80, 96, 112, 128, 144, 160],
+        ];
+        $sampleRates = [3 => [44100, 48000, 32000], 2 => [22050, 24000, 16000], 0 => [11025, 12000, 8000]];
+        $versionNames = [3 => 'MPEG-1', 2 => 'MPEG-2', 0 => 'MPEG-2.5'];
+
+        $len = strlen($buffer);
+        for ($i = 0; $i < $len - 4; $i++) {
+            if (ord($buffer[$i]) !== 0xFF || (ord($buffer[$i + 1]) & 0xE0) !== 0xE0) {
+                continue;
+            }
+            $b1 = ord($buffer[$i + 1]);
+            $b2 = ord($buffer[$i + 2]);
+            $b3 = ord($buffer[$i + 3]);
+            $versionId = ($b1 >> 3) & 0x03;
+            $layer = ($b1 >> 1) & 0x03;
+            if ($versionId === 1 || $layer !== 1) {
+                continue;
+            }
+            $bitrateIndex = ($b2 >> 4) & 0x0F;
+            $sampleRateIndex = ($b2 >> 2) & 0x03;
+            $channelMode = ($b3 >> 6) & 0x03;
+            if ($bitrateIndex === 0 || $bitrateIndex === 0x0F || $sampleRateIndex === 3 || !isset($sampleRates[$versionId])) {
+                continue;
+            }
+            $isMpeg1 = $versionId === 3;
+            $out['bitrate'] = $bitrates[$isMpeg1 ? 1 : 2][$bitrateIndex];
+            $out['sampleRate'] = $sampleRates[$versionId][$sampleRateIndex];
+            $out['channels'] = $channelMode === 3 ? 1 : 2;
+            $out['format'] = $versionNames[$versionId] . ' Layer III';
+            $out['vbr'] = false;
+
+            $sideInfo = $isMpeg1 ? ($channelMode === 3 ? 17 : 32) : ($channelMode === 3 ? 9 : 17);
+            $xingPos = $i + 4 + $sideInfo;
+            if ($xingPos + 4 <= $len && substr($buffer, $xingPos, 4) === 'Xing') {
+                $out['vbr'] = true;
+            }
+            $duration = $this->readDuration($fh, $size);
+            if ($duration !== null && $duration > 0) {
+                $out['duration'] = $duration;
+                if ($out['vbr']) {
+                    $out['bitrate'] = (int)round(($size - $offset) * 8 / $duration / 1000);
+                }
+            }
+            return $out;
+        }
+        return $out;
+    }
+
+    /** Die 80 Standard-Genres aus ID3v1 - v2-Tags verweisen oft darauf ("(17)"). */
+    private const GENRES = [
+        'Blues', 'Classic Rock', 'Country', 'Dance', 'Disco', 'Funk', 'Grunge', 'Hip-Hop', 'Jazz', 'Metal',
+        'New Age', 'Oldies', 'Other', 'Pop', 'R&B', 'Rap', 'Reggae', 'Rock', 'Techno', 'Industrial',
+        'Alternative', 'Ska', 'Death Metal', 'Pranks', 'Soundtrack', 'Euro-Techno', 'Ambient', 'Trip-Hop', 'Vocal', 'Jazz+Funk',
+        'Fusion', 'Trance', 'Classical', 'Instrumental', 'Acid', 'House', 'Game', 'Sound Clip', 'Gospel', 'Noise',
+        'AlternRock', 'Bass', 'Soul', 'Punk', 'Space', 'Meditative', 'Instrumental Pop', 'Instrumental Rock', 'Ethnic', 'Gothic',
+        'Darkwave', 'Techno-Industrial', 'Electronic', 'Pop-Folk', 'Eurodance', 'Dream', 'Southern Rock', 'Comedy', 'Cult', 'Gangsta',
+        'Top 40', 'Christian Rap', 'Pop/Funk', 'Jungle', 'Native American', 'Cabaret', 'New Wave', 'Psychadelic', 'Rave', 'Showtunes',
+        'Trailer', 'Lo-Fi', 'Tribal', 'Acid Punk', 'Acid Jazz', 'Polka', 'Retro', 'Musical', 'Rock & Roll', 'Hard Rock',
+    ];
+
+    private function genreName(string $raw): string {
+        $raw = trim($raw);
+        if (preg_match('/^\(?(\d{1,3})\)?(.*)$/', $raw, $m)) {
+            $rest = trim($m[2]);
+            if ($rest !== '') {
+                return $rest; // "(17)Rock" -> "Rock"
+            }
+            $n = (int)$m[1];
+            return self::GENRES[$n] ?? $raw;
+        }
+        return $raw;
+    }
+
+    /**
+     * Alle Text-Tags fuer die Info-Ansicht. Wie readTags(), aber mit mehr
+     * Feldern und einem Kommentar-Frame (COMM).
+     *
+     * @param resource $fh
+     */
+    private function readExtendedTags($fh, int $size): array {
+        $basic = $this->readTags($fh, $size);
+        $out = $basic;
+
+        rewind($fh);
+        $header = fread($fh, 10);
+        if ($header === false || strlen($header) !== 10 || substr($header, 0, 3) !== 'ID3') {
+            return $out + $this->readId3v1Extras($fh);
+        }
+        $major = ord($header[3]);
+        $flags = ord($header[5]);
+        $b = array_values(unpack('C*', substr($header, 6, 4)));
+        $tagSize = ($b[0] << 21) | ($b[1] << 14) | ($b[2] << 7) | $b[3];
+        $body = $tagSize > 0 ? (string)fread($fh, min($tagSize, 1024 * 512)) : '';
+
+        $pos = 0;
+        if ($flags & 0x40 && strlen($body) >= 4) {
+            $extSize = unpack('N', substr($body, 0, 4))[1];
+            $pos += ($major >= 4) ? $extSize : $extSize + 4;
+        }
+        $isV2 = $major === 2;
+        $idLen = $isV2 ? 3 : 4;
+        $headLen = $isV2 ? 6 : 10;
+        $wanted = $isV2
+            ? ['TP2' => 'albumArtist', 'TYE' => 'year', 'TCO' => 'genre', 'TRK' => 'track', 'TPA' => 'disc', 'TCM' => 'composer', 'COM' => 'comment']
+            : ['TPE2' => 'albumArtist', 'TYER' => 'year', 'TDRC' => 'year', 'TCON' => 'genre', 'TRCK' => 'track', 'TPOS' => 'disc', 'TCOM' => 'composer', 'COMM' => 'comment'];
+
+        $bodyLen = strlen($body);
+        while ($pos + $headLen <= $bodyLen) {
+            $frameId = substr($body, $pos, $idLen);
+            if (!preg_match('/^[A-Z0-9]+$/', $frameId)) {
+                break;
+            }
+            if ($isV2) {
+                $s = array_values(unpack('C*', substr($body, $pos + 3, 3)));
+                $frameSize = ($s[0] << 16) | ($s[1] << 8) | $s[2];
+            } elseif ($major >= 4) {
+                $s = array_values(unpack('C*', substr($body, $pos + 4, 4)));
+                $frameSize = ($s[0] << 21) | ($s[1] << 14) | ($s[2] << 7) | $s[3];
+            } else {
+                $frameSize = unpack('N', substr($body, $pos + 4, 4))[1];
+            }
+            if ($frameSize <= 0 || $pos + $headLen + $frameSize > $bodyLen) {
+                break;
+            }
+            // Manche Programme (z. B. ffmpeg) legen den Kommentar als
+            // benutzerdefiniertes Textfeld TXXX "comment" ab statt als COMM
+            if ($frameId === 'TXXX' || $frameId === 'TXX') {
+                $txx = $this->decodeUserText(substr($body, $pos + $headLen, $frameSize));
+                if ($txx !== null && in_array(strtolower($txx[0]), ['comment', 'description', 'kommentar'], true)
+                    && $txx[1] !== '' && ($out['comment'] ?? null) === null) {
+                    $out['comment'] = $txx[1];
+                }
+            }
+            if (isset($wanted[$frameId])) {
+                $field = $wanted[$frameId];
+                $raw = substr($body, $pos + $headLen, $frameSize);
+                $value = $field === 'comment' ? $this->decodeComment($raw) : $this->decodeId3Text($raw);
+                if ($value !== '' && ($out[$field] ?? null) === null) {
+                    if ($field === 'genre') {
+                        $value = $this->genreName($value);
+                    } elseif ($field === 'year') {
+                        $value = substr($value, 0, 4); // TDRC: "2024-05-01" -> "2024"
+                    }
+                    $out[$field] = $value;
+                }
+            }
+            $pos += $headLen + $frameSize;
+        }
+
+        return $out + $this->readId3v1Extras($fh);
+    }
+
+    /** Jahr, Genre, Titelnummer und Kommentar aus ID3v1 (Rueckfall). */
+    private function readId3v1Extras($fh): array {
+        if (fseek($fh, -128, SEEK_END) !== 0) {
+            return [];
+        }
+        $v1 = fread($fh, 128);
+        if ($v1 === false || strlen($v1) !== 128 || substr($v1, 0, 3) !== 'TAG') {
+            return [];
+        }
+        $clean = function (string $s): ?string {
+            $s = trim(str_replace("\0", '', $s));
+            return $s === '' ? null : $this->toUtf8($s);
+        };
+        $out = ['year' => $clean(substr($v1, 93, 4))];
+        // ID3v1.1: Byte 125 = 0 und Byte 126 = Titelnummer
+        if ($v1[125] === "\0" && ord($v1[126]) > 0) {
+            $out['track'] = (string)ord($v1[126]);
+            $out['comment'] = $clean(substr($v1, 97, 28));
+        } else {
+            $out['comment'] = $clean(substr($v1, 97, 30));
+        }
+        $genre = ord($v1[127]);
+        $out['genre'] = self::GENRES[$genre] ?? null;
+        return array_filter($out, static fn ($v) => $v !== null);
+    }
+
+    /**
+     * TXXX: Kodierung, Beschreibung, Wert.
+     *
+     * @return array{0: string, 1: string}|null [Beschreibung, Wert]
+     */
+    private function decodeUserText(string $raw): ?array {
+        if (strlen($raw) < 2) {
+            return null;
+        }
+        $encoding = ord($raw[0]);
+        $rest = substr($raw, 1);
+        if ($encoding === 1 || $encoding === 2) {
+            for ($i = 0; $i + 1 < strlen($rest); $i += 2) {
+                if ($rest[$i] === "\0" && $rest[$i + 1] === "\0") {
+                    $desc = $this->decodeId3Text(chr($encoding) . substr($rest, 0, $i));
+                    $value = substr($rest, $i + 2);
+                    if ($encoding === 1 && !in_array(substr($value, 0, 2), ["\xFF\xFE", "\xFE\xFF"], true)) {
+                        $bom = substr($rest, 0, 2);
+                        if (in_array($bom, ["\xFF\xFE", "\xFE\xFF"], true)) {
+                            $value = $bom . $value;
+                        }
+                    }
+                    return [$desc, $this->decodeId3Text(chr($encoding) . $value)];
+                }
+            }
+            return null;
+        }
+        $nul = strpos($rest, "\0");
+        if ($nul === false) {
+            return null;
+        }
+        return [
+            $this->decodeId3Text(chr($encoding) . substr($rest, 0, $nul)),
+            $this->decodeId3Text(chr($encoding) . substr($rest, $nul + 1)),
+        ];
+    }
+
+    /** COMM: Kodierung, Sprache (3), Kurzbeschreibung, Text. */
+    private function decodeComment(string $raw): string {
+        if (strlen($raw) < 5) {
+            return '';
+        }
+        $encoding = ord($raw[0]);
+        $rest = substr($raw, 4);
+        if ($encoding === 1 || $encoding === 2) {
+            for ($i = 0; $i + 1 < strlen($rest); $i += 2) {
+                if ($rest[$i] === "\0" && $rest[$i + 1] === "\0") {
+                    $text = substr($rest, $i + 2);
+                    if ($encoding === 1 && strlen($text) >= 2 && !in_array(substr($text, 0, 2), ["\xFF\xFE", "\xFE\xFF"], true)) {
+                        // Manche Programme lassen die Byte-Order-Mark im Text weg
+                        $bom = substr($rest, 0, 2);
+                        if (in_array($bom, ["\xFF\xFE", "\xFE\xFF"], true)) {
+                            $text = $bom . $text;
+                        }
+                    }
+                    return $this->decodeId3Text(chr($encoding) . $text);
+                }
+            }
+            return '';
+        }
+        $nul = strpos($rest, "\0");
+        return $nul === false ? '' : $this->decodeId3Text(chr($encoding) . substr($rest, $nul + 1));
+    }
+
+    /**
      * Liefert das eingebettete Cover einer Datei (ab 0.14).
      *
      * @return array{mime: string, data: string}|null

@@ -38,11 +38,17 @@ const Player = (() => {
     coverBtn: document.getElementById('player-cover-btn'),
     btnExpand: document.getElementById('btn-expand'),
     btnCollapse: document.getElementById('btn-collapse'),
+    btnRepeat: document.getElementById('btn-repeat'),
+    repeatLabel: document.getElementById('repeat-label'),
+    btnInfo: document.getElementById('btn-info'),
+    details: document.getElementById('player-details'),
+    toast: document.getElementById('player-toast'),
   };
 
   const SEEK_STEP = 15; // Sekunden
 
   let onTrackChange = null;     // Callback: Titel gewechselt (Liste aktualisieren)
+  let onQueueEnd = null;        // Callback: Ordner fertig -> naechster Ordner (app.js)
   let onPlayStateChange = null; // Callback: Play/Pause gewechselt (Animation in der Liste)
 
   function formatTime(seconds) {
@@ -428,6 +434,7 @@ const Player = (() => {
 
     updateMediaSession(track);
     startPrefetch(index);
+    if (!els.details.hidden) loadDetails();
 
     if (autoplay) {
       audio.play().catch(() => {
@@ -520,10 +527,223 @@ const Player = (() => {
        * zwar weiter, aber ohne Steuerung am Sperrbildschirm.
        */
       loadTrack(currentIndex + 1, true);
-    } else {
-      setMediaSessionPlaybackState('paused');
+      return;
     }
+    // Ende des Ordners: je nach Wiederholen-Stufe
+    finishQueue(true);
   });
+
+  /**
+   * Der letzte Titel des Ordners ist vorbei (oder "Naechster" wurde dort
+   * gedrueckt). automatic = durch das Ende der Wiedergabe ausgeloest.
+   */
+  async function finishQueue(automatic) {
+    if (repeatMode === 'folder' && playlist.length > 0) {
+      loadTrack(0, true);
+      return;
+    }
+    if (repeatMode === 'next' && typeof onQueueEnd === 'function' && playlist.length > 0) {
+      const last = playlist[playlist.length - 1];
+      const folder = last.path.includes('/') ? last.path.slice(0, last.path.lastIndexOf('/')) : '';
+      let next = null;
+      try {
+        next = await onQueueEnd({ source: last.source, folder });
+      } catch (err) {
+        next = null;
+      }
+      if (next && Array.isArray(next.tracks) && next.tracks.length > 0) {
+        playlist = next.tracks;
+        contextLabel = next.label || '';
+        showToast('Weiter mit: ' + (next.label || 'nächster Ordner'));
+        loadTrack(0, true);
+        return;
+      }
+      showToast('Kein weiterer Ordner – Wiedergabe beendet');
+    }
+    if (automatic) setMediaSessionPlaybackState('paused');
+  }
+
+  // ------------------------------------------------------------------
+  // Wiederholen (ab 0.15)
+  //
+  // Ein Knopf mit vier Stufen:
+  //   off    - am Ende des Ordners anhalten (bisheriges Verhalten)
+  //   next   - danach mit dem naechsten Ordner weiter (Baum-Reihenfolge,
+  //            die Suche uebernimmt app.js ueber onQueueEnd)
+  //   folder - den Ordner von vorn
+  //   one    - den Titel endlos (audio.loop, dadurch ohne Luecke)
+  // Die Wahl wird je Geraet gemerkt.
+  // ------------------------------------------------------------------
+  const REPEAT_MODES = ['off', 'next', 'folder', 'one'];
+  const REPEAT_LABELS = {
+    off: 'Wiederholen aus',
+    next: 'Danach nächster Ordner',
+    folder: 'Ordner wiederholen',
+    one: 'Titel wiederholen',
+  };
+  const REPEAT_KEY = 'audioarchive_repeat';
+
+  let repeatMode = 'off';
+  try {
+    const stored = localStorage.getItem(REPEAT_KEY);
+    if (REPEAT_MODES.includes(stored)) repeatMode = stored;
+  } catch (e) { /* ohne Speicher: Vorgabe */ }
+
+  function applyRepeatMode() {
+    audio.loop = repeatMode === 'one';
+    els.btnRepeat.dataset.mode = repeatMode;
+    els.btnRepeat.classList.toggle('is-on', repeatMode !== 'off');
+    const label = REPEAT_LABELS[repeatMode];
+    els.btnRepeat.setAttribute('aria-label', label);
+    els.btnRepeat.title = label;
+    els.repeatLabel.textContent = label;
+  }
+
+  function setRepeatMode(mode) {
+    repeatMode = REPEAT_MODES.includes(mode) ? mode : 'off';
+    try { localStorage.setItem(REPEAT_KEY, repeatMode); } catch (e) { /* egal */ }
+    applyRepeatMode();
+  }
+
+  els.btnRepeat.addEventListener('click', () => {
+    const next = REPEAT_MODES[(REPEAT_MODES.indexOf(repeatMode) + 1) % REPEAT_MODES.length];
+    setRepeatMode(next);
+    showToast(REPEAT_LABELS[next]);
+  });
+  applyRepeatMode();
+
+  let toastTimer = null;
+  function showToast(text) {
+    els.toast.textContent = text;
+    els.toast.hidden = false;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { els.toast.hidden = true; }, 2200);
+  }
+
+  // ------------------------------------------------------------------
+  // Angaben zur Aufnahme (ab 0.15)
+  //
+  // Sofort aus dem, was die Ordnerliste schon liefert; die ausfuehrlichen
+  // Angaben (Jahr, Genre, Bitrate, ...) kommen per api/info nach. Ohne
+  // Verbindung bleibt es bei den Grundangaben.
+  // ------------------------------------------------------------------
+  let detailsRequest = 0;
+
+  function formatSize(bytes) {
+    if (!bytes && bytes !== 0) return '';
+    const mb = bytes / (1024 * 1024);
+    return mb >= 1
+      ? mb.toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' MB'
+      : Math.round(bytes / 1024).toLocaleString('de-DE') + ' KB';
+  }
+
+  function formatDuration(seconds) {
+    if (!isFinite(seconds) || seconds <= 0) return '';
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60).toString().padStart(2, '0');
+    return h > 0 ? `${h}:${m.toString().padStart(2, '0')}:${s}` : `${m}:${s}`;
+  }
+
+  function renderDetails(track, info, note) {
+    const t = (info && info.tags) || {};
+    const f = (info && info.file) || {};
+    const val = (v) => (v === null || v === undefined ? '' : String(v).trim());
+    const pick = (...values) => values.map(val).find((v) => v !== '') || '';
+
+    const count = (v) => {
+      const m = /^(\d+)\s*\/\s*(\d+)$/.exec(val(v));
+      return m ? `${m[1]} von ${m[2]}` : val(v);
+    };
+
+    const technical = [];
+    if (t.bitrate) technical.push(`${t.bitrate} kbit/s${t.vbr ? ' (variabel)' : ''}`);
+    if (t.sampleRate) technical.push((t.sampleRate / 1000).toLocaleString('de-DE') + ' kHz');
+    if (t.channels) technical.push(t.channels === 1 ? 'Mono' : 'Stereo');
+
+    const folder = f.folder !== undefined ? f.folder
+      : (track.path.includes('/') ? track.path.slice(0, track.path.lastIndexOf('/')) : '');
+
+    const groups = [
+      ['Aufnahme', [
+        ['Titel', pick(t.title, track.title, track.name)],
+        ['Künstler', pick(t.artist, track.artist)],
+        ['Album', pick(t.album, track.album)],
+        ['Albumkünstler', val(t.albumArtist)],
+        ['Jahr', val(t.year)],
+        ['Genre', val(t.genre)],
+        ['Titelnummer', count(t.track)],
+        ['CD', count(t.disc)],
+        ['Komponist', val(t.composer)],
+        ['Kommentar', val(t.comment)],
+      ]],
+      ['Wiedergabe', [
+        ['Dauer', formatDuration(t.duration || track.duration || audio.duration)],
+        ['Qualität', technical.join(' · ')],
+        ['Format', pick(t.format, 'MP3')],
+      ]],
+      ['Datei', [
+        ['Name', pick(f.name, track.file, track.name)],
+        ['Ordner', folder === '' ? '(oberste Ebene)' : folder.split('/').join(' / ')],
+        ['Größe', formatSize(f.size !== undefined ? f.size : track.size)],
+        ['Geändert', f.mtime ? new Date(f.mtime * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''],
+      ]],
+    ];
+
+    els.details.textContent = '';
+    groups.forEach(([heading, rows]) => {
+      const filled = rows.filter(([, v]) => v !== '');
+      if (filled.length === 0) return;
+      const h = document.createElement('h3');
+      h.className = 'player-details-heading';
+      h.textContent = heading;
+      const dl = document.createElement('dl');
+      dl.className = 'player-details-list';
+      filled.forEach(([label, value]) => {
+        const dt = document.createElement('dt');
+        dt.textContent = label;
+        const dd = document.createElement('dd');
+        dd.textContent = value; // reiner Text - Tags stammen aus fremden Dateien
+        dl.append(dt, dd);
+      });
+      els.details.append(h, dl);
+    });
+    if (note) {
+      const p = document.createElement('p');
+      p.className = 'player-details-note';
+      p.textContent = note;
+      els.details.appendChild(p);
+    }
+  }
+
+  async function loadDetails() {
+    const track = playlist[currentIndex];
+    if (!track || els.details.hidden) return;
+    const request = ++detailsRequest;
+    renderDetails(track, null, 'Lade weitere Angaben …');
+    try {
+      const res = await fetch(AudioArchive.infoUrl(track.path, track.source), { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('info');
+      const info = await res.json();
+      if (request === detailsRequest) renderDetails(track, info, '');
+    } catch (err) {
+      if (request === detailsRequest) renderDetails(track, null, 'Weitere Angaben nur mit Verbindung.');
+    }
+  }
+
+  function setDetailsOpen(open) {
+    els.details.hidden = !open;
+    els.bar.classList.toggle('show-details', open);
+    els.btnInfo.setAttribute('aria-expanded', open ? 'true' : 'false');
+    els.btnInfo.classList.toggle('is-on', open);
+    if (open) {
+      loadDetails();
+      // Die Angaben stehen unter dem Titel - dorthin scrollen
+      requestAnimationFrame(() => els.details.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    }
+  }
+
+  els.btnInfo.addEventListener('click', () => setDetailsOpen(els.details.hidden));
 
   audio.addEventListener('error', () => {
     els.title.textContent = 'Wiedergabe fehlgeschlagen';
@@ -580,6 +800,8 @@ const Player = (() => {
     if (open) {
       els.btnCollapse.focus({ preventScroll: true });
     } else {
+      // Die Angaben gehoeren zum Vollbild - beim Verkleinern zuklappen
+      if (!els.details.hidden) setDetailsOpen(false);
       updatePlayerBarSpace();
     }
   }
@@ -658,6 +880,14 @@ const Player = (() => {
     next() {
       if (currentIndex + 1 < playlist.length) {
         loadTrack(currentIndex + 1, true);
+        return;
+      }
+      // Am Ende des Ordners wie beim natuerlichen Ende - ausser bei
+      // "Titel wiederholen": Dort soll "Naechster" nicht haengen bleiben
+      if (repeatMode === 'folder' || repeatMode === 'one') {
+        loadTrack(0, true);
+      } else if (repeatMode === 'next') {
+        finishQueue(false);
       }
     },
 
@@ -678,6 +908,18 @@ const Player = (() => {
 
     onTrackChange(callback) {
       onTrackChange = callback;
+    },
+
+    /**
+     * Callback fuer "danach naechster Ordner": bekommt {source, folder} des
+     * fertigen Ordners und liefert (Promise) {tracks, label} oder null.
+     */
+    onQueueEnd(callback) {
+      onQueueEnd = callback;
+    },
+
+    getRepeatMode() {
+      return repeatMode;
     },
 
     /** Meldet Play/Pause-Wechsel, damit die Liste die Animation anhalten kann. */

@@ -98,6 +98,18 @@ const AudioArchive = (() => {
         + 'path=' + encodeURIComponent(path || ''), location.href).href;
     },
 
+    /** Ausfuehrliche Angaben zu einer Aufnahme (ab 0.15). */
+    infoUrl(path, source) {
+      return new URL(this.api('info') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path), location.href).href;
+    },
+
+    /** Naechster Ordner mit Aufnahmen in Baum-Reihenfolge (ab 0.15). */
+    nextFolderUrl(path, source) {
+      return new URL(this.api('next') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path || ''), location.href).href;
+    },
+
     streamUrl(path, source, download) {
       return new URL(this.api('stream') + '?' + this.sourceQuery(source)
         + 'path=' + encodeURIComponent(path) + (download ? '&download=1' : ''), location.href).href;

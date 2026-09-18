@@ -1650,6 +1650,72 @@
   Player.onPlayStateChange(updateActiveRow);
 
   // ------------------------------------------------------------------
+  // "Danach naechster Ordner" (ab 0.15)
+  //
+  // Ist ein Ordner fertig, sucht der Server den naechsten Ordner mit
+  // Aufnahmen in Baum-Reihenfolge (erst Unterordner, dann daneben, dann eine
+  // Ebene hoeher). Ohne Verbindung geht es nur durch die offline
+  // gespeicherten Ordner, in derselben Reihenfolge.
+  // Zeigt die Liste gerade den fertigen Ordner, wandert sie mit.
+  // ------------------------------------------------------------------
+  /** Pfade in Baum-Reihenfolge vergleichen (Abschnitt fuer Abschnitt, 2 vor 10). */
+  function compareTreePaths(a, b) {
+    const pa = a === '' ? [] : a.split('/');
+    const pb = b === '' ? [] : b.split('/');
+    for (let i = 0; i < Math.min(pa.length, pb.length); i++) {
+      const c = pa[i].localeCompare(pb[i], 'de', { numeric: true, sensitivity: 'base' });
+      if (c !== 0) return c;
+    }
+    return pa.length - pb.length;
+  }
+
+  async function findNextFolder(source, folder) {
+    if (offlineMode) {
+      const saved = Object.keys(offlineIndexFor(source))
+        .filter((p) => (offlineIndexFor(source)[p].entries || []).some((e) => e.type === 'file'))
+        .sort(compareTreePaths);
+      return saved.find((p) => compareTreePaths(p, folder) > 0) ?? null;
+    }
+    const res = await fetch(AudioArchive.nextFolderUrl(folder, source), { credentials: 'same-origin' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return typeof data.path === 'string' ? data.path : null;
+  }
+
+  async function filesOfFolder(source, path) {
+    if (offlineMode) {
+      const entries = (await offlineEntriesFromCache(path, source)) || offlineEntriesFor(path, source);
+      return tagEntries(entries, source).filter((e) => e.type === 'file');
+    }
+    const res = await fetch(AudioArchive.listUrl(path, source), { credentials: 'same-origin' });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return tagEntries(data.entries || [], source).filter((e) => e.type === 'file');
+  }
+
+  Player.onQueueEnd(async ({ source, folder }) => {
+    // Bis zu einigen Ordner weit suchen, falls einer leer zurueckkommt
+    let current = folder;
+    for (let attempt = 0; attempt < 5; attempt++) {
+      const next = await findNextFolder(source, current);
+      if (next === null) return null;
+      const tracks = await filesOfFolder(source, next);
+      if (tracks.length > 0) {
+        // Liste mitnehmen, wenn sie den fertigen Ordner zeigt
+        if (!mainScreen.hidden && view.source === source && view.path === folder) {
+          loadLibrary(next, source);
+        }
+        return {
+          tracks,
+          label: next === '' ? sourceLabel(source) : next.split('/').join(' \u00b7 '),
+        };
+      }
+      current = next;
+    }
+    return null;
+  });
+
+  // ------------------------------------------------------------------
   // Ordnerbaum in der Seitenleiste (nur angemeldet)
   //
   // Zwei Wurzeln: der gemeinsame Ordner des Administrators (falls

@@ -648,3 +648,50 @@ Nach dem Einspielen Container neu starten und App aus-/einschalten (neue
 Route). Einen Ordner mit `cover.jpg` und eine mp3 mit eingebettetem Bild
 abspielen, Vollbild öffnen und per Zurück-Geste schließen, Sperrbildschirm
 ansehen.
+
+---
+
+## 0.15.0: Wiederholen, nächster Ordner, Angaben zur Aufnahme
+
+### Wiederholen – ein Knopf, vier Stufen
+In der Player-Leiste (und beschriftet im Vollbild). Jeder Tipp schaltet weiter:
+
+| Stufe | Am Ende des Ordners |
+|---|---|
+| Wiederholen aus (Vorgabe) | Wiedergabe endet |
+| **Danach nächster Ordner** | weiter mit dem nächsten Ordner, der Aufnahmen enthält |
+| **Ordner wiederholen** | der Ordner beginnt von vorn |
+| **Titel wiederholen** | der Titel läuft endlos (ohne Lücke) |
+
+Die Wahl merkt sich jedes Gerät. „Nächster" am letzten Titel verhält sich
+passend zur Stufe.
+
+### Nächster Ordner = Baum-Reihenfolge
+Wie ein Inhaltsverzeichnis: zuerst die Unterordner, dann der Ordner daneben,
+am Ende einer Ebene eine Ebene höher. Beispiel:
+`2026_08` → `2026_08/Sonntag` → `2026_09` → `2026_10/Teil`. Ordner ohne
+Aufnahmen werden übersprungen, ihre Unterordner aber durchsucht. Nie
+außerhalb der Quelle (bei Links und geteilten Ordnern nur innerhalb der
+Freigabe). Zeigt die Liste gerade den fertigen Ordner, wandert sie mit.
+Ohne Verbindung geht es durch die offline gespeicherten Ordner.
+
+### Angaben zur Aufnahme
+Im Vollbild-Player der Knopf **„Angaben"** – klappt unter der Steuerung auf:
+- Aufnahme: Titel, Künstler, Album, Albumkünstler, Jahr, Genre, Titelnummer,
+  CD, Komponist, Kommentar
+- Wiedergabe: Dauer, Bitrate (bei variabler der Mittelwert), Abtastrate,
+  Mono/Stereo, Format
+- Datei: Name, Ordner, Größe, Änderungsdatum
+
+Nur vorhandene Angaben erscheinen. Ohne Verbindung bleibt es bei den
+Grundangaben aus der Ordnerliste.
+
+### Technik
+- Neue Endpunkte `GET api/info` und `GET api/next` (gleiche Zugangsprüfung
+  wie die Ordnerliste).
+- Tag-Leser erweitert: TPE2, TYER/TDRC, TCON (auch „(17)"-Verweise auf die
+  ID3v1-Genres), TRCK, TPOS, TCOM, COMM und TXXX „comment" (so schreibt ffmpeg
+  Kommentare), Rückfall auf ID3v1.1.
+- Die Suche nach dem nächsten Ordner sieht höchstens 3000 Ordner an.
+
+Nach dem Einspielen: Container neu starten, App aus-/einschalten (neue Routen).

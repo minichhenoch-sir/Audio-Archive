@@ -205,4 +205,145 @@ class ListController extends Controller {
 
         return new DataResponse(['source' => $source, 'path' => $relative, 'dirs' => $dirs]);
     }
+
+    /**
+     * Ausfuehrliche Angaben zu EINER Aufnahme fuer die Info-Ansicht im
+     * Vollbild-Player (ab 0.15). Gleiche Zugangspruefung wie die Liste.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function info(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], $scope);
+        }
+        $node = $this->audioFolder->resolveIn($scope['root'], $path);
+        if (!$node instanceof File || !$this->audioFolder->isAllowedFile($node)) {
+            return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $relative = $this->audioFolder->relativePath($scope['root'], $node);
+        $folder = str_contains($relative, '/') ? substr($relative, 0, (int)strrpos($relative, '/')) : '';
+
+        return new DataResponse([
+            'tags' => $this->metadata->readDetails($node),
+            'file' => [
+                'name' => $node->getName(),
+                'folder' => $folder,
+                'size' => $node->getSize(),
+                'mtime' => $node->getMTime(),
+            ],
+        ]);
+    }
+
+    /** Hoechstens so viele Ordner werden bei der Suche angesehen. */
+    private const NEXT_FOLDER_LIMIT = 3000;
+
+    /**
+     * Der naechste Ordner mit Aufnahmen in Baum-Reihenfolge (ab 0.15) - fuer
+     * "danach mit dem naechsten Ordner weiter".
+     *
+     * Reihenfolge wie ein Inhaltsverzeichnis: zuerst die Unterordner des
+     * gerade gehoerten Ordners, dann der naechste Ordner daneben, und am
+     * Ende einer Ebene geht es eine Ebene hoeher weiter. Ordner ohne
+     * Aufnahmen werden uebersprungen, ihre Unterordner aber durchsucht. Nie
+     * ausserhalb der Wurzel der Quelle.
+     *
+     * Antwort: {path} oder {path: null}, wenn danach nichts mehr kommt.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function next(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Ordner nicht gefunden.'], $scope);
+        }
+        $root = $scope['root'];
+        $node = $this->audioFolder->resolveIn($root, $path);
+        if (!$node instanceof Folder) {
+            return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $budget = self::NEXT_FOLDER_LIMIT;
+
+        // 1. Unterordner des aktuellen Ordners
+        $found = $this->firstWithAudio($this->subfolders($node), $budget);
+
+        // 2. Danach Geschwister, von innen nach aussen
+        $current = $node;
+        $rootPath = rtrim($root->getPath(), '/');
+        while ($found === null && $budget > 0 && rtrim($current->getPath(), '/') !== $rootPath) {
+            try {
+                $parent = $current->getParent();
+            } catch (\Throwable $e) {
+                break;
+            }
+            $siblings = $this->subfolders($parent);
+            $after = [];
+            $seen = false;
+            foreach ($siblings as $sibling) {
+                if ($seen) {
+                    $after[] = $sibling;
+                } elseif ($sibling->getId() === $current->getId()) {
+                    $seen = true;
+                }
+            }
+            $found = $this->firstWithAudio($after, $budget);
+            $current = $parent;
+        }
+
+        return new DataResponse([
+            'path' => $found !== null ? $this->audioFolder->relativePath($root, $found) : null,
+        ]);
+    }
+
+    /** @return list<Folder> sichtbare Unterordner, natuerlich sortiert */
+    private function subfolders(Folder $folder): array {
+        $dirs = [];
+        try {
+            foreach ($folder->getDirectoryListing() as $child) {
+                if ($child instanceof Folder && !str_starts_with($child->getName(), '.')) {
+                    $dirs[] = $child;
+                }
+            }
+        } catch (\Throwable $e) {
+            return [];
+        }
+        usort($dirs, static fn ($a, $b) => strnatcasecmp($a->getName(), $b->getName()));
+        return $dirs;
+    }
+
+    /**
+     * Erster Ordner mit Aufnahmen in Vorwaerts-Tiefensuche ueber die
+     * uebergebenen Ordner (jeweils erst der Ordner selbst, dann seine
+     * Unterordner).
+     *
+     * @param list<Folder> $folders
+     */
+    private function firstWithAudio(array $folders, int &$budget): ?Folder {
+        foreach ($folders as $folder) {
+            if (--$budget < 0) {
+                return null;
+            }
+            $hasAudio = false;
+            try {
+                foreach ($folder->getDirectoryListing() as $child) {
+                    if (!str_starts_with($child->getName(), '.') && $this->audioFolder->isAllowedFile($child)) {
+                        $hasAudio = true;
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($hasAudio) {
+                return $folder;
+            }
+            $deeper = $this->firstWithAudio($this->subfolders($folder), $budget);
+            if ($deeper !== null) {
+                return $deeper;
+            }
+        }
+        return null;
+    }
 }

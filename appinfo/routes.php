@@ -22,6 +22,10 @@ return [
         ['name' => 'stream#index', 'url' => '/api/stream', 'verb' => 'GET'],
         // Cover einer Aufnahme (ab 0.14): eingebettet oder cover.jpg im Ordner
         ['name' => 'cover#index', 'url' => '/api/cover', 'verb' => 'GET'],
+        // Ausfuehrliche Angaben zu einer Aufnahme (Info-Ansicht, ab 0.15)
+        ['name' => 'list#info', 'url' => '/api/info', 'verb' => 'GET'],
+        // Naechster Ordner mit Aufnahmen in Baum-Reihenfolge (ab 0.15)
+        ['name' => 'list#next', 'url' => '/api/next', 'verb' => 'GET'],
         // Nur Unterordner, fuer den Ordnerbaum (angemeldet)
         ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
 
