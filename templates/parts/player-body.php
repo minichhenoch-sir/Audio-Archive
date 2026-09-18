@@ -16,6 +16,10 @@ $rootClasses = [$_['embedded'] === '1' ? 'aa-embedded' : 'aa-standalone'];
 if ($_['design'] === 'nextcloud') {
     $rootClasses[] = 'aa-design-nextcloud';
 }
+// Angemeldet: Ordnerbaum in der Seitenleiste
+if ($_['loggedIn'] === '1') {
+    $rootClasses[] = 'aa-with-tree';
+}
 /*
  * Hintergrundbild fuer die Nextcloud-Gestaltung als CSS-Variable. (Bei
  * eigener Gestaltung setzt app.js das Bild, zusammen mit dem Farbverlauf.)
@@ -38,6 +42,8 @@ if ($_['backgroundUrl'] !== '') {
      data-public-token="<?php echo $escape($_['publicToken']); ?>"
      data-design="<?php echo $escape($_['design']); ?>"
      data-user-settings="<?php echo $escape($_['userSettings']); ?>"
+     data-logged-in="<?php echo $escape($_['loggedIn']); ?>"
+     data-has-shared="<?php echo $escape($_['hasShared']); ?>"
      data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
@@ -82,6 +88,13 @@ if ($_['backgroundUrl'] !== '') {
 <!-- ===================== HAUPTANSICHT ===================== -->
 <section id="main-screen" class="screen" hidden>
   <header class="topbar">
+    <!-- Ordnerbaum ein-/ausblenden (nur schmale Bildschirme, nur angemeldet) -->
+    <button id="sidebar-toggle" class="icon-btn glass-pill sidebar-toggle" type="button"
+            title="Ordner" aria-label="Ordner" aria-controls="sidebar" aria-expanded="false" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/>
+      </svg>
+    </button>
     <div class="topbar-titles glass-pill">
       <h1 id="topbar-title"></h1>
       <p id="topbar-subtitle" class="topbar-subtitle" hidden></p>
@@ -117,6 +130,14 @@ if ($_['backgroundUrl'] !== '') {
     </button>
   </header>
 
+  <div class="main-body">
+  <!-- Ordnerbaum (nur angemeldet): gemeinsamer Ordner und eigene Dateien -->
+  <nav id="sidebar" class="sidebar" aria-label="Ordner" hidden>
+    <ul id="tree" class="tree" role="tree"></ul>
+  </nav>
+  <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
+
+  <div class="library-scroll">
   <div id="library" class="library">
     <p id="offline-banner" class="offline-banner" hidden>
       Keine Internetverbindung &ndash; es werden nur gespeicherte Aufnahmen angezeigt.
@@ -166,6 +187,8 @@ if ($_['backgroundUrl'] !== '') {
 
     <p id="library-status" class="status-text">Lade Aufnahmen …</p>
     <div id="list-container" class="explorer-list"></div>
+  </div>
+  </div>
   </div>
 
   <!-- ===================== PERSISTENTER PLAYER ===================== -->

@@ -110,6 +110,17 @@ class AccessGuard {
         return $fromSession !== '' && hash_equals($token, $fromSession);
     }
 
+    /**
+     * Darf der Aufrufer diese Quelle lesen? Die eigenen Dateien ('home')
+     * nur angemeldet, den gemeinsamen Ordner wie bisher.
+     */
+    public function canUseSource(string $source): bool {
+        if ($source === AudioFolder::SOURCE_HOME) {
+            return $this->userSession->isLoggedIn();
+        }
+        return $this->hasAccess();
+    }
+
     /** Nur fuer die Anzeige: Ist der Aufrufer ein angemeldeter Nutzer? */
     public function isLoggedInUser(): bool {
         return $this->userSession->isLoggedIn();

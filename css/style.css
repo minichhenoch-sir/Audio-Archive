@@ -1025,6 +1025,181 @@ body.has-bg-image #audioarchive .explorer-row.active {
   color: var(--color-danger);
 }
 
+/* ===================== ORDNERBAUM (Seitenleiste) =====================
+ *
+ * Ohne Baum (oeffentliche Seite) sind die beiden Huellen wirkungslos
+ * (display: contents) - die Seite verhaelt sich genau wie bisher:
+ * #main-screen scrollt als Ganzes.
+ *
+ * Mit Baum scrollt nicht mehr #main-screen, sondern Baum und Liste jeweils
+ * fuer sich; die Kopfzeile steht fest darueber. Nur so kann der Baum beim
+ * Blaettern in einer langen Liste stehen bleiben.
+ */
+#audioarchive .main-body,
+#audioarchive .library-scroll {
+  display: contents;
+}
+
+#audioarchive.aa-with-tree #main-screen {
+  overflow: hidden;
+}
+
+#audioarchive.aa-with-tree .topbar { position: relative; }
+
+#audioarchive.aa-with-tree .main-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  position: relative;
+}
+
+#audioarchive.aa-with-tree .library-scroll {
+  display: block;
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+#audioarchive .sidebar {
+  flex: 0 0 280px;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  margin: 18px 0 calc(var(--player-bar-space, 0px) + 12px) 14px;
+  padding: 8px;
+  border-radius: 18px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font-size: calc(0.9 * var(--aa-rem));
+  align-self: flex-start;
+  max-height: calc(100% - 18px - var(--player-bar-space, 0px) - 12px);
+}
+
+#audioarchive .tree,
+#audioarchive .tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+#audioarchive .tree ul { padding-left: 16px; }
+
+#audioarchive .tree-root + .tree-root { margin-top: 6px; }
+
+#audioarchive .tree-item {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  border-radius: 10px;
+  min-height: 36px;
+}
+
+#audioarchive .tree-item:hover { background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.10); }
+
+#audioarchive .tree-item.is-active {
+  background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.20);
+  color: var(--color-accent-deep);
+  font-weight: 600;
+}
+
+#audioarchive .tree-toggle {
+  flex: 0 0 28px;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: none;
+  color: inherit;
+  border-radius: 8px;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+
+#audioarchive .tree-toggle.is-empty { visibility: hidden; }
+#audioarchive .tree-toggle[aria-expanded="true"] { transform: rotate(90deg); }
+
+#audioarchive .tree-label {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px 6px 2px;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+#audioarchive .tree-label-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#audioarchive .tree-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--color-accent);
+}
+
+#audioarchive .tree-root > .tree-item .tree-label { font-weight: 600; }
+
+#audioarchive .tree-status {
+  padding: 4px 8px 4px 36px;
+  color: var(--color-ink-soft);
+  font-size: calc(0.8 * var(--aa-rem));
+}
+
+#audioarchive .sidebar-toggle { display: none; }
+#audioarchive .sidebar-backdrop { display: none; }
+
+/* Schmale Bildschirme: Baum als ausklappbares Menue von links */
+@media (max-width: 1023px) {
+  #audioarchive.aa-with-tree .sidebar-toggle:not([hidden]) { display: flex; }
+
+  #audioarchive.aa-with-tree .sidebar {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    right: auto;
+    /* Wichtig: Neuere Browser wenden align-self auch auf fest positionierte
+       Elemente an. Mit dem flex-start von oben waere das Menue nur so hoch
+       wie sein Inhalt, statt von oben bis unten zu reichen. */
+    align-self: stretch;
+    width: min(320px, 86%);
+    max-height: none;
+    margin: 0;
+    border-radius: 0 18px 18px 0;
+    padding: calc(14px + var(--safe-top)) 10px calc(14px + var(--safe-bottom));
+    z-index: 30;
+    transform: translateX(-105%);
+    transition: transform 0.22s ease;
+    /* Deckend, damit die Liste darunter nicht durchscheint */
+    background: #fbf5ec;
+    box-shadow: 0 14px 36px rgba(20, 12, 6, 0.4);
+  }
+
+  #audioarchive.aa-sidebar-open .sidebar { transform: none; }
+
+  #audioarchive.aa-sidebar-open .sidebar-backdrop:not([hidden]) {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 29;
+    background: rgba(0, 0, 0, 0.35);
+  }
+}
+
 /* =====================================================================
  * NEXTCLOUD-GESTALTUNG (Einstellung "Gestaltung: Nextcloud")
  * =====================================================================
@@ -1424,4 +1599,54 @@ html.aa-standalone:has(.aa-design-nextcloud) {
     border-radius: 0;
     background: transparent;
   }
+}
+
+/* ---------- Ordnerbaum ----------
+ * Wie Nextclouds App-Navigation */
+#audioarchive.aa-design-nextcloud .sidebar {
+  background: var(--color-main-background-blur, rgba(255, 255, 255, 0.85));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none;
+  border-right: 1px solid var(--aa-nc-border);
+  border-radius: 0;
+  box-shadow: none;
+  margin: 0;
+  align-self: stretch;
+  max-height: none;
+  padding: 8px 8px calc(var(--player-bar-space, 0px) + 8px);
+}
+#audioarchive.aa-design-nextcloud .tree-item { border-radius: var(--aa-nc-radius); }
+#audioarchive.aa-design-nextcloud .tree-item:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .tree-item.is-active {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+}
+#audioarchive.aa-design-nextcloud .tree-icon { color: var(--aa-nc-primary); }
+#audioarchive.aa-design-nextcloud .tree-item.is-active .tree-icon { color: var(--aa-nc-primary-light-text); }
+#audioarchive.aa-design-nextcloud .tree-toggle:hover { background: var(--aa-nc-dark); }
+
+@media (max-width: 1023px) {
+  #audioarchive.aa-design-nextcloud.aa-with-tree .sidebar,
+  #audioarchive.aa-design-nextcloud.aa-has-image.aa-with-tree .sidebar {
+    margin: 0;
+    max-height: none;
+    align-self: stretch;
+    background: var(--aa-nc-bg);
+    border-right: none;
+    border-radius: 0 var(--aa-nc-radius-large) var(--aa-nc-radius-large) 0;
+    box-shadow: var(--aa-nc-shadow);
+    padding: calc(14px + var(--safe-top)) 10px calc(14px + var(--safe-bottom));
+  }
+}
+
+/* Mit eigenem Bild ist die Liste eine eigene Flaeche - der Baum auch */
+#audioarchive.aa-design-nextcloud.aa-has-image .sidebar {
+  background: var(--aa-nc-bg);
+  border-radius: var(--aa-nc-radius-large);
+  margin: 16px 0 16px 14px;
+  box-shadow: var(--aa-nc-shadow);
+  border-right: none;
+  align-self: flex-start;
+  max-height: calc(100% - 32px);
 }

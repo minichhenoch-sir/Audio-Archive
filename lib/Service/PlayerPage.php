@@ -34,6 +34,7 @@ class PlayerPage {
         private IURLGenerator $urlGenerator,
         private Appearance $appearance,
         private IUserSession $userSession,
+        private AudioFolder $audioFolder,
     ) {
     }
 
@@ -110,6 +111,10 @@ class PlayerPage {
             // Nextcloud verlangt dafuer das Anfrage-Token. Die eigenstaendige
             // Seite hat kein OC.requestToken, deshalb steht es im Dokument.
             'requestToken' => $uid !== null ? $this->requestToken() : '',
+            // Ordnerbaum: nur angemeldet; der gemeinsame Ordner nur, wenn
+            // der Administrator einen eingerichtet hat
+            'loggedIn' => $uid !== null ? '1' : '',
+            'hasShared' => $this->audioFolder->hasSharedRoot() ? '1' : '',
             // Adresse der eigenstaendigen Fassung, fuer den Knopf
             // "App installieren" auf der eingebetteten Seite
             'standaloneUrl' => $this->urlGenerator->linkToRoute(

@@ -9,6 +9,7 @@ use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\MetadataReader;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\DataResponse;
@@ -37,27 +38,36 @@ class ListController extends Controller {
         parent::__construct($appName, $request);
     }
 
+    /**
+     * @param string $source 'shared' (gemeinsamer Ordner, Vorgabe) oder
+     *                       'home' (eigene Dateien, nur angemeldet)
+     */
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path = ''): DataResponse {
-        if (!$this->guard->hasAccess()) {
+    public function index(string $path = '', string $source = AudioFolder::SOURCE_SHARED): DataResponse {
+        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+
+        if (!$this->guard->canUseSource($source)) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
 
-        $root = $this->audioFolder->getRoot();
+        $root = $this->audioFolder->rootFor($source);
         if ($root === null) {
             return new DataResponse(
-                ['error' => 'Es ist noch kein Quellordner eingerichtet.'],
+                ['error' => $source === AudioFolder::SOURCE_HOME
+                    ? 'Die eigenen Dateien sind nicht erreichbar.'
+                    : 'Es ist noch kein Quellordner eingerichtet.'],
                 Http::STATUS_INTERNAL_SERVER_ERROR
             );
         }
 
-        $node = $this->audioFolder->resolve($path);
+        $node = $this->audioFolder->resolveIn($root, $path);
         if (!$node instanceof Folder) {
             return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
         }
 
-        $relative = $this->relativePath($root, $node);
+        $relative = $this->audioFolder->relativePath($root, $node);
+        $isHome = $source === AudioFolder::SOURCE_HOME;
 
         $dirs = [];
         $files = [];
@@ -75,7 +85,14 @@ class ListController extends Controller {
                     'type' => 'dir',
                     'name' => $name,
                     'path' => $childRelative,
-                    'count' => $this->audioFolder->countRecursive($child),
+                    /*
+                     * In den eigenen Dateien wird bewusst nicht gezaehlt:
+                     * Das hiesse, den kompletten Dateibestand des Nutzers
+                     * rekursiv zu durchlaufen - bei jedem Oeffnen eines
+                     * Ordners. Im gemeinsamen Ordner mit seinen Aufnahmen
+                     * ist das ueberschaubar.
+                     */
+                    'count' => $isHome ? null : $this->audioFolder->countRecursive($child),
                 ];
                 continue;
             }
@@ -110,6 +127,7 @@ class ListController extends Controller {
         }
 
         return new DataResponse([
+            'source' => $source,
             'path' => $relative,
             'parent' => $parent,
             'entries' => array_merge($dirs, $files),
@@ -117,16 +135,64 @@ class ListController extends Controller {
                 'offline' => $this->appConfig->getValueBool(
                     Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
                 ),
-                'download' => $this->appConfig->getValueBool(
+                // Die eigenen Dateien darf man immer herunterladen - sie
+                // gehoeren einem ohnehin.
+                'download' => $isHome || $this->appConfig->getValueBool(
                     Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
                 ),
             ],
         ]);
     }
 
-    /** Pfad eines Knotens relativ zur Wurzel des Quellordners. */
-    private function relativePath(Folder $root, Folder $node): string {
-        $rootPath = rtrim($root->getPath(), '/');
-        return trim(substr($node->getPath(), strlen($rootPath)), '/');
+    /**
+     * Nur die Unterordner eines Ordners - fuer den Ordnerbaum in der
+     * Seitenleiste. hasChildren steuert, ob der Eintrag aufklappbar ist.
+     * Nur fuer angemeldete Nutzer; die oeffentliche Seite hat keinen Baum.
+     */
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function tree(string $path = '', string $source = AudioFolder::SOURCE_SHARED): DataResponse {
+        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+
+        if (!$this->guard->isLoggedInUser()) {
+            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+
+        $root = $this->audioFolder->rootFor($source);
+        $node = $root === null ? null : $this->audioFolder->resolveIn($root, $path);
+        if (!$node instanceof Folder) {
+            return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $relative = $this->audioFolder->relativePath($root, $node);
+        $dirs = [];
+
+        foreach ($node->getDirectoryListing() as $child) {
+            if (!$child instanceof Folder || str_starts_with($child->getName(), '.')) {
+                continue;
+            }
+
+            $hasChildren = false;
+            try {
+                foreach ($child->getDirectoryListing() as $grandChild) {
+                    if ($grandChild instanceof Folder && !str_starts_with($grandChild->getName(), '.')) {
+                        $hasChildren = true;
+                        break;
+                    }
+                }
+            } catch (\Throwable $e) {
+                // Nicht lesbar (z.B. externer Speicher offline) - dann eben nicht aufklappbar
+            }
+
+            $dirs[] = [
+                'name' => $child->getName(),
+                'path' => ltrim($relative . '/' . $child->getName(), '/'),
+                'hasChildren' => $hasChildren,
+            ];
+        }
+
+        usort($dirs, static fn ($a, $b) => strnatcasecmp($a['name'], $b['name']));
+
+        return new DataResponse(['source' => $source, 'path' => $relative, 'dirs' => $dirs]);
     }
 }

@@ -23,10 +23,11 @@
   const offlineInfo = document.getElementById('offline-info');
 
   // Navigationszustand des Explorers: bildet die ECHTE Ordnerstruktur ab.
-  // view.path ist der relative Pfad des gerade geöffneten Ordners
+  // view.source ist die Quelle ('shared' = gemeinsamer Ordner, 'home' =
+  // eigene Dateien), view.path der relative Pfad des geöffneten Ordners
   // ('' = Audio-Hauptverzeichnis), beliebig tief verschachtelt.
   let currentEntries = [];
-  let view = { path: '' };
+  let view = { source: 'shared', path: '' };
 
   // ------------------------------------------------------------------
   // Installierte App, aber mit Nextcloud-Rahmen gestartet?
@@ -321,11 +322,21 @@
   function showMain() {
     loginScreen.hidden = true;
     mainScreen.hidden = false;
-    view = { path: '' }; // Explorer immer sauber im Hauptordner öffnen
+    // Explorer immer sauber im Hauptordner öffnen: angemeldet zuerst der
+    // gemeinsame Ordner, sofern eingerichtet, sonst die eigenen Dateien
+    view = { source: startSource(), path: '' };
+    // Ohne Verbindung mit einer Quelle beginnen, fuer die etwas gespeichert ist
+    if (offlineMode) {
+      const available = offlineSources();
+      if (!available.has(view.source) && available.size > 0) {
+        view.source = available.has('shared') ? 'shared' : 'home';
+      }
+    }
     // Basis-Historie-Eintrag setzen (ersetzt den aktuellen Eintrag, statt
     // einen neuen zu erzeugen) - Ausgangspunkt für die Zurück-Geste/-Taste.
     history.replaceState({ view }, '');
-    loadLibrary();
+    loadLibrary('', view.source);
+    Tree.init();
   }
 
   // ------------------------------------------------------------------
@@ -337,16 +348,29 @@
   // statt die App zu verlassen. Nur ganz oben auf der Monatsebene
   // schließt Zurück die App wie gewohnt.
   // ------------------------------------------------------------------
-  function navigate(newPath) {
-    view = { path: newPath };
+  function navigate(newPath, source = view.source) {
+    view = { source, path: newPath };
     history.pushState({ view }, '');
-    loadLibrary(newPath);
+    loadLibrary(newPath, source);
+  }
+
+  function startSource() {
+    if (AudioArchive.isPublic() || !AudioArchive.loggedIn) return 'shared';
+    return AudioArchive.hasShared ? 'shared' : 'home';
+  }
+
+  /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
+  function sourceLabel(source) {
+    return source === 'home' ? 'Meine Dateien' : (AudioArchive.loggedIn && !AudioArchive.isPublic()
+      ? 'Gemeinsame Aufnahmen'
+      : 'Aufnahmen');
   }
 
   window.addEventListener('popstate', (e) => {
     if (mainScreen.hidden) return; // nicht relevant, solange nicht eingeloggt
-    view = (e.state && e.state.view) ? e.state.view : { path: '' };
-    loadLibrary(view.path);
+    view = (e.state && e.state.view) ? e.state.view : { source: startSource(), path: '' };
+    if (!view.source) view.source = 'shared';
+    loadLibrary(view.path, view.source);
   });
 
   // ------------------------------------------------------------------
@@ -450,16 +474,53 @@
     return {};
   }
 
-  function setOfflineFolder(path, entries) {
+  /*
+   * Schluessel im Verzeichnis. Der gemeinsame Ordner verwendet - wie bis
+   * 0.10 - den blossen Pfad, damit bestehende Verzeichnisse gueltig bleiben.
+   * Die eigenen Dateien bekommen eine Vorsilbe, damit sich gleich
+   * benannte Ordner beider Quellen nicht in die Quere kommen.
+   */
+  const HOME_PREFIX = '@@home:';
+
+  function indexKey(source, path) {
+    return source === 'home' ? HOME_PREFIX + path : path;
+  }
+
+  /** Umkehrung von indexKey(): { source, path } */
+  function parseIndexKey(key) {
+    return key.startsWith(HOME_PREFIX)
+      ? { source: 'home', path: key.slice(HOME_PREFIX.length) }
+      : { source: 'shared', path: key };
+  }
+
+  /** Nur die Eintraege einer Quelle: { pfad: {entries, savedAt} } */
+  function offlineIndexFor(source) {
     const index = offlineIndex();
-    index[path] = { entries, savedAt: Date.now() };
+    const result = {};
+    Object.keys(index).forEach((key) => {
+      const parsed = parseIndexKey(key);
+      if (parsed.source === source) result[parsed.path] = index[key];
+    });
+    return result;
+  }
+
+  function setOfflineFolder(source, path, entries) {
+    const index = offlineIndex();
+    index[indexKey(source, path)] = { entries, savedAt: Date.now() };
     lsSet(LS_INDEX, index);
   }
 
-  function removeOfflineFolder(path) {
+  function removeOfflineFolder(source, path) {
     const index = offlineIndex();
-    delete index[path];
+    delete index[indexKey(source, path)];
     lsSet(LS_INDEX, index);
+  }
+
+  /** Quellen, fuer die offline etwas gespeichert ist */
+  function offlineSources() {
+    const sources = new Set();
+    Object.keys(offlineIndex()).forEach((key) => sources.add(parseIndexKey(key).source));
+    return sources;
   }
 
   function hasOfflineContent() {
@@ -492,8 +553,14 @@
 
       keys.forEach((request) => {
         let path;
+        let source;
         try {
-          path = new URL(request.url).searchParams.get('path');
+          const url = new URL(request.url);
+          // Nur Aufnahmen - die mitgespeicherten Ordnerlisten liegen im
+          // selben Speicher
+          if (!url.pathname.endsWith('/api/stream')) return;
+          path = url.searchParams.get('path');
+          source = url.searchParams.get('source') === 'home' ? 'home' : 'shared';
         } catch (e) {
           return;
         }
@@ -501,10 +568,10 @@
 
         const parts = path.split('/');
         const fileName = parts.pop();
-        const folderPath = parts.join('/');
+        const folderKey = indexKey(source, parts.join('/'));
 
-        if (!folders[folderPath]) folders[folderPath] = [];
-        folders[folderPath].push({
+        if (!folders[folderKey]) folders[folderKey] = [];
+        folders[folderKey].push({
           type: 'file',
           name: fileName.replace(/\.[^.]+$/, ''),
           file: fileName,
@@ -515,10 +582,10 @@
       const index = offlineIndex();
       let added = false;
 
-      Object.keys(folders).forEach((folderPath) => {
-        if (!index[folderPath]) {
-          folders[folderPath].sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
-          index[folderPath] = { entries: folders[folderPath], savedAt: Date.now(), rebuilt: true };
+      Object.keys(folders).forEach((folderKey) => {
+        if (!index[folderKey]) {
+          folders[folderKey].sort((a, b) => a.name.localeCompare(b.name, 'de', { numeric: true }));
+          index[folderKey] = { entries: folders[folderKey], savedAt: Date.now(), rebuilt: true };
           added = true;
         }
       });
@@ -550,8 +617,8 @@
    * oberste Ebene "2026_08" und darin erst "Sonntag" - statt wie zuvor alle
    * gespeicherten Ordner flach nebeneinander.
    */
-  function offlineEntriesFor(path) {
-    const index = offlineIndex();
+  function offlineEntriesFor(path, source) {
+    const index = offlineIndexFor(source);
     const prefix = path === '' ? '' : path + '/';
 
     const dirs = new Map();
@@ -600,12 +667,12 @@
    * Liest die gespeicherte Ordnerliste. Gibt null zurueck, wenn fuer diesen
    * Ordner nichts hinterlegt ist.
    */
-  async function offlineEntriesFromCache(path) {
+  async function offlineEntriesFromCache(path, source) {
     if (!offlineSupportedStorage()) return null;
 
     try {
       const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
-      const cached = await cache.match(listUrlFor(path));
+      const cached = await cache.match(listUrlFor(path, source));
       if (!cached) return null;
 
       const data = await cached.json();
@@ -630,6 +697,9 @@
 
     const banner = document.getElementById('offline-banner');
     if (banner) banner.hidden = false;
+
+    // Der Baum zeigt ohne Verbindung nur, was gespeichert ist
+    Tree.rebuild();
 
     // Im Offline-Betrieb gibt es kein Admin-Portal und keine Abmeldung am
     // Server - der Abmelde-Knopf wuerde nur in einen Fehler laufen.
@@ -762,14 +832,14 @@
   // ------------------------------------------------------------------
   // Ordnerstruktur laden
   // ------------------------------------------------------------------
-  async function loadLibrary(path = '') {
+  async function loadLibrary(path = '', source = view.source) {
     libraryStatus.hidden = false;
     libraryStatus.textContent = 'Lade Aufnahmen \u2026';
     listContainer.innerHTML = '';
 
     // Ohne Verbindung: Ansicht aus dem Offline-Speicher aufbauen
     if (offlineMode) {
-      view = { path };
+      view = { source, path };
 
       /*
        * Zuerst die gespeicherte Ordnerliste versuchen - sie enthaelt
@@ -778,10 +848,12 @@
        * liegt, greift das lokale Verzeichnis als Rueckfall; dort fehlen
        * diese Angaben moeglicherweise.
        */
-      currentEntries = await offlineEntriesFromCache(path);
+      currentEntries = await offlineEntriesFromCache(path, source);
       if (currentEntries === null) {
-        currentEntries = offlineEntriesFor(path);
+        currentEntries = offlineEntriesFor(path, source);
       }
+      tagEntries(currentEntries, source);
+      Tree.select(source, path);
       renderBreadcrumb();
 
       if (currentEntries.length === 0) {
@@ -798,9 +870,9 @@
        * dort nicht enthalten.
        */
       const index = offlineIndex();
-      if (index[view.path]) {
+      if (index[indexKey(source, view.path)]) {
         const files = currentEntries.filter((e) => e.type === 'file');
-        if (files.length > 0) setOfflineFolder(view.path, files);
+        if (files.length > 0) setOfflineFolder(source, view.path, files);
       }
 
       libraryStatus.hidden = true;
@@ -810,7 +882,7 @@
     }
 
     try {
-      const res = await fetch(AudioArchive.api('list') + '?path=' + encodeURIComponent(path), {
+      const res = await fetch(AudioArchive.listUrl(path, source), {
         credentials: 'same-origin',
       });
 
@@ -827,8 +899,9 @@
         return;
       }
 
-      view = { path: data.path || '' };
-      currentEntries = data.entries || [];
+      view = { source, path: data.path || '' };
+      currentEntries = tagEntries(data.entries || [], source);
+      Tree.select(source, view.path);
 
       // Die vom Administrator freigegebenen Funktionen liefert der Server
       // zusammen mit der Ordnerliste mit.
@@ -855,9 +928,9 @@
        * dort nicht enthalten.
        */
       const index = offlineIndex();
-      if (index[view.path]) {
+      if (index[indexKey(source, view.path)]) {
         const files = currentEntries.filter((e) => e.type === 'file');
-        if (files.length > 0) setOfflineFolder(view.path, files);
+        if (files.length > 0) setOfflineFolder(source, view.path, files);
       }
 
       libraryStatus.hidden = true;
@@ -873,6 +946,19 @@
   // wie er auf der Platte liegt (Unterordner zuerst, dann Dateien) -
   // beliebig tief verschachtelt, ohne feste Monats-/Tages-Ebenen.
   // ------------------------------------------------------------------
+  /**
+   * Haengt jedem Eintrag seine Quelle und eine eindeutige Kennung an. Der
+   * Player braucht die Quelle fuer die Adresse der Aufnahme, die Liste die
+   * Kennung fuer die Markierung des laufenden Titels.
+   */
+  function tagEntries(entries, source) {
+    entries.forEach((entry) => {
+      entry.source = source;
+      entry.key = source + '|' + entry.path;
+    });
+    return entries;
+  }
+
   function renderEntries() {
     listContainer.innerHTML = '';
     listContainer.classList.remove('entering');
@@ -881,11 +967,11 @@
 
     // Nur die Audiodateien dieses Ordners bilden die Abspielliste
     const folderFiles = currentEntries.filter((e) => e.type === 'file');
-    const folderLabel = view.path === '' ? 'Aufnahmen' : view.path.split('/').join(' \u00b7 ');
+    const folderLabel = view.path === '' ? sourceLabel(view.source) : view.path.split('/').join(' \u00b7 ');
 
     currentEntries.forEach((entry) => {
       if (entry.type === 'dir') {
-        const count = entry.count || 0;
+        const count = entry.count || 0; // null bei den eigenen Dateien (nicht gezaehlt)
         listContainer.appendChild(makeRow({
           icon: folderIcon(),
           label: entry.name,
@@ -896,7 +982,7 @@
       }
 
       const fileIndex = folderFiles.findIndex((f) => f.path === entry.path);
-      const isActive = Player.getCurrentPath() === entry.path;
+      const isActive = Player.getCurrentKey() === entry.key;
 
       const row = makeRow({
         icon: isActive ? playingIcon() : fileIcon(),
@@ -909,7 +995,7 @@
       if (features.download && !offlineMode) {
         const dl = document.createElement('a');
         dl.className = 'row-download';
-        dl.href = AudioArchive.api('stream') + '?path=' + encodeURIComponent(entry.path) + '&download=1';
+        dl.href = AudioArchive.streamUrl(entry.path, entry.source, true);
         dl.setAttribute('download', entry.file || entry.name);
         dl.title = 'Aufnahme herunterladen';
         dl.setAttribute('aria-label', 'Aufnahme herunterladen');
@@ -920,7 +1006,7 @@
         row.appendChild(dl);
       }
 
-      row.dataset.path = entry.path;
+      row.dataset.key = entry.key;
       if (isActive) {
         row.classList.add('active');
         if (!Player.isPlaying()) row.classList.add('paused');
@@ -937,7 +1023,7 @@
     // Wurzel ("Aufnahmen") ist anklickbar, sobald man tiefer steht
     const rootIsCurrent = segments.length === 0;
     const rootEl = document.createElement(rootIsCurrent ? 'span' : 'button');
-    rootEl.textContent = 'Aufnahmen';
+    rootEl.textContent = sourceLabel(view.source);
     if (rootIsCurrent) {
       rootEl.className = 'crumb crumb--current';
     } else {
@@ -1052,8 +1138,8 @@
   const offlineSupported = 'caches' in window;
   let offlineBusy = false;
 
-  function streamUrlFor(path) {
-    return new URL(AudioArchive.api('stream') + '?path=' + encodeURIComponent(path), location.href).href;
+  function streamUrlFor(path, source) {
+    return AudioArchive.streamUrl(path, source);
   }
 
   /** Zaehlt, wie viele Dateien dieses Ordners bereits offline vorliegen. */
@@ -1062,7 +1148,7 @@
     try {
       const cache = await caches.open(OFFLINE_AUDIO_CACHE);
       const results = await Promise.all(
-        files.map((f) => cache.match(streamUrlFor(f.path)).then((r) => !!r))
+        files.map((f) => cache.match(streamUrlFor(f.path, f.source)).then((r) => !!r))
       );
       return results.filter(Boolean).length;
     } catch (err) {
@@ -1101,11 +1187,8 @@
   }
 
   /** Adresse der Ordnerliste - wird zusammen mit den Dateien gespeichert. */
-  function listUrlFor(path) {
-    return new URL(
-      AudioArchive.api('list') + '?path=' + encodeURIComponent(path || ''),
-      location.href
-    ).href;
+  function listUrlFor(path, source) {
+    return AudioArchive.listUrl(path, source);
   }
 
   /**
@@ -1116,10 +1199,10 @@
    * Server auslesen koennte. Ohne diesen Schritt saehe man ohne Verbindung
    * nur die Dateinamen.
    */
-  async function storeFolderListing(path) {
+  async function storeFolderListing(path, source) {
     try {
       const cache = await caches.open(OFFLINE_AUDIO_CACHE);
-      const url = listUrlFor(path);
+      const url = listUrlFor(path, source);
       const res = await fetch(url, { credentials: 'same-origin' });
       if (res.ok) await cache.put(url, res);
     } catch (err) {
@@ -1133,7 +1216,7 @@
     let failed = 0;
 
     for (const file of files) {
-      const url = streamUrlFor(file.path);
+      const url = streamUrlFor(file.path, file.source);
       try {
         if (await cache.match(url)) { done++; continue; }
 
@@ -1157,10 +1240,10 @@
   async function removeFolderOffline(files) {
     const cache = await caches.open(OFFLINE_AUDIO_CACHE);
     for (const file of files) {
-      await cache.delete(streamUrlFor(file.path));
+      await cache.delete(streamUrlFor(file.path, file.source));
     }
     // Die mitgespeicherte Ordnerliste ebenfalls entfernen
-    await cache.delete(listUrlFor(view.path));
+    await cache.delete(listUrlFor(view.path, view.source));
   }
 
   /**
@@ -1239,7 +1322,7 @@
         await removeFolderOffline(files);
         // Auch aus dem Verzeichnis nehmen, sonst bliebe der Ordner offline
         // sichtbar, obwohl seine Aufnahmen geloescht sind.
-        removeOfflineFolder(view.path);
+        removeOfflineFolder(view.source, view.path);
         offlineInfo.textContent = 'Offline-Aufnahmen entfernt.';
       } else {
         offlineInfo.textContent = `Speichere … 0 von ${files.length}`;
@@ -1263,8 +1346,8 @@
            * Kuenstler, Album und Spieldauer stehen NUR hier - die
            * Audiodateien selbst liefern sie der App nicht.
            */
-          await storeFolderListing(view.path);
-          setOfflineFolder(view.path, files);
+          await storeFolderListing(view.path, view.source);
+          setOfflineFolder(view.source, view.path, files);
         }
 
         offlineInfo.textContent = failed === 0
@@ -1289,11 +1372,11 @@
   // erneute Ein-Animation) und verhindert Ruckler beim Titelwechsel.
   // ------------------------------------------------------------------
   function updateActiveRow() {
-    const currentPath = Player.getCurrentPath();
+    const currentKey = Player.getCurrentKey();
     const playing = Player.isPlaying();
 
-    listContainer.querySelectorAll('.explorer-row[data-path]').forEach((row) => {
-      const isActive = row.dataset.path === currentPath;
+    listContainer.querySelectorAll('.explorer-row[data-key]').forEach((row) => {
+      const isActive = row.dataset.key === currentKey;
       const wasActive = row.classList.contains('active');
 
       // Zeile pausiert/läuft: steuert nur die Animation der Equalizer-Balken
@@ -1305,7 +1388,7 @@
 
       const iconEl = row.querySelector('.explorer-row-icon');
       const metaEl = row.querySelector('.explorer-row-meta');
-      const entry = currentEntries.find((e) => e.path === row.dataset.path);
+      const entry = currentEntries.find((e) => e.key === row.dataset.key);
 
       if (iconEl) iconEl.innerHTML = isActive ? playingIcon() : fileIcon();
       if (metaEl) {
@@ -1320,6 +1403,217 @@
   // Play/Pause spiegeln sich beide in der Liste wider.
   Player.onTrackChange(updateActiveRow);
   Player.onPlayStateChange(updateActiveRow);
+
+  // ------------------------------------------------------------------
+  // Ordnerbaum in der Seitenleiste (nur angemeldet)
+  //
+  // Zwei Wurzeln: der gemeinsame Ordner des Administrators (falls
+  // eingerichtet) und die eigenen Dateien. Unterordner werden erst beim
+  // Aufklappen geladen - die eigenen Dateien koennen sehr umfangreich sein.
+  // Ohne Verbindung baut sich der Baum aus den offline gespeicherten
+  // Ordnern auf.
+  // ------------------------------------------------------------------
+  const Tree = (() => {
+    const enabled = AudioArchive.loggedIn && !AudioArchive.isPublic();
+    const sidebar = document.getElementById('sidebar');
+    const treeEl = document.getElementById('tree');
+    const toggleBtn = document.getElementById('sidebar-toggle');
+    const backdrop = document.getElementById('sidebar-backdrop');
+    const root = document.getElementById('audioarchive');
+
+    /** Knoten je Kennung "quelle|pfad": { li, item, toggle, children, loaded, expanded } */
+    const nodes = new Map();
+    let selectedKey = null;
+    let built = false;
+
+    const key = (source, path) => source + '|' + path;
+
+    const folderSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
+    const homeSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>';
+    const sharedSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm-1 13.5v-9l6 4.5z"/></svg>';
+    const chevronSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>';
+
+    function isNarrow() {
+      return window.matchMedia('(max-width: 1023px)').matches;
+    }
+
+    function setOpen(open) {
+      root.classList.toggle('aa-sidebar-open', open);
+      backdrop.hidden = !open;
+      toggleBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    /** Unterordner laden - online vom Server, offline aus dem Verzeichnis. */
+    async function fetchChildren(source, path) {
+      if (offlineMode) {
+        return offlineEntriesFor(path, source)
+          .filter((e) => e.type === 'dir')
+          .map((d) => ({
+            name: d.name,
+            path: d.path,
+            hasChildren: offlineEntriesFor(d.path, source).some((e) => e.type === 'dir'),
+          }));
+      }
+      const res = await fetch(AudioArchive.treeUrl(path, source), { credentials: 'same-origin' });
+      if (!res.ok) throw new Error('tree');
+      const data = await res.json();
+      return Array.isArray(data.dirs) ? data.dirs : [];
+    }
+
+    function createNode(source, path, label, hasChildren, icon, isRoot) {
+      const li = document.createElement('li');
+      li.setAttribute('role', 'treeitem');
+      if (isRoot) li.className = 'tree-root';
+
+      const item = document.createElement('div');
+      item.className = 'tree-item';
+
+      const toggle = document.createElement('button');
+      toggle.type = 'button';
+      toggle.className = 'tree-toggle' + (hasChildren ? '' : ' is-empty');
+      toggle.setAttribute('aria-expanded', 'false');
+      toggle.setAttribute('aria-label', 'Aufklappen');
+      toggle.innerHTML = chevronSvg;
+
+      const labelBtn = document.createElement('button');
+      labelBtn.type = 'button';
+      labelBtn.className = 'tree-label';
+      labelBtn.innerHTML = `<span class="tree-icon">${icon}</span><span class="tree-label-text"></span>`;
+      labelBtn.querySelector('.tree-label-text').textContent = label;
+      labelBtn.title = label;
+
+      item.append(toggle, labelBtn);
+      li.appendChild(item);
+
+      const children = document.createElement('ul');
+      children.setAttribute('role', 'group');
+      children.hidden = true;
+      li.appendChild(children);
+
+      const node = { li, item, toggle, children, loaded: false, expanded: false, source, path };
+      nodes.set(key(source, path), node);
+
+      toggle.addEventListener('click', () => (node.expanded ? collapse(node) : expand(node)));
+      labelBtn.addEventListener('click', () => {
+        if (isNarrow()) setOpen(false);
+        if (key(view.source, view.path) !== key(source, path)) navigate(path, source);
+        if (!node.expanded && hasChildren) expand(node);
+      });
+
+      return node;
+    }
+
+    function expand(node) {
+      node.expanded = true;
+      node.toggle.setAttribute('aria-expanded', 'true');
+      node.children.hidden = false;
+      if (node.loaded) return Promise.resolve();
+      // Laeuft das Laden schon (z.B. Aufbau und Auswahl gleichzeitig), auf
+      // denselben Vorgang warten statt die Kinder doppelt anzulegen
+      if (!node.loading) {
+        node.loading = loadChildren(node).finally(() => { node.loading = null; });
+      }
+      return node.loading;
+    }
+
+    async function loadChildren(node) {
+      node.children.innerHTML = '<li class="tree-status">Lade …</li>';
+      try {
+        const dirs = await fetchChildren(node.source, node.path);
+        node.children.innerHTML = '';
+        dirs.forEach((dir) => {
+          const child = createNode(node.source, dir.path, dir.name, dir.hasChildren, folderSvg, false);
+          node.children.appendChild(child.li);
+        });
+        node.loaded = true;
+        if (dirs.length === 0) node.toggle.classList.add('is-empty');
+        markSelected();
+      } catch (err) {
+        node.children.innerHTML = '<li class="tree-status">Nicht erreichbar</li>';
+      }
+    }
+
+    function collapse(node) {
+      node.expanded = false;
+      node.toggle.setAttribute('aria-expanded', 'false');
+      node.children.hidden = true;
+    }
+
+    function markSelected() {
+      nodes.forEach((node, k) => node.item.classList.toggle('is-active', k === selectedKey));
+    }
+
+    function build() {
+      treeEl.innerHTML = '';
+      nodes.clear();
+
+      const roots = [];
+      if (offlineMode) {
+        // Ohne Verbindung nur Quellen, fuer die etwas gespeichert ist
+        const available = offlineSources();
+        if (available.has('shared')) roots.push('shared');
+        if (available.has('home')) roots.push('home');
+      } else {
+        if (AudioArchive.hasShared) roots.push('shared');
+        roots.push('home');
+      }
+
+      roots.forEach((source) => {
+        const node = createNode(source, '', sourceLabel(source), true,
+          source === 'home' ? homeSvg : sharedSvg, true);
+        treeEl.appendChild(node.li);
+        expand(node);
+      });
+      built = true;
+    }
+
+    return {
+      init() {
+        if (!enabled) return;
+        sidebar.hidden = false;
+        toggleBtn.hidden = false;
+        toggleBtn.addEventListener('click', () => setOpen(!root.classList.contains('aa-sidebar-open')));
+        backdrop.addEventListener('click', () => setOpen(false));
+        build();
+      },
+
+      /** Nach dem Wechsel in den Offline-Betrieb neu aufbauen. */
+      rebuild() {
+        if (!enabled || !built) return;
+        build();
+        if (selectedKey) {
+          const [source, ...rest] = selectedKey.split('|');
+          this.select(source, rest.join('|'));
+        }
+      },
+
+      /**
+       * Markiert den geoeffneten Ordner und klappt seine Vorfahren auf,
+       * damit er im Baum sichtbar ist.
+       */
+      async select(source, path) {
+        if (!enabled) return;
+        selectedKey = key(source, path);
+        markSelected();
+
+        const segments = path === '' ? [] : path.split('/');
+        let current = '';
+        const rootNode = nodes.get(key(source, ''));
+        if (rootNode && !rootNode.expanded) await expand(rootNode);
+
+        for (const segment of segments.slice(0, -1)) {
+          current = current === '' ? segment : current + '/' + segment;
+          const node = nodes.get(key(source, current));
+          if (!node) break;
+          if (!node.expanded || !node.loaded) await expand(node);
+        }
+
+        markSelected();
+        const active = nodes.get(selectedKey);
+        if (active && !isNarrow()) active.item.scrollIntoView({ block: 'nearest' });
+      },
+    };
+  })();
 
   // ------------------------------------------------------------------
   // Persoenliche Darstellung (Zahnrad, nur angemeldet)

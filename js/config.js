@@ -17,6 +17,8 @@ const AudioArchive = (() => {
     embedded: el.dataset.embedded === '1',
     design: el.dataset.design || 'custom',
     userSettings: el.dataset.userSettings === '1',
+    loggedIn: el.dataset.loggedIn === '1',
+    hasShared: el.dataset.hasShared === '1',
     requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
     headerTitle: el.dataset.headerTitle || '',
@@ -40,6 +42,33 @@ const AudioArchive = (() => {
     /** Adresse eines Endpunkts, z.B. api('list') oder api('public/login'). */
     api(name) {
       return data.scope + 'api/' + name;
+    },
+
+    /*
+     * Adressen fuer Ordnerliste, Baum und Aufnahmen einer Quelle.
+     *
+     * WICHTIG: Fuer den gemeinsamen Ordner ('shared') bleibt die Adresse
+     * exakt so wie bis 0.10 - ohne source-Angabe. Offline gespeicherte
+     * Aufnahmen liegen unter genau dieser Adresse im Speicher; eine
+     * veraenderte Adresse wuerde sie unauffindbar machen.
+     */
+    sourceQuery(source) {
+      return source === 'home' ? 'source=home&' : '';
+    },
+
+    listUrl(path, source) {
+      return new URL(this.api('list') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path || ''), location.href).href;
+    },
+
+    treeUrl(path, source) {
+      return new URL(this.api('tree') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path || ''), location.href).href;
+    },
+
+    streamUrl(path, source, download) {
+      return new URL(this.api('stream') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path) + (download ? '&download=1' : ''), location.href).href;
     },
 
     /**

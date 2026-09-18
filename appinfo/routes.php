@@ -20,6 +20,8 @@ return [
         // (angemeldeter Nutzer ODER freigeschaltete oeffentliche Sitzung).
         ['name' => 'list#index', 'url' => '/api/list', 'verb' => 'GET'],
         ['name' => 'stream#index', 'url' => '/api/stream', 'verb' => 'GET'],
+        // Nur Unterordner, fuer den Ordnerbaum (angemeldet)
+        ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
 
         // Anmeldung an der oeffentlichen Seite
         ['name' => 'publicAuth#login', 'url' => '/api/public/login', 'verb' => 'POST'],

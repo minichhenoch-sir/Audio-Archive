@@ -41,12 +41,15 @@ class StreamController extends Controller {
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path, string $download = ''): Response {
-        if (!$this->guard->hasAccess()) {
+    public function index(string $path, string $download = '', string $source = AudioFolder::SOURCE_SHARED): Response {
+        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+
+        if (!$this->guard->canUseSource($source)) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
 
-        $node = $this->audioFolder->resolve($path);
+        $root = $this->audioFolder->rootFor($source);
+        $node = $root === null ? null : $this->audioFolder->resolveIn($root, $path);
         if (!$node instanceof File || !$this->audioFolder->isAllowedFile($node)) {
             return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], Http::STATUS_NOT_FOUND);
         }
@@ -58,7 +61,7 @@ class StreamController extends Controller {
          * Knopfes: Sonst liesse sich das Herunterladen durch Anhaengen von
          * "&download=1" an die Adresse umgehen.
          */
-        if ($wantsDownload) {
+        if ($wantsDownload && $source !== AudioFolder::SOURCE_HOME) {
             $allowed = $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
             );

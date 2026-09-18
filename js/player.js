@@ -275,8 +275,9 @@ const Player = (() => {
   const prefetchSupported = 'caches' in window;
   let prefetchController = null;
 
-  function streamUrlFor(path) {
-    return new URL(AudioArchive.api('stream') + '?path=' + encodeURIComponent(path), location.href).href;
+  /** Adresse einer Aufnahme - die Quelle (gemeinsam/eigene Dateien) reist mit dem Titel. */
+  function streamUrlFor(track) {
+    return AudioArchive.streamUrl(track.path, track.source);
   }
 
   /** Haelt den Vorauslade-Cache klein: nur die uebergebenen URLs bleiben drin. */
@@ -296,7 +297,7 @@ const Player = (() => {
 
   async function prefetchTrack(track, signal) {
     if (!track) return;
-    const url = streamUrlFor(track.path);
+    const url = streamUrlFor(track);
 
     try {
       // Schon dauerhaft offline gespeichert? Dann ist nichts zu tun.
@@ -325,7 +326,7 @@ const Player = (() => {
     const { signal } = prefetchController;
 
     const planned = planPrefetch(index);
-    trimPrefetchCache(planned.map((t) => streamUrlFor(t.path)));
+    trimPrefetchCache(planned.map((t) => streamUrlFor(t)));
 
     // Streng der Reihe nach: Der laufende Titel wird zuerst komplett
     // gesichert, erst danach die folgenden. So ist das, was gerade gehoert
@@ -374,7 +375,7 @@ const Player = (() => {
 
     mediaSessionNeedsRefresh = true;
 
-    audio.src = AudioArchive.api('stream') + '?path=' + encodeURIComponent(track.path);
+    audio.src = streamUrlFor(track);
     els.title.textContent = trackTitle(track);
     els.context.textContent = trackContext(track);
     els.bar.hidden = false;
@@ -552,6 +553,17 @@ const Player = (() => {
 
     getCurrentPath() {
       return currentIndex >= 0 ? playlist[currentIndex].path : null;
+    },
+
+    /**
+     * Eindeutige Kennung des laufenden Titels: Quelle und Pfad. Der Pfad
+     * allein reicht nicht - dieselbe Datei kann im gemeinsamen Ordner und in
+     * den eigenen Dateien gleich heissen.
+     */
+    getCurrentKey() {
+      if (currentIndex < 0) return null;
+      const track = playlist[currentIndex];
+      return (track.source || 'shared') + '|' + track.path;
     },
 
     onTrackChange(callback) {

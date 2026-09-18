@@ -420,3 +420,42 @@ einer echten Nextcloud 34.0.3 in der Testumgebung.
 
 Nach dem Einspielen: Container neu starten. Nextcloud meldet wegen der neuen
 Version ein Update. Bestätigen (oder `occ upgrade`).
+
+---
+
+## 0.11.0: Ordnerbaum in der Seitenleiste
+
+Angemeldete Nutzer sehen links einen aufklappbaren Ordnerbaum mit zwei
+Bereichen:
+
+| Bereich | Inhalt |
+|---|---|
+| **Gemeinsame Aufnahmen** | der vom Administrator eingestellte Quellordner (nur wenn eingerichtet) |
+| **Meine Dateien** | die eigenen Nextcloud-Dateien mit **allen** Ordnern, auch den mit einem geteilten |
+
+- Unterordner werden erst beim Aufklappen geladen, auch sehr große
+  Dateibestände bremsen deshalb nicht.
+- Der geöffnete Ordner ist im Baum markiert. Wer über die Liste tiefer geht,
+  sieht den Baum automatisch mitlaufen.
+- Auf schmalen Bildschirmen (unter 1024 px) klappt der Baum über das
+  Menü-Symbol oben links als Seitenmenü auf und schließt sich nach der Wahl
+  eines Ordners.
+- Ohne Verbindung zeigt der Baum nur die offline gespeicherten Ordner.
+- Der öffentliche Link hat keinen Baum und bleibt wie bisher.
+
+### Eigene Dateien
+- In „Meine Dateien" werden Ordner nicht gezählt (keine „N Aufnahmen"): Das
+  hieße, den kompletten Dateibestand bei jedem Öffnen zu durchsuchen.
+- Eigene Aufnahmen darf man immer herunterladen, unabhängig vom Schalter des
+  Administrators.
+- Wie bisher werden mp3-Dateien angezeigt.
+
+### Technik
+- Neuer Parameter `source=home` an `api/list` und `api/stream`, neuer
+  Endpunkt `api/tree` (nur Unterordner).
+- Für den gemeinsamen Ordner bleiben alle Adressen **unverändert**. Bereits
+  offline gespeicherte Aufnahmen bleiben dadurch gültig.
+- Das Offline-Verzeichnis trennt die Quellen (`@@home:`-Vorsilbe für eigene
+  Dateien).
+- Mit Baum scrollen Baum und Liste jeweils für sich, die Kopfzeile bleibt
+  stehen.
