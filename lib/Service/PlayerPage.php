@@ -35,7 +35,14 @@ class PlayerPage {
         private Appearance $appearance,
         private IUserSession $userSession,
         private AudioFolder $audioFolder,
+        private ShareService $shares,
     ) {
+    }
+
+    /** Name des freigegebenen Ordners - Titel, wenn keiner gesetzt ist. */
+    private function shareFolderName(array $share): string {
+        $folder = $this->shares->rootFolder($share);
+        return $folder !== null && $folder->getName() !== '' ? $folder->getName() : 'Aufnahmen';
     }
 
     /**
@@ -83,7 +90,12 @@ class PlayerPage {
         return $links;
     }
 
-    public function build(string $publicToken, bool $embedded = false): TemplateResponse {
+    /**
+     * @param string $publicToken Token des Links ('' = angemeldete Ansicht)
+     * @param array|null $share   Freigabe eines Nutzers (siehe ShareService),
+     *                            null beim Administrator-Link
+     */
+    public function build(string $publicToken, bool $embedded = false, ?array $share = null): TemplateResponse {
         // Die oeffentliche Seite ist nie eingebettet - Gaeste haben keine
         // Nextcloud-Leiste.
         $embedded = $embedded && $publicToken === '';
@@ -93,8 +105,17 @@ class PlayerPage {
         $user = $publicToken === '' ? $this->userSession->getUser() : null;
         $uid = $user?->getUID();
 
-        $look = $this->appearance->resolve($uid);
+        $look = $share !== null ? $this->appearance->resolveShare($share) : $this->appearance->resolve($uid);
         $design = $look['design'];
+        $shareSettings = $share['settings'] ?? null;
+
+        // Wert der Freigabe, sonst die Einstellung des Administrators
+        $pick = function (string $shareKey, string $adminKey, string $default) use ($shareSettings): string {
+            if ($shareSettings !== null && $shareSettings[$shareKey] !== '') {
+                return $shareSettings[$shareKey];
+            }
+            return $this->appConfig->getValueString(Application::APP_ID, $adminKey, $default);
+        };
 
         $params = [
             'publicToken' => $publicToken,
@@ -104,7 +125,7 @@ class PlayerPage {
             'themeStylesheets' => (!$embedded && $design === Application::DESIGN_NEXTCLOUD)
                 ? $this->themeStylesheets()
                 : [],
-            'themeColor' => $this->appearance->barColor($design),
+            'themeColor' => $this->appearance->barColor($design, $shareSettings['themeBar'] ?? ''),
             // Darf der Nutzer in der App Gestaltung und Bild selbst waehlen?
             'userSettings' => ($uid !== null && $this->appearance->userCustomizationAllowed()) ? '1' : '',
             // Fuer Schreibzugriffe der App (persoenliche Einstellungen):
@@ -115,26 +136,33 @@ class PlayerPage {
             // der Administrator einen eingerichtet hat
             'loggedIn' => $uid !== null ? '1' : '',
             'hasShared' => $this->audioFolder->hasSharedRoot() ? '1' : '',
+            // Freigaben anlegen: angemeldet und vom Administrator erlaubt
+            'canShare' => ($uid !== null && $this->shares->sharingAllowed()) ? '1' : '',
             // Adresse der eigenstaendigen Fassung, fuer den Knopf
             // "App installieren" auf der eingebetteten Seite
             'standaloneUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.page.standalone'
             ),
-            'headerTitle' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_HEADER_TITLE, 'Recordings'
-            ),
-            'headerSubtitle' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
-            ),
-            'themeBar' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
-            ),
-            'themeAccent' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_THEME_ACCENT, '#b9793f'
-            ),
-            'themeBase' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_THEME_BASE, '#a86a3d'
-            ),
+            'headerTitle' => $shareSettings !== null
+                ? ($shareSettings['title'] !== '' ? $shareSettings['title'] : $this->shareFolderName($share))
+                : $this->appConfig->getValueString(
+                    Application::APP_ID, Application::SETTING_HEADER_TITLE, 'Recordings'
+                ),
+            'headerSubtitle' => $shareSettings !== null
+                ? $shareSettings['subtitle']
+                : $this->appConfig->getValueString(
+                    Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
+                ),
+            'themeBar' => $pick('themeBar', Application::SETTING_THEME_BAR, '#291c12'),
+            'themeAccent' => $pick('themeAccent', Application::SETTING_THEME_ACCENT, '#b9793f'),
+            'themeBase' => $pick('themeBase', Application::SETTING_THEME_BASE, '#a86a3d'),
+            // Freigabe eines Nutzers: Die App haengt diesen Token an alle
+            // Abrufe (s=...). Beim Administrator-Link bleibt er leer, damit
+            // dessen Adressen - und damit offline Gespeichertes - gleich
+            // bleiben.
+            'apiToken' => $share !== null ? $share['token'] : '',
+            // Freigabe ohne Passwort: kein Anmelde-Bildschirm, auch offline
+            'openAccess' => ($share !== null && !$share['hasPassword']) ? '1' : '',
             'manifestUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.asset.manifest'
             ) . ($publicToken !== '' ? '?s=' . urlencode($publicToken) : ''),
@@ -147,16 +175,17 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
-            'betaEnabled' => $this->appConfig->getValueBool(
-                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
+            'betaEnabled' => ($shareSettings !== null
+                ? $shareSettings['betaEnabled']
+                : $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_BETA_ENABLED, false)
             ) ? '1' : '',
-            'betaText' => $this->appConfig->getValueString(
+            'betaText' => $shareSettings !== null ? $shareSettings['betaText'] : $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_TEXT, ''
             ),
-            'betaLinkUrl' => $this->appConfig->getValueString(
+            'betaLinkUrl' => $shareSettings !== null ? $shareSettings['betaLinkUrl'] : $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''
             ),
-            'betaLinkLabel' => $this->appConfig->getValueString(
+            'betaLinkLabel' => $shareSettings !== null ? $shareSettings['betaLinkLabel'] : $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
             ),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus

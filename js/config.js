@@ -19,6 +19,10 @@ const AudioArchive = (() => {
     userSettings: el.dataset.userSettings === '1',
     loggedIn: el.dataset.loggedIn === '1',
     hasShared: el.dataset.hasShared === '1',
+    canShare: el.dataset.canShare === '1',
+    // Nur auf der Seite einer Nutzer-Freigabe gesetzt (siehe PlayerPage)
+    apiToken: el.dataset.apiToken || '',
+    openAccess: el.dataset.openAccess === '1',
     requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
     headerTitle: el.dataset.headerTitle || '',
@@ -53,7 +57,18 @@ const AudioArchive = (() => {
      * veraenderte Adresse wuerde sie unauffindbar machen.
      */
     sourceQuery(source) {
+      // Seite einer Freigabe: alles laeuft ueber deren Token
+      if (data.apiToken) return 's=' + encodeURIComponent(data.apiToken) + '&';
       return source === 'home' ? 'source=home&' : '';
+    },
+
+    /** Anmelde-Status der oeffentlichen Seite (mit Token bei einer Freigabe). */
+    statusUrl() {
+      return this.api('public/status') + (data.apiToken ? '?s=' + encodeURIComponent(data.apiToken) : '');
+    },
+
+    logoutUrl() {
+      return this.api('public/logout') + (data.apiToken ? '?s=' + encodeURIComponent(data.apiToken) : '');
     },
 
     listUrl(path, source) {

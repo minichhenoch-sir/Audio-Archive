@@ -34,6 +34,17 @@ return [
         ['name' => 'settings#uploadBackground', 'url' => '/settings/background', 'verb' => 'POST'],
         ['name' => 'settings#removeBackground', 'url' => '/settings/background/remove', 'verb' => 'POST'],
 
+        // Freigaben durch Nutzer (ab 0.12)
+        ['name' => 'share#index', 'url' => '/api/shares', 'verb' => 'GET'],
+        ['name' => 'share#create', 'url' => '/api/shares', 'verb' => 'POST'],
+        ['name' => 'share#adminIndex', 'url' => '/api/admin/shares', 'verb' => 'GET'],
+        ['name' => 'share#update', 'url' => '/api/shares/{id}', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        ['name' => 'share#delete', 'url' => '/api/shares/{id}/delete', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        ['name' => 'share#uploadBackground', 'url' => '/api/shares/{id}/background', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        ['name' => 'share#removeBackground', 'url' => '/api/shares/{id}/background/remove', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        // Bild einer Freigabe (oeffentlich, solange die Freigabe gilt)
+        ['name' => 'asset#shareBackground', 'url' => '/background/share/{token}', 'verb' => 'GET'],
+
         // Persoenliche Einstellungen angemeldeter Nutzer
         ['name' => 'userSettings#get', 'url' => '/api/user/settings', 'verb' => 'GET'],
         ['name' => 'userSettings#set', 'url' => '/api/user/settings', 'verb' => 'POST'],

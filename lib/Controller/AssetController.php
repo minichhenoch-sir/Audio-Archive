@@ -6,6 +6,7 @@ namespace OCA\AudioArchive\Controller;
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\Appearance;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -41,6 +42,7 @@ class AssetController extends Controller {
         private BackgroundImage $backgroundImage,
         private Appearance $appearance,
         private IUserSession $userSession,
+        private ShareService $shares,
     ) {
         parent::__construct($appName, $request);
     }
@@ -146,6 +148,21 @@ class AssetController extends Controller {
         return $this->imageResponse(BackgroundImage::userKey($user->getUID()), false);
     }
 
+    /**
+     * Hintergrundbild einer Freigabe. Oeffentlich, weil es schon auf dem
+     * Anmelde-Bildschirm des Links erscheint - aber nur, solange die
+     * Freigabe gueltig ist.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function shareBackground(string $token): Response {
+        $share = $this->shares->findActive($token);
+        if ($share === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        return $this->imageResponse(BackgroundImage::shareKey($share['id']), false);
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function manifest(string $s = ''): DataDisplayResponse {
@@ -178,9 +195,22 @@ class AssetController extends Controller {
         );
 
         // Bei Nextcloud-Gestaltung Nextclouds Hauptfarbe, sonst die eigene
-        // Leistenfarbe. Angemeldet zaehlt die persoenliche Wahl.
-        $uid = $s === '' ? $this->userSession->getUser()?->getUID() : null;
-        $barColor = $this->appearance->barColor($this->appearance->resolve($uid)['design']);
+        // Leistenfarbe. Angemeldet zaehlt die persoenliche Wahl, bei einer
+        // Freigabe deren Einstellung.
+        $share = $s !== '' ? $this->shares->findActive($s) : null;
+        if ($share !== null) {
+            $folder = $this->shares->rootFolder($share);
+            $title = $share['settings']['title'] !== ''
+                ? $share['settings']['title']
+                : ($folder !== null ? $folder->getName() : $title);
+            $barColor = $this->appearance->barColor(
+                $this->appearance->resolveShare($share)['design'],
+                $share['settings']['themeBar']
+            );
+        } else {
+            $uid = $s === '' ? $this->userSession->getUser()?->getUID() : null;
+            $barColor = $this->appearance->barColor($this->appearance->resolve($uid)['design']);
+        }
 
         /*
          * Bewusst absolute Adressen: Das Manifest wird auch von der

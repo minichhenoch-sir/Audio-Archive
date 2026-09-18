@@ -58,6 +58,13 @@ class AudioFolder {
         return $this->getRoot();
     }
 
+    /** Besitzer des gemeinsamen Ordners (aus den Einstellungen). */
+    public function sharedOwner(): string {
+        return $this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_FOLDER_OWNER, ''
+        );
+    }
+
     /** Ist 'shared' ueberhaupt eingerichtet? */
     public function hasSharedRoot(): bool {
         return $this->getRoot() !== null;

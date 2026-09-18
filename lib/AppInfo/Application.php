@@ -40,6 +40,9 @@ class Application extends App implements IBootstrap {
     /** Duerfen Nutzer in der App eigene Gestaltung und eigenes Bild waehlen? (Vorgabe: ja) */
     public const SETTING_USER_CUSTOMIZATION = 'user_customization';
 
+    /** Duerfen angemeldete Nutzer eigene Freigaben anlegen? (Vorgabe: ja) */
+    public const SETTING_USER_SHARES = 'user_shares';
+
     /** Schluessel der persoenlichen Einstellungen je Nutzer (IConfig-Nutzerwerte). */
     public const USER_DESIGN = 'design';
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';

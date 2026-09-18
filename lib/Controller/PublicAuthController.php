@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\Service\AccessGuard;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\BruteForceProtection;
@@ -25,6 +26,7 @@ class PublicAuthController extends Controller {
         string $appName,
         IRequest $request,
         private AccessGuard $guard,
+        private ShareService $shares,
     ) {
         parent::__construct($appName, $request);
     }
@@ -34,6 +36,12 @@ class PublicAuthController extends Controller {
     #[BruteForceProtection(action: 'audioarchivePublicLogin')]
     public function login(string $token = '', string $password = ''): DataResponse {
         if ($this->guard->tryPublicLogin($token, $password)) {
+            return new DataResponse(['success' => true]);
+        }
+
+        // Kein Administrator-Link? Dann eine Freigabe eines Nutzers.
+        $share = $this->shares->findActive($token);
+        if ($share !== null && $this->shares->tryLogin($share, $password)) {
             return new DataResponse(['success' => true]);
         }
 
@@ -50,7 +58,14 @@ class PublicAuthController extends Controller {
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function logout(): DataResponse {
+    public function logout(string $s = ''): DataResponse {
+        if ($s !== '') {
+            $share = $this->shares->findByToken($s);
+            if ($share !== null) {
+                $this->shares->logout($share);
+            }
+            return new DataResponse(['success' => true]);
+        }
         $this->guard->publicLogout();
         return new DataResponse(['success' => true]);
     }
@@ -58,7 +73,17 @@ class PublicAuthController extends Controller {
     /** Erlaubt der Oberflaeche zu erkennen, ob bereits Zugang besteht. */
     #[PublicPage]
     #[NoCSRFRequired]
-    public function status(): DataResponse {
+    public function status(string $s = ''): DataResponse {
+        if ($s !== '') {
+            $share = $this->shares->findActive($s);
+            return new DataResponse([
+                'authenticated' => $share !== null && $this->shares->hasAccess($share),
+                'loggedInUser' => $this->guard->isLoggedInUser(),
+                'publicEnabled' => $share !== null,
+                'hasPassword' => $share !== null && $share['hasPassword'],
+            ]);
+        }
+
         return new DataResponse([
             'authenticated' => $this->guard->hasAccess(),
             'loggedInUser' => $this->guard->isLoggedInUser(),

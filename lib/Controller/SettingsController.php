@@ -66,6 +66,7 @@ class SettingsController extends Controller {
         ?string $design = null,
         ?bool $backgroundNextcloud = null,
         ?bool $userCustomization = null,
+        ?bool $userShares = null,
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
         ?bool $betaEnabled = null,
@@ -187,6 +188,11 @@ class SettingsController extends Controller {
         if ($backgroundNextcloud !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, $backgroundNextcloud
+            );
+        }
+        if ($userShares !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_USER_SHARES, $userShares
             );
         }
         if ($userCustomization !== null) {

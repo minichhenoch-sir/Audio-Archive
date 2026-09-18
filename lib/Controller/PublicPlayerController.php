@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\PlayerPage;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
@@ -30,6 +31,7 @@ class PublicPlayerController extends Controller {
         IRequest $request,
         private IAppConfig $appConfig,
         private PlayerPage $playerPage,
+        private ShareService $shares,
     ) {
         parent::__construct($appName, $request);
     }
@@ -49,12 +51,18 @@ class PublicPlayerController extends Controller {
             ''
         );
 
-        // Nicht freigegeben oder falscher Token: bewusst dieselbe Antwort,
-        // damit sich gueltige Token nicht erraten lassen.
-        if (!$enabled || $expected === '' || !hash_equals($expected, $token)) {
-            return new NotFoundResponse();
+        if ($enabled && $expected !== '' && hash_equals($expected, $token)) {
+            return $this->playerPage->build($token);
         }
 
-        return $this->playerPage->build($token);
+        // Kein Administrator-Link: vielleicht die Freigabe eines Nutzers.
+        // Abgelaufen, geloescht oder Ordner weg: bewusst dieselbe Antwort
+        // wie bei einem falschen Token, damit sich nichts erraten laesst.
+        $share = $this->shares->findActive($token);
+        if ($share !== null) {
+            return $this->playerPage->build($token, false, $share);
+        }
+
+        return new NotFoundResponse();
     }
 }

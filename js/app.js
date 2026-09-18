@@ -391,7 +391,13 @@
   // die App am fremden Geraet einfach oeffnet - wer vollen Zugriff auf das
   // Geraet hat, koennte die Dateien im Browser-Cache ohnehin auslesen.
   // ==================================================================
-  const LS_AUTH = 'audioarchive_offline_auth';
+  /*
+   * Jede Freigabe hat ihr eigenes Passwort - der Pruefwert wird deshalb je
+   * Freigabe getrennt abgelegt. Administrator-Link und angemeldete Nutzer
+   * behalten den bisherigen Schluessel.
+   */
+  const LS_AUTH = 'audioarchive_offline_auth'
+    + (AudioArchive.apiToken ? ':' + AudioArchive.apiToken : '');
   const LS_INDEX = 'audioarchive_offline_index';
 
   let offlineMode = false;
@@ -432,6 +438,7 @@
   function storedAuth() {
     const current = lsGet(LS_AUTH);
     if (current) return current;
+    if (AudioArchive.apiToken) return null; // aeltere Fassungen kannten keine Freigaben
 
     const legacy = lsGet('gp_offline_auth');
     if (legacy) {
@@ -481,13 +488,26 @@
    * benannte Ordner beider Quellen nicht in die Quere kommen.
    */
   const HOME_PREFIX = '@@home:';
+  // Seite einer Freigabe: eigener Bereich im Verzeichnis, damit sich
+  // gleich benannte Ordner verschiedener Links nicht vermischen
+  const SHARE_PREFIX = AudioArchive.apiToken ? '@@s:' + AudioArchive.apiToken + ':' : '';
 
   function indexKey(source, path) {
+    if (SHARE_PREFIX) return SHARE_PREFIX + path;
     return source === 'home' ? HOME_PREFIX + path : path;
   }
 
-  /** Umkehrung von indexKey(): { source, path } */
+  /**
+   * Umkehrung von indexKey(): { source, path } - oder null fuer Eintraege,
+   * die zu einer anderen Seite gehoeren (andere Freigabe bzw. umgekehrt).
+   */
   function parseIndexKey(key) {
+    if (SHARE_PREFIX) {
+      return key.startsWith(SHARE_PREFIX)
+        ? { source: 'shared', path: key.slice(SHARE_PREFIX.length) }
+        : null;
+    }
+    if (key.startsWith('@@s:')) return null;
     return key.startsWith(HOME_PREFIX)
       ? { source: 'home', path: key.slice(HOME_PREFIX.length) }
       : { source: 'shared', path: key };
@@ -499,7 +519,7 @@
     const result = {};
     Object.keys(index).forEach((key) => {
       const parsed = parseIndexKey(key);
-      if (parsed.source === source) result[parsed.path] = index[key];
+      if (parsed && parsed.source === source) result[parsed.path] = index[key];
     });
     return result;
   }
@@ -519,12 +539,15 @@
   /** Quellen, fuer die offline etwas gespeichert ist */
   function offlineSources() {
     const sources = new Set();
-    Object.keys(offlineIndex()).forEach((key) => sources.add(parseIndexKey(key).source));
+    Object.keys(offlineIndex()).forEach((key) => {
+      const parsed = parseIndexKey(key);
+      if (parsed) sources.add(parsed.source);
+    });
     return sources;
   }
 
   function hasOfflineContent() {
-    return Object.keys(offlineIndex()).length > 0;
+    return offlineSources().size > 0;
   }
 
   /**
@@ -559,6 +582,8 @@
           // Nur Aufnahmen - die mitgespeicherten Ordnerlisten liegen im
           // selben Speicher
           if (!url.pathname.endsWith('/api/stream')) return;
+          // Nur Aufnahmen dieser Seite: einer Freigabe bzw. ohne Freigabe
+          if ((url.searchParams.get('s') || '') !== AudioArchive.apiToken) return;
           path = url.searchParams.get('path');
           source = url.searchParams.get('source') === 'home' ? 'home' : 'shared';
         } catch (e) {
@@ -591,7 +616,7 @@
       });
 
       if (added) lsSet(LS_INDEX, index);
-      return added || Object.keys(index).length > 0;
+      return added || hasOfflineContent();
     } catch (err) {
       return false;
     }
@@ -720,7 +745,7 @@
    */
   async function checkSession() {
     try {
-      const res = await fetch(AudioArchive.api('public/status'), { credentials: 'same-origin' });
+      const res = await fetch(AudioArchive.statusUrl(), { credentials: 'same-origin' });
       const data = await res.json();
 
       if (data.authenticated) {
@@ -732,6 +757,13 @@
       // Server nicht erreichbar. Liegen Aufnahmen offline vor und ist ein
       // Pruefwert hinterlegt, ist die Anmeldung trotzdem moeglich.
       await rebuildOfflineIndexFromCache();
+
+      if (AudioArchive.openAccess && hasOfflineContent()) {
+        // Freigabe ohne Passwort: direkt zu den gespeicherten Aufnahmen
+        enterOfflineMode();
+        showMain();
+        return;
+      }
 
       if (storedAuth()) {
         enterOfflineMode();
@@ -821,7 +853,7 @@
   // ------------------------------------------------------------------
   logoutBtn.addEventListener('click', async () => {
     try {
-      await fetch(AudioArchive.api('public/logout'), { method: 'POST', credentials: 'same-origin' });
+      await fetch(AudioArchive.logoutUrl(), { method: 'POST', credentials: 'same-origin' });
     } catch (err) {
       // ignorieren, wir loggen lokal trotzdem aus
     }
@@ -854,6 +886,7 @@
       }
       tagEntries(currentEntries, source);
       Tree.select(source, path);
+      Shares.onFolderLoaded();
       renderBreadcrumb();
 
       if (currentEntries.length === 0) {
@@ -902,6 +935,7 @@
       view = { source, path: data.path || '' };
       currentEntries = tagEntries(data.entries || [], source);
       Tree.select(source, view.path);
+      Shares.onFolderLoaded();
 
       // Die vom Administrator freigegebenen Funktionen liefert der Server
       // zusammen mit der Ordnerliste mit.
@@ -1307,7 +1341,7 @@
      * Offline-Anmeldung moeglich ist. Ohne sie waeren die Aufnahmen zwar
      * gespeichert, aber ohne Verbindung nicht erreichbar.
      */
-    if (!removing && !storedAuth()) {
+    if (!removing && !storedAuth() && !AudioArchive.openAccess) {
       const pin = await askOfflinePin();
       if (pin === null) return;
       await rememberPasswordForOffline(pin);
@@ -1431,6 +1465,7 @@
     const folderSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
     const homeSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>';
     const sharedSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm-1 13.5v-9l6 4.5z"/></svg>';
+    const linkSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
     const chevronSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>';
 
     function isNarrow() {
@@ -1460,7 +1495,11 @@
       return Array.isArray(data.dirs) ? data.dirs : [];
     }
 
-    function createNode(source, path, label, hasChildren, icon, isRoot) {
+    /**
+     * @param {object} [opts] onSelect: eigener Klick statt Ordnerwechsel
+     *                        (Freigaben), loader: eigene Kinder
+     */
+    function createNode(source, path, label, hasChildren, icon, isRoot, opts = {}) {
       const li = document.createElement('li');
       li.setAttribute('role', 'treeitem');
       if (isRoot) li.className = 'tree-root';
@@ -1490,12 +1529,17 @@
       children.hidden = true;
       li.appendChild(children);
 
-      const node = { li, item, toggle, children, loaded: false, expanded: false, source, path };
+      const node = { li, item, toggle, children, loaded: false, expanded: false, source, path, loader: opts.loader };
       nodes.set(key(source, path), node);
 
       toggle.addEventListener('click', () => (node.expanded ? collapse(node) : expand(node)));
       labelBtn.addEventListener('click', () => {
         if (isNarrow()) setOpen(false);
+        if (opts.onSelect) {
+          opts.onSelect();
+          if (!node.expanded && hasChildren) expand(node);
+          return;
+        }
         if (key(view.source, view.path) !== key(source, path)) navigate(path, source);
         if (!node.expanded && hasChildren) expand(node);
       });
@@ -1518,6 +1562,15 @@
 
     async function loadChildren(node) {
       node.children.innerHTML = '<li class="tree-status">Lade …</li>';
+      if (node.loader) {
+        try {
+          await node.loader(node);
+          node.loaded = true;
+        } catch (err) {
+          node.children.innerHTML = '<li class="tree-status">Nicht erreichbar</li>';
+        }
+        return;
+      }
       try {
         const dirs = await fetchChildren(node.source, node.path);
         node.children.innerHTML = '';
@@ -1564,7 +1617,34 @@
         treeEl.appendChild(node.li);
         expand(node);
       });
+
+      // Eigene Freigaben - nur mit Verbindung, sie sind nicht offline gespeichert
+      if (AudioArchive.canShare && !offlineMode) {
+        const sharesNode = createNode('shares', '', 'Meine Freigaben', true, linkSvg, true, {
+          loader: loadShareItems,
+          onSelect: () => {},
+        });
+        treeEl.appendChild(sharesNode.li);
+      }
       built = true;
+    }
+
+    /** Kinder von "Meine Freigaben": eine Zeile je Freigabe. */
+    async function loadShareItems(node) {
+      const shares = await Shares.fetchOwn();
+      node.children.innerHTML = '';
+      if (shares.length === 0) {
+        node.children.innerHTML = '<li class="tree-status">Noch keine Freigaben</li>';
+        return;
+      }
+      shares.forEach((share) => {
+        const label = share.settings.title || share.folderName || share.path || 'Freigabe';
+        const child = createNode('share', String(share.id), label, false, linkSvg, false, {
+          onSelect: () => Shares.openFromList(share),
+        });
+        if (share.expired || share.missing) child.item.classList.add('is-inactive');
+        node.children.appendChild(child.li);
+      });
     }
 
     return {
@@ -1575,6 +1655,17 @@
         toggleBtn.addEventListener('click', () => setOpen(!root.classList.contains('aa-sidebar-open')));
         backdrop.addEventListener('click', () => setOpen(false));
         build();
+      },
+
+      /** "Meine Freigaben" neu laden (nach Anlegen/Loeschen). */
+      refreshShares() {
+        const node = nodes.get(key('shares', ''));
+        if (!node) return;
+        node.loaded = false;
+        if (node.expanded) {
+          node.expanded = false;
+          expand(node);
+        }
       },
 
       /** Nach dem Wechsel in den Offline-Betrieb neu aufbauen. */
@@ -1611,6 +1702,442 @@
         markSelected();
         const active = nodes.get(selectedKey);
         if (active && !isNarrow()) active.item.scrollIntoView({ block: 'nearest' });
+      },
+    };
+  })();
+
+  // ------------------------------------------------------------------
+  // Freigaben: Ordner samt Unterordnern ueber einen eigenen Link teilen
+  //
+  // Jede Freigabe hat eigene Einstellungen wie der Administrator-Link:
+  // Passwort (optional), Ablaufdatum, Offline/Download, Aussehen,
+  // Hintergrundbild, Beta-Hinweis. Verwaltet wird hier in der App - ueber
+  // den Knopf ueber der Liste oder "Meine Freigaben" im Ordnerbaum.
+  // ------------------------------------------------------------------
+  const Shares = (() => {
+    const enabled = AudioArchive.canShare && !AudioArchive.isPublic();
+    const actions = document.getElementById('folder-actions');
+    const shareBtn = document.getElementById('share-btn');
+    const panel = document.getElementById('share-panel');
+
+    // Nach dem Oeffnen aus "Meine Freigaben": diese Freigabe bearbeiten,
+    // sobald ihr Ordner geladen ist
+    let pendingShareId = null;
+    let current = []; // Freigaben des geoeffneten Ordners
+
+    function folderName() {
+      return view.path === '' ? sourceLabel(view.source) : view.path.split('/').pop();
+    }
+
+    async function request(url, options = {}) {
+      const res = await fetch(url, {
+        credentials: 'same-origin',
+        ...options,
+        headers: { requesttoken: AudioArchive.requestToken, ...(options.headers || {}) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || (res.status === 412
+          ? 'Sitzung abgelaufen – bitte die Seite neu laden.'
+          : 'Aktion fehlgeschlagen.'));
+      }
+      return data;
+    }
+
+    function sharesUrl(query) {
+      return AudioArchive.api('shares') + (query ? '?' + query : '');
+    }
+
+    async function fetchOwn() {
+      const data = await request(sharesUrl(''));
+      return data.shares || [];
+    }
+
+    async function fetchForFolder() {
+      const data = await request(sharesUrl(
+        'source=' + encodeURIComponent(view.source) + '&path=' + encodeURIComponent(view.path)
+      ));
+      return data.shares || [];
+    }
+
+    function el(tag, className, text) {
+      const e = document.createElement(tag);
+      if (className) e.className = className;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    function button(label, className, onClick) {
+      const b = el('button', 'panel-button' + (className ? ' ' + className : ''), label);
+      b.type = 'button';
+      b.addEventListener('click', onClick);
+      return b;
+    }
+
+    function close() {
+      panel.hidden = true;
+      panel.textContent = '';
+    }
+
+    function showError(target, message) {
+      target.textContent = message || '';
+      target.hidden = !message;
+    }
+
+    async function copyLink(input, feedback) {
+      try {
+        await navigator.clipboard.writeText(input.value);
+        feedback.textContent = 'Link kopiert.';
+      } catch (err) {
+        input.select();
+        feedback.textContent = 'Bitte von Hand kopieren.';
+      }
+    }
+
+    // ---------- Liste der Freigaben dieses Ordners ----------
+    async function openList(highlightId) {
+      panel.hidden = false;
+      panel.textContent = '';
+      panel.appendChild(el('h2', 'panel-title', 'Teilen: ' + folderName()));
+      const status = el('p', 'panel-hint', 'Lade Freigaben …');
+      panel.appendChild(status);
+
+      try {
+        current = await fetchForFolder();
+      } catch (err) {
+        status.textContent = err.message;
+        panel.appendChild(button('Schließen', '', close));
+        return;
+      }
+
+      status.textContent = current.length === 0
+        ? 'Dieser Ordner ist noch nicht geteilt. Eine Freigabe umfasst auch alle Unterordner.'
+        : 'Jede Freigabe hat einen eigenen Link mit eigenen Einstellungen und umfasst alle Unterordner.';
+
+      current.forEach((share) => panel.appendChild(renderShareItem(share, share.id === highlightId)));
+
+      const row = el('div', 'panel-row panel-actions');
+      row.append(
+        button('Neue Freigabe', 'panel-button--primary', () => openForm(null)),
+        button('Schließen', '', close)
+      );
+      panel.appendChild(row);
+      panel.scrollIntoView({ block: 'nearest' });
+    }
+
+    function describe(share) {
+      const parts = [share.hasPassword ? 'mit Passwort' : 'ohne Passwort'];
+      parts.push(share.expires ? 'gültig bis ' + share.expires.split('-').reverse().join('.') : 'unbegrenzt');
+      if (share.expired) parts.push('ABGELAUFEN');
+      if (share.missing) parts.push('ORDNER FEHLT');
+      return parts.join(' · ');
+    }
+
+    function renderShareItem(share, highlight) {
+      const item = el('div', 'share-item' + (highlight ? ' is-new' : ''));
+      item.appendChild(el('p', 'share-item-title', share.settings.title || share.folderName || 'Freigabe'));
+      item.appendChild(el('p', 'panel-hint', describe(share)));
+
+      const linkRow = el('div', 'panel-row');
+      const input = el('input', 'share-link');
+      input.type = 'text';
+      input.readOnly = true;
+      input.value = share.url;
+      const feedback = el('span', 'panel-hint share-feedback');
+      linkRow.append(input, button('Kopieren', '', () => copyLink(input, feedback)));
+      item.appendChild(linkRow);
+
+      const row = el('div', 'panel-row');
+      row.append(
+        button('Bearbeiten', '', () => openForm(share)),
+        button('Öffnen', '', () => window.open(share.url, '_blank', 'noopener')),
+        button('Löschen', 'panel-button--danger', async () => {
+          const name = share.settings.title || share.folderName || 'diese Freigabe';
+          if (!window.confirm('„' + name + '" löschen? Der Link funktioniert danach nicht mehr.')) return;
+          try {
+            await request(AudioArchive.api('shares/' + share.id + '/delete'), { method: 'POST' });
+            Tree.refreshShares();
+            openList();
+          } catch (err) {
+            feedback.textContent = err.message;
+          }
+        }),
+        feedback
+      );
+      item.appendChild(row);
+      return item;
+    }
+
+    // ---------- Formular: neue Freigabe oder bearbeiten ----------
+    function field(label, input, hint) {
+      const wrap = el('label', 'panel-field');
+      wrap.appendChild(el('span', 'panel-field-label', label));
+      wrap.appendChild(input);
+      if (hint) wrap.appendChild(el('span', 'panel-hint', hint));
+      return wrap;
+    }
+
+    function textInput(value, placeholder, type = 'text') {
+      const input = el('input', 'panel-input');
+      input.type = type;
+      input.value = value || '';
+      if (placeholder) input.placeholder = placeholder;
+      return input;
+    }
+
+    function checkbox(label, checked) {
+      const wrap = el('label', 'panel-choice');
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.checked = !!checked;
+      wrap.append(input, document.createTextNode(' ' + label));
+      return { wrap, input };
+    }
+
+    function group(title) {
+      const fs = el('fieldset', 'panel-group');
+      fs.appendChild(el('legend', '', title));
+      return fs;
+    }
+
+    function openForm(share) {
+      const isNew = share === null;
+      const st = isNew ? {} : share.settings;
+
+      panel.hidden = false;
+      panel.textContent = '';
+      panel.appendChild(el('h2', 'panel-title', (isNew ? 'Neue Freigabe: ' : 'Freigabe bearbeiten: ')
+        + (isNew ? folderName() : (share.folderName || folderName()))));
+      panel.appendChild(el('p', 'panel-hint', 'Umfasst den Ordner mit allen Unterordnern.'));
+
+      // Zugang
+      const access = group('Zugang');
+      const password = textInput('', isNew ? 'Ohne Passwort leer lassen' : 'Leer lassen = unverändert', 'password');
+      password.autocomplete = 'new-password';
+      access.appendChild(field('Passwort (optional)', password,
+        isNew ? 'Ohne Passwort kann jeder mit dem Link zuhören.'
+          : (share.hasPassword ? 'Ein Passwort ist gesetzt.' : 'Derzeit ohne Passwort.')));
+      let removePassword = null;
+      if (!isNew && share.hasPassword) {
+        removePassword = checkbox('Passwort entfernen', false);
+        access.appendChild(removePassword.wrap);
+      }
+      const expires = textInput(isNew ? '' : share.expires, '', 'date');
+      expires.min = new Date().toISOString().slice(0, 10);
+      access.appendChild(field('Ablaufdatum (optional)', expires, 'Leer = unbegrenzt. Der Link gilt bis einschließlich dieses Tages.'));
+      panel.appendChild(access);
+
+      // Funktionen
+      const functions = group('Funktionen');
+      const offline = checkbox('Offline speichern erlauben', isNew ? true : st.featureOffline);
+      const download = checkbox('Herunterladen als Datei erlauben', isNew ? false : st.featureDownload);
+      functions.append(offline.wrap, download.wrap);
+      panel.appendChild(functions);
+
+      // Aussehen
+      const look = group('Aussehen');
+      const title = textInput(st.title, folderName());
+      look.appendChild(field('Titel', title, 'Leer = Name des Ordners'));
+      const subtitle = textInput(st.subtitle, '');
+      look.appendChild(field('Zusatzzeile (optional)', subtitle));
+
+      const design = el('select', 'panel-input');
+      [['', 'Vorgabe des Administrators'], ['custom', 'Eigene Gestaltung'], ['nextcloud', 'Nextcloud (Hell/Dunkel automatisch)']]
+        .forEach(([value, text]) => {
+          const opt = el('option', '', text);
+          opt.value = value;
+          design.appendChild(opt);
+        });
+      design.value = st.design || '';
+      look.appendChild(field('Gestaltung', design));
+
+      const ownColors = checkbox('Eigene Farben (bei eigener Gestaltung)', !!(st.themeAccent || st.themeBar || st.themeBase));
+      look.appendChild(ownColors.wrap);
+      const colorRow = el('div', 'panel-row share-colors');
+      const colorInputs = {};
+      [['themeAccent', 'Akzent', AudioArchive.themeAccent], ['themeBar', 'Leisten', AudioArchive.themeBar], ['themeBase', 'Grundton', AudioArchive.themeBase]]
+        .forEach(([keyName, label, fallback]) => {
+          const input = el('input', 'panel-color');
+          input.type = 'color';
+          input.value = st[keyName] || fallback || '#888888';
+          colorInputs[keyName] = input;
+          const wrap = el('label', 'panel-color-field');
+          wrap.append(input, el('span', 'panel-hint', label));
+          colorRow.appendChild(wrap);
+        });
+      const syncColors = () => { colorRow.hidden = !ownColors.input.checked; };
+      ownColors.input.addEventListener('change', syncColors);
+      syncColors();
+      look.appendChild(colorRow);
+
+      // Hintergrundbild - braucht eine gespeicherte Freigabe
+      const bgState = el('p', 'panel-hint');
+      look.appendChild(el('span', 'panel-field-label', 'Hintergrundbild'));
+      look.appendChild(bgState);
+      if (isNew) {
+        bgState.textContent = 'Nach dem Anlegen einstellbar.';
+      } else {
+        const bgRow = el('div', 'panel-row');
+        const pick = el('label', 'panel-button', 'Bild wählen …');
+        const file = document.createElement('input');
+        file.type = 'file';
+        file.accept = 'image/png,image/jpeg,image/webp';
+        file.hidden = true;
+        pick.appendChild(file);
+        const removeBg = button('Entfernen', '', async () => {
+          try {
+            await request(AudioArchive.api('shares/' + share.id + '/background/remove'), { method: 'POST' });
+            share.hasBackground = false;
+            syncBg();
+          } catch (err) { bgState.textContent = err.message; }
+        });
+        const syncBg = () => {
+          removeBg.hidden = !share.hasBackground;
+          bgState.textContent = share.hasBackground
+            ? 'Eigenes Bild gesetzt – gilt in beiden Gestaltungen.'
+            : 'Kein eigenes Bild – es gilt die Vorgabe.';
+        };
+        file.addEventListener('change', async () => {
+          if (!file.files[0]) return;
+          const form = new FormData();
+          form.append('file', file.files[0]);
+          bgState.textContent = 'Lade hoch …';
+          try {
+            await request(AudioArchive.api('shares/' + share.id + '/background'), { method: 'POST', body: form });
+            share.hasBackground = true;
+            syncBg();
+          } catch (err) {
+            bgState.textContent = err.message;
+          } finally {
+            file.value = '';
+          }
+        });
+        bgRow.append(pick, removeBg);
+        look.appendChild(bgRow);
+        syncBg();
+      }
+      panel.appendChild(look);
+
+      // Beta-Hinweis
+      const beta = group('Beta-Hinweis');
+      const betaEnabled = checkbox('„Beta"-Zeichen und Hinweisstreifen zeigen', st.betaEnabled);
+      const betaText = textInput(st.betaText, 'Diese Seite wird noch entwickelt.');
+      const betaLink = textInput(st.betaLinkUrl, 'https://…');
+      const betaLabel = textInput(st.betaLinkLabel, 'Rückmeldung geben');
+      const betaFields = el('div', 'share-beta-fields');
+      betaFields.append(
+        field('Text', betaText),
+        field('Link-Adresse (optional)', betaLink),
+        field('Link-Beschriftung', betaLabel)
+      );
+      const syncBeta = () => { betaFields.hidden = !betaEnabled.input.checked; };
+      betaEnabled.input.addEventListener('change', syncBeta);
+      syncBeta();
+      beta.append(betaEnabled.wrap, betaFields);
+      panel.appendChild(beta);
+
+      const error = el('p', 'panel-error');
+      error.hidden = true;
+      panel.appendChild(error);
+
+      const save = button(isNew ? 'Freigabe anlegen' : 'Speichern', 'panel-button--primary', async () => {
+        showError(error, '');
+        const settings = {
+          title: title.value,
+          subtitle: subtitle.value,
+          design: design.value,
+          themeAccent: ownColors.input.checked ? colorInputs.themeAccent.value : '',
+          themeBar: ownColors.input.checked ? colorInputs.themeBar.value : '',
+          themeBase: ownColors.input.checked ? colorInputs.themeBase.value : '',
+          featureOffline: offline.input.checked,
+          featureDownload: download.input.checked,
+          betaEnabled: betaEnabled.input.checked,
+          betaText: betaText.value,
+          betaLinkUrl: betaLink.value,
+          betaLinkLabel: betaLabel.value,
+        };
+        save.disabled = true;
+        try {
+          let data;
+          if (isNew) {
+            data = await request(AudioArchive.api('shares'), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                source: view.source,
+                path: view.path,
+                settings,
+                password: password.value,
+                expires: expires.value,
+              }),
+            });
+          } else {
+            data = await request(AudioArchive.api('shares/' + share.id), {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                settings,
+                password: password.value,
+                removePassword: removePassword ? removePassword.input.checked : false,
+                expires: expires.value,
+              }),
+            });
+          }
+          Tree.refreshShares();
+          openList(data.share ? data.share.id : null);
+        } catch (err) {
+          showError(error, err.message);
+          save.disabled = false;
+        }
+      });
+
+      const row = el('div', 'panel-row panel-actions');
+      row.append(save, button('Abbrechen', '', () => openList()));
+      panel.appendChild(row);
+      panel.scrollIntoView({ block: 'nearest' });
+    }
+
+    if (enabled) {
+      shareBtn.addEventListener('click', () => {
+        if (panel.hidden) openList(); else close();
+      });
+    }
+
+    return {
+      fetchOwn,
+
+      /** Nach jedem Ordnerwechsel: Knopf zeigen/verbergen, Panel schliessen. */
+      onFolderLoaded() {
+        if (!enabled) return;
+        // Die eigenen Dateien als Ganzes lassen sich nicht teilen
+        const shareable = !offlineMode && !(view.source === 'home' && view.path === '');
+        actions.hidden = !shareable;
+
+        if (pendingShareId !== null) {
+          const id = pendingShareId;
+          pendingShareId = null;
+          fetchForFolder().then((list) => {
+            const share = list.find((s) => s.id === id);
+            if (share) openForm(share); else openList();
+          }).catch(() => openList());
+          return;
+        }
+        close();
+      },
+
+      /** Aus "Meine Freigaben": zum Ordner wechseln und die Freigabe oeffnen. */
+      openFromList(share) {
+        const source = share.source === 'home' ? 'home' : 'shared';
+        if (share.missing) {
+          window.alert('Der Ordner dieser Freigabe existiert nicht mehr. Die Freigabe lässt sich in den Einstellungen der Verwaltung löschen.');
+          return;
+        }
+        pendingShareId = share.id;
+        if (view.source === source && view.path === share.path) {
+          Shares.onFolderLoaded();
+        } else {
+          navigate(share.path, source);
+        }
       },
     };
   })();

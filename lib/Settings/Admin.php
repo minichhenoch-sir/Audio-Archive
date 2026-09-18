@@ -78,6 +78,9 @@ class Admin implements ISettings {
             'backgroundNextcloud' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, false
             ),
+            'userShares' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_USER_SHARES, true
+            ),
             'userCustomization' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_USER_CUSTOMIZATION, true
             ),

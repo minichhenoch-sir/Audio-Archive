@@ -101,6 +101,27 @@ class Appearance {
         return ['design' => $design, 'backgroundUrl' => $url];
     }
 
+    /**
+     * Aussehen einer Freigabe: ihre eigene Wahl, sonst die Vorgabe des
+     * Administrators. Ein Bild der Freigabe gilt in beiden Gestaltungen.
+     *
+     * @return array{design: string, backgroundUrl: string}
+     */
+    public function resolveShare(array $share): array {
+        $design = $share['settings']['design'] !== '' ? $share['settings']['design'] : $this->adminDesign();
+        $key = BackgroundImage::shareKey($share['id']);
+
+        if ($this->backgroundImage->exists($key)) {
+            $url = $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.asset.shareBackground', ['token' => $share['token']]
+            ) . '?v=' . $this->backgroundImage->version($key);
+        } else {
+            $url = $this->adminBackgroundUrl($design);
+        }
+
+        return ['design' => $design, 'backgroundUrl' => $url];
+    }
+
     /** Adresse des Administrator-Bildes, sofern es in dieser Gestaltung gilt. */
     public function adminBackgroundUrl(string $design): string {
         if (!$this->backgroundImage->exists()) {
@@ -117,12 +138,15 @@ class Appearance {
      * Farbe fuer Statusleiste und Manifest: bei Nextcloud-Gestaltung
      * Nextclouds Hauptfarbe, sonst die eigene Leistenfarbe.
      */
-    public function barColor(string $design): string {
+    public function barColor(string $design, string $customBar = ''): string {
         if ($design === Application::DESIGN_NEXTCLOUD) {
             $primary = $this->defaults->getColorPrimary();
             if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $primary)) {
                 return $primary;
             }
+        }
+        if ($customBar !== '') {
+            return $customBar;
         }
         return $this->appConfig->getValueString(
             Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'

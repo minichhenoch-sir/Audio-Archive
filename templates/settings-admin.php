@@ -41,6 +41,26 @@
         <button type="button" id="aa-public-copy">Link kopieren</button>
     </div>
 
+    <!-- ============ Freigaben durch Nutzer ============ -->
+    <h3>Freigaben durch Nutzer</h3>
+    <p>
+        <input type="checkbox" id="aa-user-shares" class="checkbox">
+        <label for="aa-user-shares">Angemeldete Nutzer dürfen Ordner über die App teilen</label>
+    </p>
+    <p class="settings-hint">
+        Jede Freigabe hat einen eigenen Link mit eigenen Einstellungen
+        (Passwort, Ablaufdatum, Aussehen, Funktionen). Abschalten sperrt nur das
+        Anlegen neuer Freigaben. Bestehende bleiben gültig, bis sie hier
+        gelöscht werden.
+    </p>
+    <table class="aa-shares" id="aa-shares" hidden>
+        <thead>
+            <tr><th>Ordner</th><th>Angelegt von</th><th>Passwort</th><th>Ablauf</th><th></th></tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+    <p class="settings-hint" id="aa-shares-state">Lade Freigaben …</p>
+
     <!-- ============ Darstellung ============ -->
     <h3>Darstellung</h3>
     <div class="aa-field">

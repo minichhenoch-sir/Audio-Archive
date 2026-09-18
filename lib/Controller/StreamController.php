@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AccessGuard;
 use OCA\AudioArchive\Response\RangeStreamResponse;
 use OCA\AudioArchive\Service\AudioFolder;
+use OCA\AudioArchive\Service\ContentScope;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -35,21 +36,23 @@ class StreamController extends Controller {
         private AudioFolder $audioFolder,
         private IAppConfig $appConfig,
         private ISession $session,
+        private ContentScope $scope,
     ) {
         parent::__construct($appName, $request);
     }
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path, string $download = '', string $source = AudioFolder::SOURCE_SHARED): Response {
-        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
-
-        if (!$this->guard->canUseSource($source)) {
-            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+    public function index(string $path, string $download = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): Response {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(
+                ['error' => $scope === Http::STATUS_UNAUTHORIZED ? 'not_authenticated' : 'Aufnahme nicht gefunden.'],
+                $scope
+            );
         }
 
-        $root = $this->audioFolder->rootFor($source);
-        $node = $root === null ? null : $this->audioFolder->resolveIn($root, $path);
+        $node = $this->audioFolder->resolveIn($scope['root'], $path);
         if (!$node instanceof File || !$this->audioFolder->isAllowedFile($node)) {
             return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], Http::STATUS_NOT_FOUND);
         }
@@ -61,16 +64,11 @@ class StreamController extends Controller {
          * Knopfes: Sonst liesse sich das Herunterladen durch Anhaengen von
          * "&download=1" an die Adresse umgehen.
          */
-        if ($wantsDownload && $source !== AudioFolder::SOURCE_HOME) {
-            $allowed = $this->appConfig->getValueBool(
-                Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
+        if ($wantsDownload && !$scope['download']) {
+            return new DataResponse(
+                ['error' => 'Das Herunterladen ist deaktiviert.'],
+                Http::STATUS_FORBIDDEN
             );
-            if (!$allowed) {
-                return new DataResponse(
-                    ['error' => 'Das Herunterladen ist deaktiviert.'],
-                    Http::STATUS_FORBIDDEN
-                );
-            }
         }
 
         try {

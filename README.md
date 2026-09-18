@@ -459,3 +459,53 @@ Bereichen:
   Dateien).
 - Mit Baum scrollen Baum und Liste jeweils für sich, die Kopfzeile bleibt
   stehen.
+
+---
+
+## 0.12.0: Ordner teilen – Freigaben durch Nutzer
+
+Jeder angemeldete Nutzer kann einen Ordner **samt Unterordnern** über einen
+eigenen Link teilen. Das geht mit Ordnern aus „Meine Dateien" und aus
+„Gemeinsame Aufnahmen".
+
+**So geht's:** Ordner öffnen → „Diesen Ordner teilen" → „Neue Freigabe". Alle
+eigenen Freigaben stehen im Ordnerbaum unter **„Meine Freigaben"**. Ein Klick
+öffnet den Ordner mit der Freigabe zum Bearbeiten.
+
+### Einstellungen je Freigabe
+| Bereich | Einstellungen |
+|---|---|
+| Zugang | Passwort (**optional**), Ablaufdatum (optional, gilt bis einschließlich dieses Tages) |
+| Funktionen | Offline speichern, Herunterladen als Datei |
+| Aussehen | Titel (leer = Ordnername), Zusatzzeile, Gestaltung (Vorgabe/Eigene/Nextcloud), eigene Farben, eigenes Hintergrundbild |
+| Beta-Hinweis | Zeichen, Text, Link, Beschriftung |
+
+Ohne Passwort öffnet der Link direkt die Aufnahmen, auch offline. Mit
+Passwort wird es wie beim bisherigen Link abgefragt, mit Brute-Force-Schutz.
+
+### Verwaltung
+Einstellungen → Verwaltung → Audio Archive → **Freigaben durch Nutzer**:
+- Schalter, ob Nutzer Freigaben anlegen dürfen (Vorgabe: ja). Abschalten
+  sperrt nur neue Freigaben, bestehende bleiben gültig.
+- Übersicht aller Freigaben (Ordner, Ersteller, Passwort, Ablauf) mit
+  **Löschen**
+
+Bearbeiten und löschen darf nur, wer die Freigabe angelegt hat, dazu
+Administratoren. Fremde Freigaben sind für andere Nutzer unsichtbar.
+
+### Technik
+- **Neue Datenbanktabelle** `audioarchive_shares`. Nextcloud meldet nach dem
+  Einspielen ein Update, das die Tabelle anlegt: bestätigen, oder
+  `occ upgrade`.
+- Der Ordner wird über seine **Datei-ID** gespeichert, ein Umbenennen oder
+  Verschieben bricht den Link also nicht.
+- Seite einer Freigabe: `/apps/audioarchive/s/<token>`, wie der
+  Administrator-Link. Alle Abrufe tragen `s=<token>`. Der Administrator-Link
+  bleibt unverändert, auch seine offline gespeicherten Aufnahmen.
+- Offline getrennt je Freigabe: eigener Bereich im Verzeichnis, eigener
+  Passwort-Prüfwert.
+- Geprüft: kein Ausbrechen aus dem freigegebenen Ordner (`..` → 404),
+  abgelaufene oder gelöschte Freigaben → 404, Download nur wenn erlaubt,
+  schreibende Aufrufe nur mit Anfrage-Token.
+
+Nach dem Einspielen den Container neu starten und das Update bestätigen.

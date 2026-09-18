@@ -49,6 +49,7 @@
   const customDesign = el('aa-custom-design');
   const backgroundNextcloud = el('aa-background-nextcloud');
   const userCustomization = el('aa-user-customization');
+  const userShares = el('aa-user-shares');
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const status = el('aa-status');
@@ -85,6 +86,7 @@
 
   backgroundNextcloud.checked = state.backgroundNextcloud === true;
   userCustomization.checked = state.userCustomization !== false;
+  userShares.checked = state.userShares !== false;
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
 
@@ -207,6 +209,7 @@
       design: designNextcloud.checked ? 'nextcloud' : 'custom',
       backgroundNextcloud: backgroundNextcloud.checked,
       userCustomization: userCustomization.checked,
+      userShares: userShares.checked,
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       betaEnabled: betaEnabled.checked,
@@ -250,6 +253,83 @@
       setStatus('Verbindung fehlgeschlagen.', true);
     }
   });
+
+  // ---------- Freigaben durch Nutzer ----------
+  const sharesTable = el('aa-shares');
+  const sharesBody = sharesTable.querySelector('tbody');
+  const sharesState = el('aa-shares-state');
+
+  async function loadShares() {
+    try {
+      const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/api/admin/shares'), {
+        headers: { requesttoken: OC.requestToken },
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || '');
+      renderShares(data.shares || []);
+    } catch (err) {
+      sharesState.textContent = 'Freigaben konnten nicht geladen werden.';
+    }
+  }
+
+  function renderShares(shares) {
+    sharesBody.textContent = '';
+    sharesTable.hidden = shares.length === 0;
+    sharesState.textContent = shares.length === 0 ? 'Es gibt noch keine Freigaben.' : '';
+
+    shares.forEach((share) => {
+      const row = document.createElement('tr');
+
+      const folderCell = document.createElement('td');
+      folderCell.className = 'aa-share-folder';
+      const link = document.createElement('a');
+      link.href = share.url;
+      link.target = '_blank';
+      link.rel = 'noopener';
+      link.textContent = share.settings.title || share.folderName || share.path || '–';
+      folderCell.appendChild(link);
+      const note = document.createElement('span');
+      note.className = 'aa-share-note';
+      note.textContent = (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsamer Ordner: ')
+        + (share.path || '/')
+        + (share.missing ? ' – Ordner nicht mehr vorhanden' : '')
+        + (share.expired ? ' – abgelaufen' : '');
+      folderCell.appendChild(note);
+
+      const creatorCell = document.createElement('td');
+      creatorCell.textContent = share.creator;
+      const passwordCell = document.createElement('td');
+      passwordCell.textContent = share.hasPassword ? 'ja' : 'nein';
+      const expiresCell = document.createElement('td');
+      expiresCell.textContent = share.expires || 'unbegrenzt';
+
+      const actionCell = document.createElement('td');
+      const remove = document.createElement('button');
+      remove.type = 'button';
+      remove.textContent = 'Löschen';
+      remove.addEventListener('click', async () => {
+        if (!window.confirm('Freigabe „' + link.textContent + '" löschen? Der Link funktioniert danach nicht mehr.')) return;
+        remove.disabled = true;
+        try {
+          const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/api/shares/' + share.id + '/delete'), {
+            method: 'POST',
+            headers: { requesttoken: OC.requestToken },
+          });
+          if (!res.ok) throw new Error();
+          loadShares();
+        } catch (err) {
+          remove.disabled = false;
+          sharesState.textContent = 'Löschen fehlgeschlagen.';
+        }
+      });
+      actionCell.appendChild(remove);
+
+      row.append(folderCell, creatorCell, passwordCell, expiresCell, actionCell);
+      sharesBody.appendChild(row);
+    });
+  }
+
+  loadShares();
 
   // ---------- Link kopieren ----------
   el('aa-public-copy').addEventListener('click', async () => {

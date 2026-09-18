@@ -6,6 +6,7 @@ namespace OCA\AudioArchive\Controller;
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AccessGuard;
 use OCA\AudioArchive\Service\AudioFolder;
+use OCA\AudioArchive\Service\ContentScope;
 use OCA\AudioArchive\Service\MetadataReader;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -34,6 +35,7 @@ class ListController extends Controller {
         private AudioFolder $audioFolder,
         private MetadataReader $metadata,
         private IAppConfig $appConfig,
+        private ContentScope $scope,
     ) {
         parent::__construct($appName, $request);
     }
@@ -41,25 +43,22 @@ class ListController extends Controller {
     /**
      * @param string $source 'shared' (gemeinsamer Ordner, Vorgabe) oder
      *                       'home' (eigene Dateien, nur angemeldet)
+     * @param string $s      Token einer Freigabe (oeffentliche Seite einer
+     *                       Nutzer-Freigabe); hat Vorrang vor $source
      */
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path = '', string $source = AudioFolder::SOURCE_SHARED): DataResponse {
-        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
-
-        if (!$this->guard->canUseSource($source)) {
-            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
-        }
-
-        $root = $this->audioFolder->rootFor($source);
-        if ($root === null) {
+    public function index(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
             return new DataResponse(
-                ['error' => $source === AudioFolder::SOURCE_HOME
-                    ? 'Die eigenen Dateien sind nicht erreichbar.'
-                    : 'Es ist noch kein Quellordner eingerichtet.'],
-                Http::STATUS_INTERNAL_SERVER_ERROR
+                ['error' => $scope === Http::STATUS_UNAUTHORIZED ? 'not_authenticated' : 'Ordner nicht gefunden.'],
+                $scope
             );
         }
+        $root = $scope['root'];
+        $source = $s !== '' ? AudioFolder::SOURCE_SHARED
+            : ($source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED);
 
         $node = $this->audioFolder->resolveIn($root, $path);
         if (!$node instanceof Folder) {
@@ -67,7 +66,6 @@ class ListController extends Controller {
         }
 
         $relative = $this->audioFolder->relativePath($root, $node);
-        $isHome = $source === AudioFolder::SOURCE_HOME;
 
         $dirs = [];
         $files = [];
@@ -85,14 +83,8 @@ class ListController extends Controller {
                     'type' => 'dir',
                     'name' => $name,
                     'path' => $childRelative,
-                    /*
-                     * In den eigenen Dateien wird bewusst nicht gezaehlt:
-                     * Das hiesse, den kompletten Dateibestand des Nutzers
-                     * rekursiv zu durchlaufen - bei jedem Oeffnen eines
-                     * Ordners. Im gemeinsamen Ordner mit seinen Aufnahmen
-                     * ist das ueberschaubar.
-                     */
-                    'count' => $isHome ? null : $this->audioFolder->countRecursive($child),
+                    // null = nicht gezaehlt (eigene Dateien, siehe ContentScope)
+                    'count' => $scope['countFolders'] ? $this->audioFolder->countRecursive($child) : null,
                 ];
                 continue;
             }
@@ -132,14 +124,8 @@ class ListController extends Controller {
             'parent' => $parent,
             'entries' => array_merge($dirs, $files),
             'features' => [
-                'offline' => $this->appConfig->getValueBool(
-                    Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
-                ),
-                // Die eigenen Dateien darf man immer herunterladen - sie
-                // gehoeren einem ohnehin.
-                'download' => $isHome || $this->appConfig->getValueBool(
-                    Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
-                ),
+                'offline' => $scope['offline'],
+                'download' => $scope['download'],
             ],
         ]);
     }

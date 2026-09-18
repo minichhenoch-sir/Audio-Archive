@@ -75,3 +75,36 @@
 #audioarchive-settings #aa-custom-design.aa-inactive {
     opacity: 0.45;
 }
+
+/* Uebersicht der Freigaben durch Nutzer */
+#audioarchive-settings .aa-shares {
+    border-collapse: collapse;
+    margin: 8px 0;
+    max-width: 100%;
+}
+
+#audioarchive-settings .aa-shares th,
+#audioarchive-settings .aa-shares td {
+    padding: 6px 12px 6px 0;
+    text-align: start;
+    vertical-align: middle;
+    border-bottom: 1px solid var(--color-border, #ededed);
+}
+
+#audioarchive-settings .aa-shares th {
+    font-weight: 600;
+    opacity: 0.8;
+}
+
+#audioarchive-settings .aa-shares .aa-share-folder {
+    max-width: 320px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+#audioarchive-settings .aa-shares .aa-share-note {
+    display: block;
+    font-size: 0.85em;
+    opacity: 0.7;
+}

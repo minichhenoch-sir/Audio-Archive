@@ -44,6 +44,9 @@ if ($_['backgroundUrl'] !== '') {
      data-user-settings="<?php echo $escape($_['userSettings']); ?>"
      data-logged-in="<?php echo $escape($_['loggedIn']); ?>"
      data-has-shared="<?php echo $escape($_['hasShared']); ?>"
+     data-can-share="<?php echo $escape($_['canShare']); ?>"
+     data-api-token="<?php echo $escape($_['apiToken']); ?>"
+     data-open-access="<?php echo $escape($_['openAccess']); ?>"
      data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
@@ -178,6 +181,20 @@ if ($_['backgroundUrl'] !== '') {
     <div id="beta-notice" class="beta-notice" hidden></div>
 
     <nav id="breadcrumb" class="breadcrumb"></nav>
+
+    <!-- Ordner teilen (angemeldet, sofern erlaubt) -->
+    <div id="folder-actions" class="folder-actions" hidden>
+      <button type="button" id="share-btn" class="share-btn">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+          <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/><line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+        </svg>
+        <span>Diesen Ordner teilen</span>
+      </button>
+    </div>
+
+    <!-- Freigaben dieses Ordners: Liste und Formular, von app.js gefuellt -->
+    <section id="share-panel" class="panel share-panel" hidden></section>
 
     <!-- Offline-Leiste: erscheint nur in Ordnern, die Aufnahmen enthalten -->
     <div id="offline-bar" class="offline-bar" hidden>
