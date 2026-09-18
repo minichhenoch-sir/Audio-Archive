@@ -20,6 +20,8 @@ return [
         // (angemeldeter Nutzer ODER freigeschaltete oeffentliche Sitzung).
         ['name' => 'list#index', 'url' => '/api/list', 'verb' => 'GET'],
         ['name' => 'stream#index', 'url' => '/api/stream', 'verb' => 'GET'],
+        // Cover einer Aufnahme (ab 0.14): eingebettet oder cover.jpg im Ordner
+        ['name' => 'cover#index', 'url' => '/api/cover', 'verb' => 'GET'],
         // Nur Unterordner, fuer den Ordnerbaum (angemeldet)
         ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
 

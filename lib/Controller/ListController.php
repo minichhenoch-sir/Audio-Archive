@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AccessGuard;
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\ContentScope;
+use OCA\AudioArchive\Service\CoverFinder;
 use OCA\AudioArchive\Service\MetadataReader;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -36,6 +37,7 @@ class ListController extends Controller {
         private MetadataReader $metadata,
         private IAppConfig $appConfig,
         private ContentScope $scope,
+        private CoverFinder $covers,
     ) {
         parent::__construct($appName, $request);
     }
@@ -68,6 +70,9 @@ class ListController extends Controller {
 
         $dirs = [];
         $files = [];
+        // Ordnerbild (cover.jpg o. ae.) - erst suchen, wenn eine Aufnahme
+        // kein eingebettetes Cover hat, und dann nur einmal je Ordner
+        $folderCover = false;
 
         foreach ($node->getDirectoryListing() as $child) {
             $name = $child->getName();
@@ -95,8 +100,23 @@ class ListController extends Controller {
             /** @var File $child */
             $meta = $this->metadata->read($child);
 
+            // Cover: 'v' ist die Versionskennung fuer die Adresse, damit ein
+            // geaendertes Bild nicht aus dem Browser-Speicher kommt
+            $coverVersion = null;
+            if ($meta['cover'] ?? false) {
+                $coverVersion = 'e' . $child->getMTime();
+            } else {
+                if ($folderCover === false) {
+                    $folderCover = $this->covers->imageFor($node, $root);
+                }
+                if ($folderCover !== null) {
+                    $coverVersion = 'f' . $folderCover->getId() . '-' . $folderCover->getMTime();
+                }
+            }
+
             $files[] = [
                 'type' => 'file',
+                'cover' => $coverVersion,
                 'name' => pathinfo($name, PATHINFO_FILENAME),
                 'file' => $name,
                 'path' => $childRelative,

@@ -39,10 +39,12 @@ class MetadataReader {
      * bewusst NICHT im App-Ordner: Schreibzugriffe dort wuerden die
      * Code-Signierung der Store-Fassung verletzen.
      *
-     * @return array{duration: ?float, artist: ?string, album: ?string, title: ?string}
+     * @return array{duration: ?float, artist: ?string, album: ?string, title: ?string, cover: bool}
      */
     public function read(File $file): array {
-        $key = $file->getId() . '-' . $file->getMTime();
+        // 'v2': ab 0.14 gehoert die Angabe 'cover' dazu - aeltere Eintraege
+        // ohne sie werden so nicht mehr verwendet, sondern neu gelesen
+        $key = 'v2-' . $file->getId() . '-' . $file->getMTime();
 
         $cached = $this->cache->get($key);
         if (is_string($cached)) {
@@ -52,7 +54,7 @@ class MetadataReader {
             }
         }
 
-        $result = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null];
+        $result = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null, 'cover' => false];
 
         try {
             $fh = $file->fopen('r');
@@ -72,6 +74,7 @@ class MetadataReader {
             $result['artist'] = $tags['artist'];
             $result['album'] = $tags['album'];
             $result['title'] = $tags['title'];
+            $result['cover'] = $this->findEmbeddedCover($fh) !== null;
         } catch (\Throwable $e) {
             // Beschaedigte Datei: Dann bleibt es bei den Standardwerten.
         } finally {
@@ -292,6 +295,221 @@ class MetadataReader {
         }
 
         return $result;
+    }
+
+    /**
+     * Liefert das eingebettete Cover einer Datei (ab 0.14).
+     *
+     * @return array{mime: string, data: string}|null
+     */
+    public function readEmbeddedCover(File $file): ?array {
+        try {
+            $fh = $file->fopen('r');
+        } catch (\Throwable $e) {
+            return null;
+        }
+        if ($fh === false) {
+            return null;
+        }
+        try {
+            $info = $this->findEmbeddedCover($fh);
+            if ($info === null) {
+                return null;
+            }
+            fseek($fh, $info['offset']);
+            $data = '';
+            $remaining = $info['length'];
+            while ($remaining > 0 && !feof($fh)) {
+                $chunk = fread($fh, min(65536, $remaining));
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+                $data .= $chunk;
+                $remaining -= strlen($chunk);
+            }
+            return strlen($data) === $info['length'] ? ['mime' => $info['mime'], 'data' => $data] : null;
+        } catch (\Throwable $e) {
+            return null;
+        } finally {
+            fclose($fh);
+        }
+    }
+
+    /** Groesstes Cover, das ausgeliefert wird (Schutz vor defekten Angaben). */
+    private const MAX_COVER_BYTES = 16 * 1024 * 1024;
+
+    /**
+     * Sucht im ID3v2-Tag ein Bild (APIC, bei ID3v2.2 PIC).
+     *
+     * Gelesen werden nur die Frame-Koepfe: Der Strom springt von Frame zu
+     * Frame, das Bild selbst wird erst beim Ausliefern gelesen. Cover sind
+     * oft mehrere hundert Kilobyte gross - beim Auflisten eines Ordners soll
+     * davon nichts durch den Speicher.
+     *
+     * Gibt es mehrere Bilder, gewinnt die Vorderseite (Bildtyp 3), sonst das
+     * erste.
+     *
+     * @param resource $fh
+     * @return array{offset: int, length: int, mime: string}|null
+     */
+    private function findEmbeddedCover($fh): ?array {
+        rewind($fh);
+        $header = fread($fh, 10);
+        if ($header === false || strlen($header) !== 10 || substr($header, 0, 3) !== 'ID3') {
+            return null;
+        }
+        $major = ord($header[3]);
+        $flags = ord($header[5]);
+        if ($major < 2 || $major > 4) {
+            return null;
+        }
+        // Unsynchronisation (sehr selten) wuerde die Bilddaten verfaelschen
+        if ($flags & 0x80) {
+            return null;
+        }
+        $b = array_values(unpack('C*', substr($header, 6, 4)));
+        $tagEnd = 10 + (($b[0] << 21) | ($b[1] << 14) | ($b[2] << 7) | $b[3]);
+
+        $pos = 10;
+        if ($flags & 0x40 && $major >= 3) {
+            $ext = fread($fh, 4);
+            if ($ext === false || strlen($ext) !== 4) {
+                return null;
+            }
+            if ($major >= 4) {
+                $e = array_values(unpack('C*', $ext));
+                $pos += ($e[0] << 21) | ($e[1] << 14) | ($e[2] << 7) | $e[3];
+            } else {
+                $pos += unpack('N', $ext)[1] + 4;
+            }
+        }
+
+        $isV2 = $major === 2;
+        $headLen = $isV2 ? 6 : 10;
+        $found = null;
+
+        while ($pos + $headLen <= $tagEnd) {
+            fseek($fh, $pos);
+            $head = fread($fh, $headLen);
+            if ($head === false || strlen($head) !== $headLen) {
+                break;
+            }
+            $frameId = substr($head, 0, $isV2 ? 3 : 4);
+            if (!preg_match('/^[A-Z0-9]+$/', $frameId)) {
+                break; // Padding
+            }
+            if ($isV2) {
+                $s = array_values(unpack('C*', substr($head, 3, 3)));
+                $size = ($s[0] << 16) | ($s[1] << 8) | $s[2];
+            } elseif ($major >= 4) {
+                $s = array_values(unpack('C*', substr($head, 4, 4)));
+                $size = ($s[0] << 21) | ($s[1] << 14) | ($s[2] << 7) | $s[3];
+            } else {
+                $size = unpack('N', substr($head, 4, 4))[1];
+            }
+            if ($size <= 0 || $pos + $headLen + $size > $tagEnd) {
+                break;
+            }
+
+            if ($frameId === 'APIC' || $frameId === 'PIC') {
+                $dataStart = $pos + $headLen;
+                $dataSize = $size;
+                $formatFlags = $isV2 ? 0 : ord($head[9]);
+                // Komprimiert oder verschluesselt: nicht verwendbar
+                $usable = !($major === 3 && ($formatFlags & 0xC0)) && !($major === 4 && ($formatFlags & 0x0C));
+                if ($major === 4 && ($formatFlags & 0x01)) {
+                    // Angabe der Datenlaenge vorangestellt
+                    $dataStart += 4;
+                    $dataSize -= 4;
+                }
+                if ($usable && $dataSize > 0) {
+                    $picture = $this->parsePictureFrame($fh, $dataStart, $dataSize, $isV2);
+                    if ($picture !== null) {
+                        if ($picture['type'] === 3) {
+                            return $picture;
+                        }
+                        $found ??= $picture;
+                    }
+                }
+            }
+            $pos += $headLen + $size;
+        }
+
+        return $found;
+    }
+
+    /**
+     * Zerlegt den Kopf eines Bild-Frames: Kodierung, Bildformat, Bildtyp,
+     * Beschreibung - danach folgen die eigentlichen Bilddaten.
+     *
+     * @return array{offset: int, length: int, mime: string, type: int}|null
+     */
+    private function parsePictureFrame($fh, int $start, int $size, bool $isV2): ?array {
+        fseek($fh, $start);
+        // Kopf samt Beschreibung passt praktisch immer in 1 KB
+        $head = fread($fh, min($size, 1024));
+        if ($head === false || strlen($head) < 4) {
+            return null;
+        }
+        $encoding = ord($head[0]);
+        $p = 1;
+        if ($isV2) {
+            $format = strtoupper(substr($head, 1, 3));
+            $mime = $format === 'PNG' ? 'image/png' : 'image/jpeg';
+            $p = 4;
+        } else {
+            $end = strpos($head, "\0", 1);
+            if ($end === false) {
+                return null;
+            }
+            $mime = strtolower(trim(substr($head, 1, $end - 1)));
+            $p = $end + 1;
+        }
+        if ($p >= strlen($head)) {
+            return null;
+        }
+        $type = ord($head[$p]);
+        $p++;
+
+        // Beschreibung ueberspringen: bei UTF-16 endet sie mit zwei Nullbytes
+        if ($encoding === 1 || $encoding === 2) {
+            $end = null;
+            for ($i = $p; $i + 1 < strlen($head); $i += 2) {
+                if ($head[$i] === "\0" && $head[$i + 1] === "\0") {
+                    $end = $i + 2;
+                    break;
+                }
+            }
+        } else {
+            $nul = strpos($head, "\0", $p);
+            $end = $nul === false ? null : $nul + 1;
+        }
+        if ($end === null) {
+            return null;
+        }
+
+        $length = $size - $end;
+        if ($length <= 0 || $length > self::MAX_COVER_BYTES) {
+            return null;
+        }
+
+        // Typ am Inhalt bestimmen - die Angabe im Tag ist oft ungenau ("jpg",
+        // "image/jpg") oder fehlt
+        fseek($fh, $start + $end);
+        $magic = (string)fread($fh, 12);
+        if (str_starts_with($magic, "\xFF\xD8\xFF")) {
+            $mime = 'image/jpeg';
+        } elseif (str_starts_with($magic, "\x89PNG")) {
+            $mime = 'image/png';
+        } elseif (str_starts_with($magic, 'RIFF') && substr($magic, 8, 4) === 'WEBP') {
+            $mime = 'image/webp';
+        } elseif (str_starts_with($magic, 'GIF8')) {
+            $mime = 'image/gif';
+        } else {
+            return null; // Kein bekanntes Bildformat - lieber kein Cover
+        }
+
+        return ['offset' => $start + $end, 'length' => $length, 'mime' => $mime, 'type' => $type];
     }
 
     /** Prueft, ob ein String bereits gueltiges UTF-8 ist (ohne mbstring). */

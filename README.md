@@ -606,3 +606,45 @@ Bereich im Verzeichnis, `@@in:<id>:`).
    Ordner (nach Neuladen), direkter Aufruf liefert „nicht mehr geteilt".
 5. Zahnrad → Titel und Farben ändern → Übernehmen.
 6. Beta in der Verwaltung einschalten → erscheint auch auf Links der Nutzer.
+
+---
+
+## 0.14.0: Cover und Vollbild-Player
+
+### Cover
+Die Player-Leiste zeigt links das Cover des laufenden Titels. Woher es kommt:
+
+1. das in der mp3 **eingebettete Bild** (ID3v2.2/2.3/2.4; bei mehreren
+   gewinnt die Vorderseite)
+2. sonst ein **Bild im Ordner**: `cover`, `folder`, `front`, `album` oder
+   `albumart` mit Endung `.jpg`, `.jpeg`, `.png` oder `.webp`
+   (Groß-/Kleinschreibung egal)
+3. sonst dasselbe in den **übergeordneten Ordnern** – ein Bild reicht also
+   für eine ganze Reihe mit Unterordnern. Gesucht wird nie oberhalb der
+   Wurzel: Bei einer Freigabe erscheint kein Bild aus nicht geteilten Ordnern.
+4. ohne Cover: das **App-Symbol**
+
+Das Cover erscheint auch auf dem Sperrbildschirm (Media Session). Beim
+Offline-Speichern eines Ordners werden die Cover mitgespeichert.
+
+### Vollbild-Player
+Das Symbol rechts in der Leiste (oder ein Tipp aufs Cover) öffnet den
+Player im Vollbild: großes Cover oben, darunter Titel, Fortschritt und
+Steuerung, dahinter das Cover unscharf. Schließen über den Pfeil oben links,
+die Zurück-Geste bzw. Zurück-Taste oder Esc. Die Wiedergabe läuft dabei
+ununterbrochen weiter. Im Querformat auf dem Telefon steht das Cover links.
+
+### Technik
+- Neuer Endpunkt `GET api/cover?path=…` (gleiche Zugangsprüfung wie
+  `api/stream`, also auch für Links und mit mir geteilte Ordner).
+- Die Ordnerliste meldet je Aufnahme `cover` (Versionskennung, `null` = kein
+  Cover). Das Bild selbst wird nur beim Abruf gelesen; beim Auflisten liest
+  der Server nur die Frame-Köpfe des ID3-Tags.
+- Der Zwischenspeicher der Metadaten hat einen neuen Schlüssel (`v2-`) –
+  beim ersten Öffnen eines Ordners werden die Angaben einmal neu gelesen.
+
+### Prüfen
+Nach dem Einspielen Container neu starten und App aus-/einschalten (neue
+Route). Einen Ordner mit `cover.jpg` und eine mp3 mit eingebettetem Bild
+abspielen, Vollbild öffnen und per Zurück-Geste schließen, Sperrbildschirm
+ansehen.

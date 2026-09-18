@@ -104,6 +104,16 @@ const AudioArchive = (() => {
     },
 
     /**
+     * Cover einer Aufnahme (ab 0.14). version stammt aus der Ordnerliste
+     * und aendert sich mit dem Bild - so kommt nie ein veraltetes Cover aus
+     * dem Browser-Speicher.
+     */
+    coverUrl(path, source, version) {
+      return new URL(this.api('cover') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path) + '&v=' + encodeURIComponent(version || ''), location.href).href;
+    },
+
+    /**
      * Vollstaendige Adresse einer mitgelieferten Datei (Bilder usw.).
      *
      * Bewusst absolut aufgeloest: Relative Angaben wuerden auf der

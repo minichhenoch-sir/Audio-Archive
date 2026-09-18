@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v8';
+const SHELL_CACHE = 'audioarchive-shell-v9';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
@@ -217,6 +217,21 @@ self.addEventListener('fetch', (event) => {
 
   // ---------- Uebrige Schnittstellen: immer aus dem Netz ----------
   // Anmeldung und Einstellungen sind zu veraenderlich zum Speichern.
+  /*
+   * Cover (ab 0.14): zuerst aus dem Offline-Speicher (beim Speichern eines
+   * Ordners mit abgelegt), sonst aus dem Netz. Ohne Verbindung und ohne
+   * gespeichertes Bild ein 404 - der Player zeigt dann das App-Symbol.
+   */
+  if (url.pathname.endsWith('/api/cover')) {
+    event.respondWith(
+      caches.open(OFFLINE_AUDIO_CACHE)
+        .then((cache) => cache.match(request.url))
+        .then((cached) => cached || fetch(request))
+        .catch(() => new Response('', { status: 404 }))
+    );
+    return;
+  }
+
   if (url.pathname.includes('/api/')) {
     return;
   }

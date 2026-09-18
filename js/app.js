@@ -1465,6 +1465,19 @@
       offlineInfo.textContent = `Speichere … ${done + failed} von ${files.length}`;
     }
 
+    // Cover mitspeichern (ab 0.14) - mehrere Titel teilen sich oft eines
+    // (cover.jpg im Ordner), deshalb jede Adresse nur einmal. Fehlt eines,
+    // zeigt der Player offline eben das App-Symbol.
+    const covers = new Set(files.filter((f) => f.cover)
+      .map((f) => AudioArchive.coverUrl(f.path, f.source, f.cover)));
+    for (const url of covers) {
+      try {
+        if (await cache.match(url)) continue;
+        const res = await fetch(url, { credentials: 'same-origin' });
+        if (res.ok) await cache.put(url, res);
+      } catch (err) { /* nicht kritisch */ }
+    }
+
     return { done, failed };
   }
 
@@ -1472,6 +1485,7 @@
     const cache = await caches.open(OFFLINE_AUDIO_CACHE);
     for (const file of files) {
       await cache.delete(streamUrlFor(file.path, file.source));
+      if (file.cover) await cache.delete(AudioArchive.coverUrl(file.path, file.source, file.cover));
     }
     // Die mitgespeicherte Ordnerliste ebenfalls entfernen
     await cache.delete(listUrlFor(view.path, view.source));

@@ -34,6 +34,10 @@ const Player = (() => {
     btnNext: document.getElementById('btn-next'),
     btnSeekBack: document.getElementById('btn-seek-back'),
     btnSeekForward: document.getElementById('btn-seek-forward'),
+    cover: document.getElementById('player-cover'),
+    coverBtn: document.getElementById('player-cover-btn'),
+    btnExpand: document.getElementById('btn-expand'),
+    btnCollapse: document.getElementById('btn-collapse'),
   };
 
   const SEEK_STEP = 15; // Sekunden
@@ -87,6 +91,8 @@ const Player = (() => {
    */
   function updatePlayerBarSpace() {
     const root = document.documentElement;
+    // Vollbild: Die Leiste bedeckt alles, der Platz darunter bleibt wie er war
+    if (els.bar.classList.contains('is-expanded')) return;
     if (els.bar.hidden) {
       root.style.setProperty('--player-bar-space', '0px');
       return;
@@ -127,20 +133,58 @@ const Player = (() => {
       .join(' \u00b7 ');
   }
 
+  // ------------------------------------------------------------------
+  // Cover (ab 0.14)
+  //
+  // Quelle: eingebettetes Bild der mp3, sonst cover.jpg o. ae. im Ordner -
+  // das entscheidet der Server, die Ordnerliste meldet nur, OB es eins gibt
+  // (track.cover = Versionskennung). Ohne Cover, oder wenn es nicht laedt
+  // (etwa offline und nicht gespeichert), erscheint das App-Symbol.
+  // ------------------------------------------------------------------
+  const FALLBACK_COVER = AudioArchive.asset('img/icon-512.png');
+
+  /** Adresse des Covers eines Titels, oder null ohne Cover. */
+  function coverUrlFor(track) {
+    return track && track.cover ? AudioArchive.coverUrl(track.path, track.source, track.cover) : null;
+  }
+
+  function showCover(track) {
+    const url = coverUrlFor(track);
+    els.bar.classList.toggle('has-cover', !!url);
+    els.cover.onerror = () => {
+      els.cover.onerror = null;
+      els.cover.src = FALLBACK_COVER;
+      els.bar.classList.remove('has-cover');
+      els.bar.style.removeProperty('--aa-cover');
+    };
+    els.cover.src = url || FALLBACK_COVER;
+    // Fuer den unscharfen Hintergrund des Vollbild-Players
+    if (url) {
+      els.bar.style.setProperty('--aa-cover', `url("${url.replace(/["\\\n]/g, '')}")`);
+    } else {
+      els.bar.style.removeProperty('--aa-cover');
+    }
+  }
+
   function updateMediaSession(track) {
     if (!('mediaSession' in navigator)) return;
+
+    // Titelbild fuer den Sperrbildschirm: das Cover, sonst das App-Symbol.
+    // Immer absolute Adressen - relativ wuerden sie auf der oeffentlichen
+    // Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
+    const cover = coverUrlFor(track);
+    const artwork = cover
+      ? [{ src: cover, sizes: '512x512' }]
+      : [
+        { src: AudioArchive.asset('img/icon-192.png'), sizes: '192x192', type: 'image/png' },
+        { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
+      ];
 
     navigator.mediaSession.metadata = new MediaMetadata({
       title: trackTitle(track),
       artist: (track.artist && track.artist.trim()) || '',
       album: (track.album && track.album.trim()) || '',
-      // Titelbild fuer den Sperrbildschirm. Ueber AudioArchive.asset(),
-      // damit die Adresse absolut ist - relativ wuerde sie auf der
-      // oeffentlichen Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
-      artwork: [
-        { src: AudioArchive.asset('img/icon-192.png'), sizes: '192x192', type: 'image/png' },
-        { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
-      ],
+      artwork,
     });
 
     navigator.mediaSession.setActionHandler('play', () => Player.resume());
@@ -378,6 +422,7 @@ const Player = (() => {
     audio.src = streamUrlFor(track);
     els.title.textContent = trackTitle(track);
     els.context.textContent = trackContext(track);
+    showCover(track);
     els.bar.hidden = false;
     updatePlayerBarSpace();
 
@@ -518,6 +563,71 @@ const Player = (() => {
     els.seek.dragging = false;
   });
 
+  // ------------------------------------------------------------------
+  // Vollbild-Player (ab 0.14)
+  //
+  // Dieselbe Leiste, nur gross: Cover oben, darunter Titel, Fortschritt und
+  // Steuerung. Beim Oeffnen entsteht ein Verlaufseintrag, damit die
+  // Zurueck-Geste (Android) bzw. die Zurueck-Taste den Player schliesst,
+  // statt die Ordneransicht zu wechseln oder die App zu verlassen.
+  // ------------------------------------------------------------------
+  let expandedByHistory = false;
+
+  function setExpanded(open) {
+    els.bar.classList.toggle('is-expanded', open);
+    document.getElementById('audioarchive').classList.toggle('aa-player-expanded', open);
+    els.btnExpand.setAttribute('aria-expanded', open ? 'true' : 'false');
+    if (open) {
+      els.btnCollapse.focus({ preventScroll: true });
+    } else {
+      updatePlayerBarSpace();
+    }
+  }
+
+  function expand() {
+    if (els.bar.hidden || els.bar.classList.contains('is-expanded')) return;
+    setExpanded(true);
+    try {
+      history.pushState({ ...(history.state || {}), aaPlayerExpanded: true }, '');
+      expandedByHistory = true;
+    } catch (e) {
+      expandedByHistory = false;
+    }
+  }
+
+  function collapse() {
+    if (!els.bar.classList.contains('is-expanded')) return;
+    if (expandedByHistory) {
+      // Der popstate-Handler unten schliesst dann
+      history.back();
+      return;
+    }
+    setExpanded(false);
+  }
+
+  els.btnExpand.addEventListener('click', expand);
+  els.coverBtn.addEventListener('click', () => {
+    if (els.bar.classList.contains('is-expanded')) return;
+    expand();
+  });
+  els.btnCollapse.addEventListener('click', collapse);
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape' && els.bar.classList.contains('is-expanded')) collapse();
+  });
+
+  /*
+   * Laeuft VOR dem Handler in app.js (player.js wird zuerst geladen). Ist
+   * der Player offen, schliesst Zurueck nur ihn - die Ordneransicht soll
+   * davon nichts merken, deshalb stopImmediatePropagation.
+   */
+  window.addEventListener('popstate', (event) => {
+    if (!els.bar.classList.contains('is-expanded')) return;
+    expandedByHistory = false;
+    setExpanded(false);
+    event.stopImmediatePropagation();
+  });
+
   return {
     /**
      * Startet eine neue "Playlist" (= Inhalt eines Kategorie-Ordners) ab einem
@@ -574,6 +684,10 @@ const Player = (() => {
     onPlayStateChange(callback) {
       onPlayStateChange = callback;
     },
+
+    /** Vollbild-Player oeffnen bzw. schliessen. */
+    expand,
+    collapse,
 
     /** true, solange tatsächlich Ton läuft (nicht pausiert / nicht beendet). */
     isPlaying() {

@@ -241,10 +241,31 @@ if ($_['backgroundUrl'] !== '') {
   </div>
 
   <!-- ===================== PERSISTENTER PLAYER ===================== -->
-  <footer id="player-bar" class="player-bar" hidden>
-    <div class="player-info">
-      <p id="player-track-title" class="player-track-title">–</p>
-      <p id="player-track-context" class="player-track-context">–</p>
+  <!--
+    Player-Leiste. Ueber das Vergroessern-Symbol (oder einen Tipp aufs Cover)
+    wird DIESELBE Leiste zum Vollbild-Player (Klasse is-expanded) - so gibt
+    es die Bedienelemente nur einmal, und nichts muss abgeglichen werden.
+  -->
+  <footer id="player-bar" class="player-bar" hidden aria-label="Player">
+    <div class="player-expanded-head">
+      <button type="button" id="btn-collapse" class="player-icon-btn" aria-label="Player verkleinern" title="Verkleinern">
+        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <span class="player-expanded-label">Wiedergabe</span>
+    </div>
+    <div class="player-main">
+      <button type="button" id="player-cover-btn" class="player-cover" aria-label="Player vergrößern">
+        <img id="player-cover" alt="" decoding="async">
+      </button>
+      <div class="player-info">
+        <p id="player-track-title" class="player-track-title">–</p>
+        <p id="player-track-context" class="player-track-context">–</p>
+      </div>
+      <button type="button" id="btn-expand" class="player-icon-btn player-expand-btn" aria-label="Player vergrößern" title="Vergrößern">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/>
+        </svg>
+      </button>
     </div>
 
     <div class="player-progress">
