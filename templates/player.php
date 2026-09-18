@@ -26,7 +26,7 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="<?php echo $escape($_['headerTitle']); ?>">
-<link rel="apple-touch-icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
+<link rel="apple-touch-icon" href="<?php echo $escape($_['assetBase']); ?>img/apple-touch-icon.png">
 <link rel="icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
 
 <?php foreach ($_['themeStylesheets'] as $theme) { ?>

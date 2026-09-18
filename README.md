@@ -509,3 +509,21 @@ Administratoren. Fremde Freigaben sind für andere Nutzer unsichtbar.
   schreibende Aufrufe nur mit Anfrage-Token.
 
 Nach dem Einspielen den Container neu starten und das Update bestätigen.
+
+---
+
+## 0.12.1: Neues App-Symbol
+
+Weißes Mikrofon auf blauem Grund (vom Nutzer gewählt).
+
+| Datei | Verwendung |
+|---|---|
+| `img/icon-192.png`, `img/icon-512.png` | installierte App, Favicon, Sperrbildschirm (abgerundetes Quadrat) |
+| `img/icon-maskable-512.png` | Android-Kachel. Vollflächig, das System schneidet selbst zu. Das Mikrofon liegt in der sicheren Zone. |
+| `img/apple-touch-icon.png` | iPhone/iPad-Homebildschirm (vollflächig, iOS rundet selbst) |
+| `img/app.svg` | Nextcloud-Kopfleiste und App-Menü (weiße Linien-Grafik) |
+| `img/app-dark.svg` | Einstellungen → Verwaltung (dunkle Variante) |
+
+Bereits installierte Apps übernehmen das neue Symbol, sobald der Browser das
+Manifest neu einliest. Das kann bis zu einem Tag dauern, auf dem iPhone ist
+eine Neuinstallation nötig.
