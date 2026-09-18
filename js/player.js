@@ -18,7 +18,6 @@ const Player = (() => {
 
   let playlist = [];        // Liste der Tracks im aktuellen Ordner (Kategorie)
   let currentIndex = -1;    // Index des aktuell gespielten Titels in "playlist"
-  let contextLabel = '';    // z.B. "Januar 2024 – Gottesdienst"
 
   const els = {
     bar: document.getElementById('player-bar'),
@@ -186,31 +185,75 @@ const Player = (() => {
         { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
       ];
 
-    navigator.mediaSession.metadata = new MediaMetadata({
-      title: trackTitle(track),
-      artist: (track.artist && track.artist.trim()) || '',
-      album: (track.album && track.album.trim()) || '',
-      artwork,
-    });
+    try {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: trackTitle(track),
+        artist: (track.artist && track.artist.trim()) || '',
+        album: (track.album && track.album.trim()) || '',
+        artwork,
+      });
+    } catch (e) {
+      // Sehr alte Browser ohne MediaMetadata: Ton laeuft trotzdem
+    }
 
-    navigator.mediaSession.setActionHandler('play', () => Player.resume());
-    navigator.mediaSession.setActionHandler('pause', () => Player.pause());
-    navigator.mediaSession.setActionHandler('previoustrack', () => Player.prev());
-    navigator.mediaSession.setActionHandler('nexttrack', () => Player.next());
-    navigator.mediaSession.setActionHandler('seekto', (details) => {
-      if (details.fastSeek && 'fastSeek' in audio) {
-        audio.fastSeek(details.seekTime);
-        return;
+  }
+
+  /*
+   * Bedienung auf dem Sperrbildschirm und in der Benachrichtigung.
+   *
+   * Einmal beim Start registriert (nicht bei jedem Titel neu). Jede Aktion
+   * einzeln abgesichert: Aeltere Browser (etwa Safari vor iOS 15) kennen
+   * 'seekto' nicht und WERFEN beim Registrieren. Ohne Absicherung brach das
+   * frueher das Setzen aller folgenden Aktionen ab - und, weil es beim
+   * Titelwechsel passierte, gleich den ganzen Titelwechsel.
+   *
+   * Spulen:
+   *   - seekto:        Fortschrittsbalken ziehen (Android-Benachrichtigung,
+   *                    iOS-Sperrbildschirm, Desktop). Braucht zusaetzlich
+   *                    setPositionState() - siehe updatePositionState().
+   *   - seekbackward / seekforward: 15-Sekunden-Knoepfe. Android zeigt sie in
+   *                    der aufgeklappten Benachrichtigung neben Vor/Zurueck.
+   *                    iOS zeigt nur EIN Paar Knoepfe und bevorzugt dabei
+   *                    Titel vor/zurueck - dort wird ueber den Balken gespult.
+   */
+  function seekBy(seconds) {
+    const duration = isFinite(audio.duration) ? audio.duration : Infinity;
+    audio.currentTime = Math.min(Math.max(0, audio.currentTime + seconds), Math.max(0, duration - 0.25));
+    updatePositionState();
+  }
+
+  function registerMediaActions() {
+    if (!('mediaSession' in navigator)) return;
+    const actions = {
+      play: () => Player.resume(),
+      pause: () => Player.pause(),
+      previoustrack: () => Player.prev(),
+      nexttrack: () => Player.next(),
+      seekbackward: (details) => seekBy(-((details && details.seekOffset) || SEEK_STEP)),
+      seekforward: (details) => seekBy((details && details.seekOffset) || SEEK_STEP),
+      seekto: (details) => {
+        if (!details || !isFinite(details.seekTime)) return;
+        const duration = isFinite(audio.duration) ? audio.duration : Infinity;
+        const target = Math.min(Math.max(0, details.seekTime), Math.max(0, duration - 0.25));
+        if (details.fastSeek && 'fastSeek' in audio) {
+          audio.fastSeek(target);
+        } else {
+          audio.currentTime = target;
+        }
+        updatePositionState();
+      },
+      stop: () => {
+        audio.pause();
+        audio.currentTime = 0;
+        updatePositionState();
+      },
+    };
+    Object.keys(actions).forEach((action) => {
+      try {
+        navigator.mediaSession.setActionHandler(action, actions[action]);
+      } catch (e) {
+        // Aktion wird von diesem Browser nicht unterstuetzt - die uebrigen trotzdem
       }
-      audio.currentTime = details.seekTime;
-    });
-    navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-      const skip = details.seekOffset || 15;
-      audio.currentTime = Math.max(0, audio.currentTime - skip);
-    });
-    navigator.mediaSession.setActionHandler('seekforward', (details) => {
-      const skip = details.seekOffset || 15;
-      audio.currentTime = Math.min(audio.duration || Infinity, audio.currentTime + skip);
     });
   }
 
@@ -227,11 +270,21 @@ const Player = (() => {
     lastPositionReport = Date.now();
     if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
       if (isFinite(audio.duration) && audio.duration > 0) {
-        navigator.mediaSession.setPositionState({
-          duration: audio.duration,
-          playbackRate: audio.playbackRate,
-          position: audio.currentTime,
-        });
+        /*
+         * Die Position darf die Dauer nicht uebersteigen und nicht negativ
+         * sein, sonst wirft der Browser (am Titelende kommt currentTime
+         * gelegentlich einen Hauch ueber duration). Ohne gueltige Angabe
+         * zeigt die Benachrichtigung keinen Fortschritt und kein Spulen.
+         */
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: audio.duration,
+            playbackRate: audio.playbackRate > 0 ? audio.playbackRate : 1,
+            position: Math.min(Math.max(0, audio.currentTime || 0), audio.duration),
+          });
+        } catch (e) {
+          // Nicht kritisch - dann ohne Fortschritt
+        }
       }
     }
   }
@@ -435,6 +488,8 @@ const Player = (() => {
     updateMediaSession(track);
     startPrefetch(index);
     if (!els.details.hidden) loadDetails();
+    // Letzter Titel und "danach naechster Ordner": schon mal vorbereiten
+    if (repeatMode === 'next' && index === playlist.length - 1) prepareNextFolder();
 
     if (autoplay) {
       audio.play().catch(() => {
@@ -543,24 +598,55 @@ const Player = (() => {
       return;
     }
     if (repeatMode === 'next' && typeof onQueueEnd === 'function' && playlist.length > 0) {
-      const last = playlist[playlist.length - 1];
-      const folder = last.path.includes('/') ? last.path.slice(0, last.path.lastIndexOf('/')) : '';
       let next = null;
       try {
-        next = await onQueueEnd({ source: last.source, folder });
+        next = await prepareNextFolder();
       } catch (err) {
         next = null;
       }
       if (next && Array.isArray(next.tracks) && next.tracks.length > 0) {
         playlist = next.tracks;
-        contextLabel = next.label || '';
+        preparedNext = null;
         showToast('Weiter mit: ' + (next.label || 'nächster Ordner'));
         loadTrack(0, true);
+        if (typeof next.onStart === 'function') next.onStart();
         return;
       }
       showToast('Kein weiterer Ordner – Wiedergabe beendet');
     }
     if (automatic) setMediaSessionPlaybackState('paused');
+  }
+
+  /*
+   * Naechsten Ordner schon WAEHREND des letzten Titels ermitteln.
+   *
+   * Grund: Auf dem Sperrbildschirm laeuft die Seite im Hintergrund. Muss
+   * erst nach dem Titelende gesucht und geladen werden, entsteht eine
+   * Pause ohne Ton - manche Systeme (iOS, stromsparende Android-Geraete)
+   * frieren die Seite dann ein, oder das Weiterspielen wird ohne neue
+   * Beruehrung nicht mehr erlaubt. Liegt die neue Liste schon bereit, geht
+   * es ohne Luecke weiter.
+   */
+  let preparedNext = null; // { key, promise }
+
+  function queueKey() {
+    const last = playlist[playlist.length - 1];
+    return last ? (last.source || 'shared') + '|' + last.path : '';
+  }
+
+  function prepareNextFolder() {
+    const key = queueKey();
+    if (preparedNext && preparedNext.key === key) return preparedNext.promise;
+    const last = playlist[playlist.length - 1];
+    if (!last || typeof onQueueEnd !== 'function') return Promise.resolve(null);
+    const folder = last.path.includes('/') ? last.path.slice(0, last.path.lastIndexOf('/')) : '';
+    const promise = Promise.resolve(onQueueEnd({ source: last.source, folder })).catch(() => null);
+    preparedNext = { key, promise };
+    // Fehlschlag nicht festhalten - beim naechsten Mal neu versuchen
+    promise.then((result) => {
+      if (!result && preparedNext && preparedNext.key === key) preparedNext = null;
+    });
+    return promise;
   }
 
   // ------------------------------------------------------------------
@@ -609,8 +695,10 @@ const Player = (() => {
     const next = REPEAT_MODES[(REPEAT_MODES.indexOf(repeatMode) + 1) % REPEAT_MODES.length];
     setRepeatMode(next);
     showToast(REPEAT_LABELS[next]);
+    if (next === 'next' && currentIndex === playlist.length - 1) prepareNextFolder();
   });
   applyRepeatMode();
+  registerMediaActions();
 
   let toastTimer = null;
   function showToast(text) {
@@ -745,8 +833,63 @@ const Player = (() => {
 
   els.btnInfo.addEventListener('click', () => setDetailsOpen(els.details.hidden));
 
+  // ------------------------------------------------------------------
+  // Wiederaufnahme nach Abbruechen (ab 0.15.1)
+  //
+  // Bricht die Datenquelle ab - Funkloch, Wechsel WLAN/Mobilfunk, oder beim
+  // Spulen in einer vom Service Worker gelieferten Aufnahme (in Chromium
+  // reproduzierbar: "PIPELINE_ERROR_READ") -, bleibt ein <audio>-Element
+  // sonst einfach stehen. Gerade auf dem Sperrbildschirm faellt das nicht
+  // auf. Deshalb: Quelle neu setzen, an dieselbe Stelle springen und
+  // weiterspielen - hoechstens dreimal je Titel.
+  //
+  // Die neue Adresse traegt 'retry=N', damit der Browser wirklich neu
+  // anfragt statt den kaputten Zwischenstand weiterzuverwenden. Der Service
+  // Worker ignoriert den Zusatz beim Nachschlagen im Offline-Speicher.
+  // ------------------------------------------------------------------
+  let recoveries = 0;
+  let recoveryKey = '';
+  let resumeAt = null;      // Position nach dem Neuladen
+  let resumePlay = false;
+  let lastGoodTime = 0;     // letzte sicher erreichte Position
+  let intendedTime = null;  // Ziel eines laufenden Sprungs
+
+  audio.addEventListener('seeking', () => { intendedTime = audio.currentTime; });
+  audio.addEventListener('seeked', () => { intendedTime = null; lastGoodTime = audio.currentTime; });
+  audio.addEventListener('timeupdate', () => { if (!audio.seeking) lastGoodTime = audio.currentTime; });
+
   audio.addEventListener('error', () => {
+    const track = playlist[currentIndex];
+    const code = audio.error ? audio.error.code : 0;
+    const key = track ? (track.source || 'shared') + '|' + track.path : '';
+    if (key !== recoveryKey) {
+      recoveryKey = key;
+      recoveries = 0;
+    }
+    // 2 = Netzwerk, 3 = Dekodierung (oft Folge eines abgerissenen Stroms)
+    if (track && (code === 2 || code === 3) && recoveries < 3) {
+      recoveries++;
+      resumeAt = intendedTime !== null ? intendedTime : lastGoodTime;
+      resumePlay = true;
+      const base = streamUrlFor(track);
+      setTimeout(() => {
+        audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + recoveries;
+        audio.load();
+      }, recoveries === 1 ? 0 : 1000 * recoveries);
+      return;
+    }
     els.title.textContent = 'Wiedergabe fehlgeschlagen';
+  });
+
+  audio.addEventListener('loadedmetadata', () => {
+    if (resumeAt === null) return;
+    const target = Math.min(resumeAt, Math.max(0, (audio.duration || resumeAt) - 0.25));
+    resumeAt = null;
+    audio.currentTime = target;
+    if (resumePlay) {
+      resumePlay = false;
+      audio.play().catch(() => {});
+    }
   });
 
   // --- Bedienelemente in der Player-Leiste ---
@@ -761,13 +904,8 @@ const Player = (() => {
   els.btnPrev.addEventListener('click', () => Player.prev());
   els.btnNext.addEventListener('click', () => Player.next());
 
-  els.btnSeekBack.addEventListener('click', () => {
-    audio.currentTime = Math.max(0, audio.currentTime - SEEK_STEP);
-  });
-  els.btnSeekForward.addEventListener('click', () => {
-    const dur = isFinite(audio.duration) ? audio.duration : Infinity;
-    audio.currentTime = Math.min(dur, audio.currentTime + SEEK_STEP);
-  });
+  els.btnSeekBack.addEventListener('click', () => seekBy(-SEEK_STEP));
+  els.btnSeekForward.addEventListener('click', () => seekBy(SEEK_STEP));
 
   els.seek.addEventListener('input', () => {
     els.seek.dragging = true;
@@ -857,7 +995,6 @@ const Player = (() => {
      */
     playFolder(tracks, startIndex, label) {
       playlist = tracks;
-      contextLabel = label;
       loadTrack(startIndex, true);
     },
 

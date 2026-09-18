@@ -1384,13 +1384,21 @@ body.has-bg-image #audioarchive .explorer-row.active {
     padding: calc(14px + var(--safe-top)) 10px calc(14px + var(--safe-bottom));
     z-index: 30;
     transform: translateX(-105%);
-    transition: transform 0.22s ease;
+    /* Geschlossen auch unsichtbar fuer Tastatur und Bildschirmleser -
+       sonst liesse sich per Tab in das verschobene Menue springen.
+       visibility erst NACH dem Hinausgleiten umschalten. */
+    visibility: hidden;
+    transition: transform 0.22s ease, visibility 0s linear 0.22s;
     /* Deckend, damit die Liste darunter nicht durchscheint */
     background: #fbf5ec;
     box-shadow: 0 14px 36px rgba(20, 12, 6, 0.4);
   }
 
-  #audioarchive.aa-sidebar-open .sidebar { transform: none; }
+  #audioarchive.aa-sidebar-open .sidebar {
+    transform: none;
+    visibility: visible;
+    transition: transform 0.22s ease, visibility 0s;
+  }
 
   #audioarchive.aa-sidebar-open .sidebar-backdrop:not([hidden]) {
     display: block;
@@ -2321,4 +2329,47 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 }
 #audioarchive.aa-design-nextcloud .player-bar.is-expanded.show-details .player-expanded-head {
   background: linear-gradient(180deg, var(--aa-nc-bg) 55%, transparent);
+}
+
+/* ---------- 0.15.1: Vollbild auch auf kleinen Telefonen und im Querformat ----------
+ * Das Cover richtet sich nach der verfuegbaren HOEHE: Unter dem Cover
+ * brauchen Titel, Knoepfe, Fortschritt und Steuerung rund 420px. Vorher war
+ * es auf kleinen Telefonen (320x568) zu gross - es schob sich unter die
+ * Kopfzeile, und die Steuerung rutschte aus dem Bild. */
+#audioarchive .player-bar.is-expanded .player-cover {
+  width: max(120px, min(84vw, calc(100vh - 420px), 420px));
+  height: max(120px, min(84vw, calc(100vh - 420px), 420px));
+}
+@supports (height: 100dvh) {
+  #audioarchive .player-bar.is-expanded .player-cover {
+    width: max(120px, min(84vw, calc(100dvh - 420px), 420px));
+    height: max(120px, min(84vw, calc(100dvh - 420px), 420px));
+  }
+}
+/* "safe": passt es doch nicht, beginnt der Inhalt oben statt oben
+   abgeschnitten zu werden */
+#audioarchive .player-bar.is-expanded { justify-content: safe center; overflow-y: auto; }
+
+@media (max-height: 520px) and (orientation: landscape) {
+  /* Querformat: Cover links ueber alle Zeilen, alles andere rechts */
+  #audioarchive .player-bar.is-expanded .player-info,
+  #audioarchive .player-bar.is-expanded .player-actions,
+  #audioarchive .player-bar.is-expanded .player-progress,
+  #audioarchive .player-bar.is-expanded .player-controls,
+  #audioarchive .player-bar.is-expanded .player-details { grid-column: 2; }
+  #audioarchive .player-bar.is-expanded .player-cover,
+  #audioarchive .player-bar.is-expanded.show-details .player-cover {
+    grid-column: 1;
+    grid-row: 1 / span 4;
+    width: min(calc(100vh - 110px), 40vw);
+    height: min(calc(100vh - 110px), 40vw);
+  }
+  #audioarchive .player-bar.is-expanded {
+    grid-template-rows: repeat(4, auto);
+    row-gap: 10px;
+    padding-top: calc(var(--safe-top) + 52px);
+    padding-bottom: calc(var(--safe-bottom) + 16px);
+  }
+  #audioarchive .player-bar.is-expanded .player-info { margin-bottom: 0; }
+  #audioarchive .player-bar.is-expanded .player-progress { margin-bottom: 0; }
 }

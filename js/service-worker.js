@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v10';
+const SHELL_CACHE = 'audioarchive-shell-v11';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
@@ -55,13 +55,25 @@ self.addEventListener('activate', (event) => {
  * ohne das koennte man offline nicht spulen, und auf manchen Geraeten wuerde
  * die Wiedergabe gar nicht erst starten.
  */
+/**
+ * Adresse ohne den Wiederholungszaehler 'retry' (siehe player.js,
+ * Wiederaufnahme nach Fehlern): Gespeichert ist die Aufnahme unter der
+ * Adresse ohne diesen Zusatz.
+ */
+function cacheKeyFor(rawUrl) {
+  const url = new URL(rawUrl);
+  url.searchParams.delete('retry');
+  return url.href;
+}
+
 async function serveAudioFromCache(request) {
   let cached = null;
+  const key = cacheKeyFor(request.url);
 
   for (const name of [OFFLINE_AUDIO_CACHE, PREFETCH_CACHE]) {
     const cache = await caches.open(name);
     // Ohne ignoreSearch: Der Pfad steckt im Abfrageteil und muss genau passen.
-    cached = await cache.match(request.url);
+    cached = await cache.match(key);
     if (cached) break;
   }
 
@@ -73,8 +85,16 @@ async function serveAudioFromCache(request) {
   const match = /^bytes=(\d*)-(\d*)$/.exec(rangeHeader.trim());
   if (!match) return cached;
 
-  const buffer = await cached.arrayBuffer();
-  const total = buffer.byteLength;
+  /*
+   * Als Blob statt als ArrayBuffer (ab 0.15.1): Ein Blob aus dem Speicher
+   * liegt beim Browser auf der Platte, slice() kopiert nichts. Mit
+   * arrayBuffer() wurde bei JEDEM Spulen die ganze Datei in den
+   * Arbeitsspeicher geladen - bei einer zweistuendigen Predigt ueber 100 MB.
+   * Auf Telefonen fuehrte das zu Abbruechen ("data source error"), vor allem
+   * beim Spulen ans Ende; im Test mit Chromium reproduzierbar.
+   */
+  const blob = await cached.blob();
+  const total = blob.size;
 
   let start = match[1] === '' ? null : parseInt(match[1], 10);
   let end = match[2] === '' ? null : parseInt(match[2], 10);
@@ -95,14 +115,15 @@ async function serveAudioFromCache(request) {
     });
   }
 
-  const slice = buffer.slice(start, end + 1);
+  const type = cached.headers.get('Content-Type') || 'audio/mpeg';
+  const slice = blob.slice(start, end + 1, type);
 
   return new Response(slice, {
     status: 206,
     statusText: 'Partial Content',
     headers: {
-      'Content-Type': cached.headers.get('Content-Type') || 'audio/mpeg',
-      'Content-Length': String(slice.byteLength),
+      'Content-Type': type,
+      'Content-Length': String(slice.size),
       'Content-Range': `bytes ${start}-${end}/${total}`,
       'Accept-Ranges': 'bytes',
     },

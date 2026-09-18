@@ -204,7 +204,8 @@
      * Fuer angemeldete Nextcloud-Nutzer ergibt er keinen Sinn - die melden
      * sich ueber Nextcloud selbst ab.
      */
-    if (!AudioArchive.isPublic()) {
+    // Ebenso bei einem Link ohne Passwort: Dort gibt es nichts abzumelden.
+    if (!AudioArchive.isPublic() || AudioArchive.openAccess) {
       logoutBtn.hidden = true;
     }
 
@@ -1701,13 +1702,19 @@
       if (next === null) return null;
       const tracks = await filesOfFolder(source, next);
       if (tracks.length > 0) {
-        // Liste mitnehmen, wenn sie den fertigen Ordner zeigt
-        if (!mainScreen.hidden && view.source === source && view.path === folder) {
-          loadLibrary(next, source);
-        }
         return {
           tracks,
           label: next === '' ? sourceLabel(source) : next.split('/').join(' \u00b7 '),
+          /*
+           * Erst beim tatsaechlichen Wechsel aufgerufen - gesucht wird schon
+           * waehrend des letzten Titels. Die Liste wandert nur mit, wenn sie
+           * dann noch den fertigen Ordner zeigt.
+           */
+          onStart: () => {
+            if (!mainScreen.hidden && view.source === source && view.path === folder) {
+              loadLibrary(next, source);
+            }
+          },
         };
       }
       current = next;

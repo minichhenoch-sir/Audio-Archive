@@ -695,3 +695,47 @@ Grundangaben aus der Ordnerliste.
 - Die Suche nach dem nächsten Ordner sieht höchstens 3000 Ordner an.
 
 Nach dem Einspielen: Container neu starten, App aus-/einschalten (neue Routen).
+
+---
+
+## 0.15.1: Prüfung in fünf Durchgängen – Korrekturen
+
+Geprüft an echter Nextcloud 34.0.3 mit Chromium: Syntax und Linter, alle
+Symbole und Bilder, Ein-/Ausblenden aller Elemente je Zugang, Layout auf
+sieben Bildschirmgrößen in beiden Gestaltungen, alle Funktionen samt
+Sperrbildschirm (Media Session nachgebildet) und Offline-Betrieb.
+
+### Behoben
+- **Spulen in gespeicherten/vorgeladenen Aufnahmen brach ab.** Beim Spulen
+  (v. a. ans Ende) meldete Chromium „data source error", die Wiedergabe blieb
+  stehen – etwa jedes zweite Mal reproduzierbar. Der Service Worker lud dazu
+  bei jedem Sprung die GANZE Datei in den Arbeitsspeicher; jetzt schneidet er
+  per Blob aus, ohne Kopie. Zusätzlich setzt der Player nach einem Abriss
+  (auch Funkloch, Netzwechsel) die Wiedergabe an derselben Stelle fort,
+  höchstens dreimal je Titel.
+- **Vollbild-Player auf kleinen Telefonen** (z. B. 320×568): Das Cover
+  schob sich unter die Kopfzeile, die Steuerung rutschte aus dem Bild. Die
+  Cover-Größe richtet sich jetzt nach der verfügbaren Höhe.
+- **Vollbild im Querformat**: Die Steuerung landete unter dem Cover statt
+  rechts daneben.
+- **Abmelde-Knopf bei Links ohne Passwort** ausgeblendet (dort gibt es
+  nichts abzumelden).
+- **Seitenmenü auf dem Telefon**: geschlossen nicht mehr per Tab-Taste bzw.
+  Bildschirmleser erreichbar.
+
+### Sperrbildschirm und Benachrichtigung
+Registriert werden: Wiedergabe, Pause, Stopp, Titel vor/zurück,
+**15 s zurück/vor** und **Spulen über den Fortschrittsbalken** (seekto). Die
+Position wird bei jedem Sprung sofort gemeldet, damit der Balken stimmt.
+- Jede Aktion einzeln abgesichert: Ältere Browser, die eine Aktion nicht
+  kennen, werfen beim Registrieren – vorher brach das alle folgenden
+  Aktionen und sogar den Titelwechsel ab.
+- Positionsangaben werden auf 0…Dauer begrenzt (sonst verwirft der Browser
+  sie, und der Balken fehlt).
+- „Danach nächster Ordner": Der nächste Ordner wird schon während des
+  letzten Titels gesucht, damit es auf dem Sperrbildschirm ohne Pause
+  weitergeht.
+
+Hinweis zu iPhone/iPad: iOS zeigt nur EIN Knopfpaar und nimmt dabei
+Titel vor/zurück. Gespult wird dort über den Balken; Android zeigt in der
+aufgeklappten Benachrichtigung zusätzlich die 15-Sekunden-Knöpfe.
