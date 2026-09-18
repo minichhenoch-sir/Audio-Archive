@@ -14,6 +14,8 @@ const AudioArchive = (() => {
 
   const data = {
     publicToken: el.dataset.publicToken || '',
+    embedded: el.dataset.embedded === '1',
+    standaloneUrl: el.dataset.standaloneUrl || '',
     headerTitle: el.dataset.headerTitle || '',
     headerSubtitle: el.dataset.headerSubtitle || '',
     serviceWorker: el.dataset.serviceWorker || '',
@@ -46,6 +48,15 @@ const AudioArchive = (() => {
      */
     asset(file) {
       return new URL(data.assetBase + file, location.href).href;
+    },
+
+    /**
+     * Laeuft der Player innerhalb von Nextcloud (mit dessen Kopfleiste)?
+     * Dann fehlt das eigene Manifest, installiert wird ueber die
+     * eigenstaendige Fassung (standaloneUrl).
+     */
+    isEmbedded() {
+      return data.embedded;
     },
 
     /** Ist der Aufruf ueber die oeffentliche Seite erfolgt? */

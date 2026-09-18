@@ -3,8 +3,13 @@ declare(strict_types=1);
 
 return [
     'routes' => [
-        // Oberflaeche fuer angemeldete Nextcloud-Nutzer
+        // Oberflaeche fuer angemeldete Nextcloud-Nutzer, eingebettet in
+        // Nextclouds Seitengeruest (mit Kopfleiste). Ziel des Menue-Eintrags.
         ['name' => 'page#index', 'url' => '/', 'verb' => 'GET'],
+
+        // Dieselbe Oberflaeche OHNE Nextcloud-Rahmen. Startadresse der
+        // installierten App - nur hier kann das eigene Manifest greifen.
+        ['name' => 'page#standalone', 'url' => '/app', 'verb' => 'GET'],
 
         // Oeffentlicher Zugang ohne Konto. Der Token stammt aus den
         // Admin-Einstellungen und wirkt wie der Link einer Dateifreigabe.

@@ -92,7 +92,13 @@ const Player = (() => {
       return;
     }
     const rect = els.bar.getBoundingClientRect();
-    const space = Math.max(0, window.innerHeight - rect.top);
+    // Unterkante des Players statt des Fensters: Innerhalb von Nextcloud
+    // endet der Inhaltsbereich mit etwas Abstand vor dem Fensterrand.
+    // (Eigenstaendig hat #audioarchive keine Hoehe - alle Kinder sind fest
+    // positioniert -, dort zaehlt deshalb weiter das Fenster.)
+    const container = document.querySelector('#audioarchive.aa-embedded');
+    const bottom = container ? container.getBoundingClientRect().bottom : window.innerHeight;
+    const space = Math.max(0, bottom - rect.top);
     root.style.setProperty('--player-bar-space', space + 'px');
   }
 

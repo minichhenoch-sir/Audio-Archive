@@ -271,3 +271,57 @@ nie als Markup.
 
 Der Streifen erscheint auf beiden Zugangswegen, aber nicht auf dem
 Anmelde-Bildschirm.
+
+---
+
+## 0.8.0: Innerhalb von Nextcloud mit Kopfleiste
+
+Wer die App über das Nextcloud-Menü öffnet, bleibt jetzt in Nextcloud: Die
+Kopfleiste (Apps, Suche, Benachrichtigungen, Konto) bleibt stehen, der Player
+füllt den Inhaltsbereich darunter.
+
+| Adresse | Darstellung | Wofür |
+|---|---|---|
+| `/apps/audioarchive/` | mit Nextcloud-Leiste | Menü-Eintrag, angemeldete Nutzer |
+| `/apps/audioarchive/app` | ohne Leiste | installierte App (angemeldet) |
+| `/apps/audioarchive/s/<token>` | ohne Leiste | geteilter Link, unverändert |
+
+### Warum zwei Fassungen für angemeldete Nutzer?
+Auf Seiten mit Leiste bindet Nextcloud sein eigenes Manifest ein. Von dort aus
+würde der Browser Nextcloud installieren, nicht den Player. Deshalb zeigt die
+eingebettete Seite oben rechts **„App installieren"**. Der Knopf führt zur
+Fassung ohne Leiste, und dort bietet der Browser die Installation an. Auf
+dieser Seite erscheint derselbe Knopf, sobald der Browser die Installation
+direkt anbietet (Chrome, Edge, Android). Auf dem iPhone: Teilen → „Zum
+Home-Bildschirm".
+
+Bereits installierte Apps starten noch unter der alten Adresse. Sie werden
+automatisch auf die Fassung ohne Leiste umgeleitet. Die Kennung der App
+(`id` im Manifest) bleibt gleich, also entsteht keine zweite Kachel.
+
+### Abschirmung gegen Nextclouds Stile
+Alle Regeln aus `css/style.css` gelten nur innerhalb von `#audioarchive`.
+Nextclouds Vorgaben für Knöpfe, Eingabefelder und Überschriften werden dort
+zurückgesetzt (`all: revert`). Schriftgrößen beziehen sich auf `--aa-rem`,
+weil Nextcloud die Grundschrift auf 15px setzt. So sieht der Player
+eingebettet genauso aus wie eigenständig.
+
+### Nebenbei behoben
+- Das `<audio>`-Element stand doppelt im Dokument (gleiche ID).
+- Der Abmelde-Knopf blieb bei angemeldeten Nutzern unter Umständen sichtbar,
+  weil `.icon-btn` das `hidden`-Attribut überstimmte.
+
+### Prüfen
+1. Über das Nextcloud-Menü öffnen: Die Leiste bleibt, der Player darunter
+   scrollt, die Player-Leiste steht unten im Inhaltsbereich.
+2. Menüs der Nextcloud-Leiste (Konto, Benachrichtigungen) öffnen: Sie müssen
+   **über** dem Player liegen.
+3. „App installieren": Die Seite ohne Leiste öffnet sich, und der Browser
+   bietet die Installation an.
+4. Eine bereits installierte App starten: Sie muss ohne Leiste erscheinen.
+5. Geteilten Link im privaten Fenster öffnen: keine Leiste, wie bisher.
+6. Offline: Die installierte App startet weiterhin ohne Verbindung.
+
+Nach dem Einspielen den Container neu starten, weil sich PHP-Dateien geändert
+haben. Weil `routes.php` und `info.xml` geändert sind, die App außerdem aus-
+und wieder einschalten.

@@ -11,13 +11,21 @@ use OCP\IAppConfig;
 use OCP\IURLGenerator;
 
 /**
- * Baut die Player-Seite - fuer beide Eingaenge identisch.
+ * Baut die Player-Seite - fuer alle Eingaenge mit demselben Inhalt.
  *
- * Wichtig: Die Seite wird mit RENDER_AS_BLANK ausgeliefert, also OHNE
- * Nextclouds Seitengeruest. Grund ist die Installierbarkeit als eigene App:
- * Nextcloud bindet auf seinen eigenen Seiten ein Manifest ein, und der
- * Browser wertet nur das erste aus. Nur mit eigenem Markup koennen wir
- * unser Manifest setzen und die App als eigene Kachel installierbar machen.
+ * Zwei Darstellungen:
+ *
+ * - eingebettet (RENDER_AS_USER): innerhalb von Nextcloud mit dessen
+ *   Kopfleiste. Nur fuer angemeldete Nutzer ueber den Menue-Eintrag.
+ *
+ * - eigenstaendig (RENDER_AS_BLANK): OHNE Nextclouds Seitengeruest. Fuer
+ *   die oeffentliche Seite und die installierte App. Grund: Nextcloud
+ *   bindet auf seinen eigenen Seiten ein Manifest ein, und der Browser
+ *   wertet nur das erste aus. Nur mit eigenem Markup greift unser Manifest,
+ *   und die App laesst sich als eigene Kachel installieren.
+ *
+ * Der eigentliche Inhalt steckt in templates/parts/player-body.php und wird
+ * von beiden Seitenvorlagen eingebunden.
  */
 class PlayerPage {
 
@@ -28,9 +36,19 @@ class PlayerPage {
     ) {
     }
 
-    public function build(string $publicToken): TemplateResponse {
+    public function build(string $publicToken, bool $embedded = false): TemplateResponse {
+        // Die oeffentliche Seite ist nie eingebettet - Gaeste haben keine
+        // Nextcloud-Leiste.
+        $embedded = $embedded && $publicToken === '';
+
         $params = [
             'publicToken' => $publicToken,
+            'embedded' => $embedded ? '1' : '',
+            // Adresse der eigenstaendigen Fassung, fuer den Knopf
+            // "App installieren" auf der eingebetteten Seite
+            'standaloneUrl' => $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.page.standalone'
+            ),
             'headerTitle' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_HEADER_TITLE, 'Recordings'
             ),
@@ -80,9 +98,9 @@ class PlayerPage {
 
         $response = new TemplateResponse(
             Application::APP_ID,
-            'player',
+            $embedded ? 'player-embedded' : 'player',
             $params,
-            TemplateResponse::RENDER_AS_BLANK
+            $embedded ? TemplateResponse::RENDER_AS_USER : TemplateResponse::RENDER_AS_BLANK
         );
 
         // Audio wird ueber einen eigenen Endpunkt derselben Herkunft

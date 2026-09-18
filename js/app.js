@@ -29,6 +29,71 @@
   let view = { path: '' };
 
   // ------------------------------------------------------------------
+  // Installierte App, aber mit Nextcloud-Rahmen gestartet?
+  // ------------------------------------------------------------------
+  /*
+   * Bis 0.7 war die Startadresse der installierten App /apps/audioarchive/.
+   * Dort liegt jetzt die Fassung MIT Nextcloud-Leiste. Bereits installierte
+   * Apps starten dort, bis der Browser das neue Manifest uebernommen hat -
+   * sie werden deshalb auf die Fassung ohne Leiste umgeleitet.
+   */
+  const runsAsInstalledApp = window.matchMedia('(display-mode: standalone)').matches
+    || window.matchMedia('(display-mode: fullscreen)').matches
+    || window.navigator.standalone === true;
+
+  if (AudioArchive.isEmbedded() && runsAsInstalledApp && AudioArchive.standaloneUrl) {
+    location.replace(AudioArchive.standaloneUrl);
+    return;
+  }
+
+  // ------------------------------------------------------------------
+  // Knopf "App installieren"
+  // ------------------------------------------------------------------
+  /*
+   * Innerhalb von Nextcloud kann die Seite nicht installiert werden (dort
+   * gilt Nextclouds Manifest). Der Knopf fuehrt deshalb zur Fassung ohne
+   * Leiste; dort bietet der Browser die Installation an.
+   *
+   * In der Fassung ohne Leiste erscheint der Knopf nur, wenn der Browser
+   * die Installation direkt anbietet (Chrome, Edge, Android). Safari kennt
+   * das nicht - dort geht es ueber "Teilen > Zum Home-Bildschirm".
+   */
+  const installBtn = document.getElementById('install-btn');
+  let installPrompt = null;
+
+  if (installBtn) {
+    if (AudioArchive.isEmbedded()) {
+      installBtn.href = AudioArchive.standaloneUrl;
+      installBtn.hidden = false;
+    } else if (!runsAsInstalledApp) {
+      window.addEventListener('beforeinstallprompt', (event) => {
+        event.preventDefault();
+        installPrompt = event;
+        installBtn.hidden = false;
+      });
+
+      installBtn.addEventListener('click', async (event) => {
+        event.preventDefault();
+        if (!installPrompt) return;
+        const prompt = installPrompt;
+        installPrompt = null;
+        installBtn.hidden = true;
+        prompt.prompt();
+        try {
+          await prompt.userChoice;
+        } catch (e) {
+          // Abgebrochen - nichts weiter zu tun
+        }
+      });
+
+      window.addEventListener('appinstalled', () => {
+        installPrompt = null;
+        installBtn.hidden = true;
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------
   // Service Worker registrieren (PWA-Installierbarkeit + App-Shell-Cache)
   // ------------------------------------------------------------------
   if ('serviceWorker' in navigator) {

@@ -30,9 +30,84 @@
   --safe-top: env(safe-area-inset-top, 0px);
 }
 
-* { box-sizing: border-box; }
+/*
+ * ===================== GELTUNGSBEREICH =====================
+ *
+ * Alle Regeln dieser Datei gelten nur innerhalb von #audioarchive (siehe
+ * templates/parts/player-body.php). Das ist noetig, seit der Player auch
+ * innerhalb von Nextcloud mit dessen Kopfleiste laeuft: Ungebundene Regeln
+ * wuerden sonst Nextclouds Oberflaeche veraendern.
+ *
+ * Umgekehrt gibt Nextcloud Knoepfen, Eingabefeldern, Ueberschriften usw.
+ * seitenweit eigene Vorgaben (Rahmen, Mindesthoehe, Abstaende, Farben).
+ * Die folgende Regel setzt innerhalb des Players alles auf den Stand des
+ * Browsers zurueck - so sieht der Player eingebettet genauso aus wie
+ * eigenstaendig.
+ *
+ * Warum das funktioniert: Die Regel hat durch :where() nur die Gewichtung
+ * einer ID. Nextclouds Regeln haben keine ID und verlieren. Alle Regeln
+ * weiter unten haben mindestens dieselbe Gewichtung und stehen spaeter -
+ * sie gewinnen. "revert" fuehrt auf die Vorgaben des Browsers zurueck.
+ *
+ * SVG ist ausgenommen: Dort sind width, height, fill usw. als Attribute
+ * gesetzt, und "revert" wuerde auch diese verwerfen.
+ */
+#audioarchive:where(.aa-embedded) :where(*:not(svg, svg *)) {
+  all: revert;
+}
 
-html, body {
+/*
+ * Eingebettet: Nextclouds Inhaltsbereich (#content) ist ein fest
+ * positionierter Kasten unterhalb der Kopfleiste, mit Abstand und runden
+ * Ecken. Der Player fuellt ihn vollstaendig aus.
+ *
+ * Das transform ist hier Absicht: Es macht dieses Element zum Bezugsrahmen
+ * fuer alle position:fixed-Kinder. Hintergrund, .screen und die
+ * Player-Leiste richten sich dadurch nach dem Kasten statt nach dem
+ * ganzen Fenster - sonst laegen sie ueber der Nextcloud-Leiste.
+ * (Auf .screen selbst waere ein transform falsch, siehe dort: Das ist der
+ * scrollende Container. Dieses Element hier scrollt nie.)
+ */
+#audioarchive.aa-embedded {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  transform: translateZ(0);
+  isolation: isolate;
+  /* Was eigenstaendig html/body vorgeben, hier am Element selbst */
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  font-weight: normal;
+  line-height: normal;
+  letter-spacing: normal;
+  text-align: start;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Die Kopfleiste von Nextcloud beruecksichtigt die Notch bereits */
+#audioarchive.aa-embedded { --safe-top: 0px; }
+
+/*
+ * Schriftgroessen der App beziehen sich auf --aa-rem statt direkt auf rem.
+ * Grund: Nextcloud setzt die Grundschrift der ganzen Seite auf 15px, der
+ * Browser sonst auf 16px. Mit rem waere der Player eingebettet sichtbar
+ * kleiner. Eigenstaendig bleibt es bei 1rem, damit eine im Browser
+ * vergroesserte Schrift weiterhin wirkt.
+ */
+:root { --aa-rem: 1rem; }
+#audioarchive.aa-embedded { --aa-rem: 16px; }
+
+/*
+ * Das [hidden]-Attribut des Browsers hat die niedrigste Gewichtung und
+ * verliert gegen jede Klasse mit eigenem display-Wert (etwa .icon-btn mit
+ * display:flex). Deshalb hier fuer alles im Player erzwingen.
+ */
+#audioarchive [hidden] { display: none !important; }
+
+#audioarchive * { box-sizing: border-box; }
+
+html.aa-standalone, html.aa-standalone body {
   margin: 0;
   padding: 0;
   height: 100%;
@@ -57,7 +132,7 @@ html, body {
  * unzuverlässig ist. app.js setzt ein eigenes Hintergrundbild (falls vom
  * Admin hochgeladen) per JS direkt auf dieses Element.
  */
-#bg-layer {
+#audioarchive #bg-layer {
   position: fixed;
   inset: 0;
   z-index: -1;
@@ -77,13 +152,13 @@ html, body {
 /* Wenn der Admin ein eigenes Foto als Hintergrund hochgeladen hat, etwas
    stärker blurren - Fotos haben mehr Detail als der Verlauf und würden
    sonst vom Text ablenken bzw. die Lesbarkeit verschlechtern. */
-body.has-bg-image .player-bar,
-body.has-bg-image .explorer-row.active {
+body.has-bg-image #audioarchive .player-bar,
+body.has-bg-image #audioarchive .explorer-row.active {
   backdrop-filter: blur(30px) saturate(180%);
   -webkit-backdrop-filter: blur(30px) saturate(180%);
 }
 
-.screen {
+#audioarchive .screen {
   position: fixed;
   inset: 0;
   overflow-y: auto;
@@ -106,7 +181,7 @@ body.has-bg-image .explorer-row.active {
  * zwar screen.hidden = true, aber ohne diese Regel hier bleibt das Element
  * trotzdem sichtbar.
  */
-.screen[hidden] {
+#audioarchive .screen[hidden] {
   display: none !important;
 }
 
@@ -116,7 +191,7 @@ body.has-bg-image .explorer-row.active {
  * im SVG-Namespace). Play-/Pause-Icon würden sonst gleichzeitig sichtbar
  * sein. Deshalb hier explizit erzwingen.
  */
-svg[hidden] {
+#audioarchive svg[hidden] {
   display: none !important;
 }
 
@@ -129,13 +204,13 @@ svg[hidden] {
  * obwohl das Attribut selbst korrekt toggelte. Eine simple CSS-Klasse
  * ist hier zuverlässiger.
  */
-.icon-hidden {
+#audioarchive .icon-hidden {
   display: none !important;
 }
 
 /* ===================== LOGIN ===================== */
 
-#login-screen {
+#audioarchive #login-screen {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -144,7 +219,7 @@ svg[hidden] {
   padding-bottom: calc(24px + var(--safe-bottom));
 }
 
-.login-card {
+#audioarchive .login-card {
   width: 100%;
   max-width: 380px;
   text-align: center;
@@ -158,7 +233,7 @@ svg[hidden] {
 }
 
 /* Dezenter "Glanz"-Schimmer oben links - typisches Liquid-Glass-Detail */
-.login-card::before {
+#audioarchive .login-card::before {
   content: "";
   position: absolute;
   top: -60%;
@@ -169,29 +244,29 @@ svg[hidden] {
   pointer-events: none;
 }
 
-.login-title {
+#audioarchive .login-title {
   font-family: var(--font-display);
   color: var(--color-cream);
-  font-size: 1.9rem;
+  font-size: calc(1.9 * var(--aa-rem));
   font-weight: 500;
   margin: 0 0 8px;
   letter-spacing: 0.01em;
   position: relative;
 }
 
-.login-subtitle {
+#audioarchive .login-subtitle {
   color: var(--color-cream-soft);
-  font-size: 0.95rem;
+  font-size: calc(0.95 * var(--aa-rem));
   margin: 0 0 28px;
   position: relative;
 }
 
-#login-form { position: relative; }
+#audioarchive #login-form { position: relative; }
 
-#login-form input[type="password"] {
+#audioarchive #login-form input[type="password"] {
   width: 100%;
   padding: 14px 18px;
-  font-size: 1rem;
+  font-size: calc(1 * var(--aa-rem));
   border-radius: 16px;
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.10);
@@ -201,20 +276,20 @@ svg[hidden] {
   transition: border-color 0.15s ease, background 0.15s ease;
 }
 
-#login-form input[type="password"]::placeholder {
+#audioarchive #login-form input[type="password"]::placeholder {
   color: rgba(216, 199, 179, 0.7);
 }
 
-#login-form input[type="password"]:focus {
+#audioarchive #login-form input[type="password"]:focus {
   border-color: var(--color-accent);
   background: rgba(255, 255, 255, 0.14);
   box-shadow: 0 0 0 3px rgba(185, 121, 63, 0.28);
 }
 
-#login-submit {
+#audioarchive #login-submit {
   width: 100%;
   padding: 14px 16px;
-  font-size: 1rem;
+  font-size: calc(1 * var(--aa-rem));
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
@@ -225,19 +300,19 @@ svg[hidden] {
   box-shadow: 0 6px 18px rgba(138, 84, 41, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-#login-submit:active { filter: brightness(0.94); transform: scale(0.99); }
-#login-submit:disabled { opacity: 0.7; cursor: default; }
+#audioarchive #login-submit:active { filter: brightness(0.94); transform: scale(0.99); }
+#audioarchive #login-submit:disabled { opacity: 0.7; cursor: default; }
 
-.login-error {
+#audioarchive .login-error {
   margin-top: 14px;
   color: #ffc4ae;
-  font-size: 0.9rem;
+  font-size: calc(0.9 * var(--aa-rem));
   position: relative;
 }
 
 /* ===================== HAUPTANSICHT ===================== */
 
-#main-screen {
+#audioarchive #main-screen {
   display: flex;
   flex-direction: column;
 }
@@ -250,7 +325,7 @@ svg[hidden] {
  * wo z.B. auch die Breadcrumb-Leiste ein eigenständiges Glasstück ist,
  * statt alles in einer großen Fläche zu verschmelzen.
  */
-.topbar {
+#audioarchive .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -264,7 +339,7 @@ svg[hidden] {
   pointer-events: none;
 }
 
-.topbar > * { pointer-events: auto; }
+#audioarchive .topbar > * { pointer-events: auto; }
 
 /*
  * Bewusst OHNE backdrop-filter: Der Glas-/Blur-Effekt bleibt gezielt nur
@@ -272,21 +347,21 @@ svg[hidden] {
  * laufenden Titel. Alle uebrigen Flaechen sind schlicht eingefaerbt, das
  * haelt die Oberflaeche ruhig und das Scrollen fluessig.
  */
-.glass-pill {
+#audioarchive .glass-pill {
   background: var(--glass-dark-bg);
   border: 1px solid var(--glass-dark-border);
   box-shadow: var(--glass-dark-shadow);
 }
 
-.topbar-titles {
+#audioarchive .topbar-titles {
   min-width: 0;
   padding: 8px 18px;
   border-radius: 18px;
 }
 
-.topbar h1 {
+#audioarchive .topbar h1 {
   font-family: var(--font-display);
-  font-size: 1.3rem;
+  font-size: calc(1.3 * var(--aa-rem));
   font-weight: 500;
   margin: 0;
   letter-spacing: 0.01em;
@@ -295,16 +370,16 @@ svg[hidden] {
   white-space: nowrap;
 }
 
-.topbar-subtitle {
+#audioarchive .topbar-subtitle {
   margin: 2px 0 0;
-  font-size: 0.78rem;
+  font-size: calc(0.78 * var(--aa-rem));
   color: var(--color-cream-soft);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.icon-btn {
+#audioarchive .icon-btn {
   color: var(--color-cream);
   width: 42px;
   height: 42px;
@@ -318,12 +393,12 @@ svg[hidden] {
   transition: background 0.15s ease, transform 0.08s ease;
 }
 
-.icon-btn:active {
+#audioarchive .icon-btn:active {
   background: rgba(255, 255, 255, 0.28);
   transform: scale(0.92);
 }
 
-.library {
+#audioarchive .library {
   flex: 1;
   padding: 18px 16px calc(var(--player-bar-space, 24px) + 24px);
   max-width: 640px;
@@ -332,24 +407,24 @@ svg[hidden] {
   transition: padding-bottom 0.15s ease;
 }
 
-.status-text {
+#audioarchive .status-text {
   text-align: center;
   color: var(--color-cream);
   margin-top: 40px;
-  font-size: 0.95rem;
+  font-size: calc(0.95 * var(--aa-rem));
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
 /* ===================== BREADCRUMB (Explorer-Pfad) ===================== */
 
-.breadcrumb {
+#audioarchive .breadcrumb {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
   margin-bottom: 14px;
   min-height: 20px;
-  font-size: 0.9rem;
+  font-size: calc(0.9 * var(--aa-rem));
   padding: 8px 14px;
   border-radius: 999px;
   background: var(--glass-row-bg);
@@ -359,12 +434,12 @@ svg[hidden] {
   max-width: 100%;
 }
 
-.crumb {
+#audioarchive .crumb {
   background: none;
   border: none;
   color: var(--color-accent-deep);
   font-weight: 600;
-  font-size: 0.88rem;
+  font-size: calc(0.88 * var(--aa-rem));
   padding: 2px 4px;
   margin: -2px -4px;
   border-radius: 8px;
@@ -372,24 +447,24 @@ svg[hidden] {
   transition: transform 0.08s ease, background 0.1s ease;
 }
 
-.crumb:active {
+#audioarchive .crumb:active {
   transform: scale(0.94);
   background: rgba(185, 121, 63, 0.16);
 }
 
-.crumb--current {
+#audioarchive .crumb--current {
   color: var(--color-ink-soft);
   font-weight: 400;
 }
 
-.crumb-sep {
+#audioarchive .crumb-sep {
   color: var(--color-ink-soft);
   opacity: 0.5;
 }
 
 /* ===================== OFFLINE-LEISTE ===================== */
 
-.offline-bar {
+#audioarchive .offline-bar {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -397,12 +472,12 @@ svg[hidden] {
   margin-bottom: 12px;
 }
 
-.offline-btn {
+#audioarchive .offline-btn {
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
   color: var(--color-accent-deep);
-  font-size: 0.85rem;
+  font-size: calc(0.85 * var(--aa-rem));
   font-weight: 600;
   padding: 9px 16px;
   border-radius: 999px;
@@ -410,32 +485,32 @@ svg[hidden] {
   transition: background 0.12s ease, transform 0.08s ease, opacity 0.12s ease;
 }
 
-.offline-btn:active {
+#audioarchive .offline-btn:active {
   transform: scale(0.96);
   background: rgba(255, 250, 242, 0.95);
 }
 
-.offline-btn:disabled {
+#audioarchive .offline-btn:disabled {
   opacity: 0.6;
   cursor: default;
 }
 
 /* Ordner liegt vollstaendig offline vor - Knopf entfernt die Dateien wieder */
-.offline-btn.is-stored {
+#audioarchive .offline-btn.is-stored {
   color: var(--color-cream);
   background: var(--glass-dark-bg);
   border-color: var(--glass-dark-border);
 }
 
-.offline-info {
-  font-size: 0.78rem;
+#audioarchive .offline-info {
+  font-size: calc(0.78 * var(--aa-rem));
   color: var(--color-cream);
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
 /* ===================== EXPLORER-LISTE ===================== */
 
-.explorer-list {
+#audioarchive .explorer-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -444,13 +519,13 @@ svg[hidden] {
 /* Sanfte Ein-Animation, wenn eine neue Ebene (Monat/Tag/Dateien) gerendert
    wird - macht die Navigation im Explorer spürbar "lebendig" statt eines
    harten Sprungs. Wird per JS-Klasse beim Neuzeichnen getriggert. */
-.explorer-list.entering .explorer-row {
+#audioarchive .explorer-list.entering .explorer-row {
   animation: row-in 0.22s ease backwards;
 }
-.explorer-list.entering .explorer-row:nth-child(n+2) { animation-delay: 0.02s; }
-.explorer-list.entering .explorer-row:nth-child(n+3) { animation-delay: 0.04s; }
-.explorer-list.entering .explorer-row:nth-child(n+4) { animation-delay: 0.06s; }
-.explorer-list.entering .explorer-row:nth-child(n+5) { animation-delay: 0.08s; }
+#audioarchive .explorer-list.entering .explorer-row:nth-child(n+2) { animation-delay: 0.02s; }
+#audioarchive .explorer-list.entering .explorer-row:nth-child(n+3) { animation-delay: 0.04s; }
+#audioarchive .explorer-list.entering .explorer-row:nth-child(n+4) { animation-delay: 0.06s; }
+#audioarchive .explorer-list.entering .explorer-row:nth-child(n+5) { animation-delay: 0.08s; }
 
 @keyframes row-in {
   from { opacity: 0; transform: translateY(6px); }
@@ -458,10 +533,10 @@ svg[hidden] {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .explorer-list.entering .explorer-row { animation: none; }
+  #audioarchive .explorer-list.entering .explorer-row { animation: none; }
 }
 
-.explorer-row {
+#audioarchive .explorer-row {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -479,7 +554,7 @@ svg[hidden] {
   box-shadow: var(--glass-light-shadow);
   color: var(--color-ink);
   text-align: left;
-  font-size: 0.98rem;
+  font-size: calc(0.98 * var(--aa-rem));
   cursor: pointer;
   /* Rendering der Zeilen voneinander entkoppeln - der Browser muss beim
      Scrollen nicht die gesamte Liste neu berechnen. */
@@ -487,7 +562,7 @@ svg[hidden] {
   transition: background 0.12s ease, transform 0.08s ease;
 }
 
-.explorer-row:active {
+#audioarchive .explorer-row:active {
   transform: scale(0.97);
   background: rgba(255, 250, 242, 0.95);
 }
@@ -497,7 +572,7 @@ svg[hidden] {
  * hebt sie sich deutlich von den uebrigen Zeilen ab, und es ist immer nur
  * EINE teure Blur-Flaeche in der Liste aktiv (kein Scroll-Ruckeln).
  */
-.explorer-row.active {
+#audioarchive .explorer-row.active {
   border-color: rgba(var(--color-accent-rgb, 185, 121, 63), 0.75);
   background: rgba(255, 250, 242, 0.45);
   backdrop-filter: var(--glass-blur);
@@ -506,13 +581,13 @@ svg[hidden] {
   box-shadow: var(--glass-light-shadow), 0 0 0 1px rgba(var(--color-accent-rgb, 185, 121, 63), 0.35);
 }
 
-.explorer-row.active .explorer-row-meta {
+#audioarchive .explorer-row.active .explorer-row-meta {
   color: var(--color-accent-deep);
   font-weight: 700;
 }
 
 /* Kleine animierte Equalizer-Balken als eindeutiges "läuft gerade"-Symbol */
-.eq-icon {
+#audioarchive .eq-icon {
   display: flex;
   align-items: flex-end;
   gap: 2px;
@@ -520,7 +595,7 @@ svg[hidden] {
   height: 16px;
 }
 
-.eq-bar {
+#audioarchive .eq-bar {
   width: 3px;
   background: var(--color-accent-deep);
   border-radius: 2px;
@@ -530,30 +605,30 @@ svg[hidden] {
 /* Bei Pause bleiben die Balken sichtbar links am Titel stehen, die
    Animation friert nur ein - so ist weiterhin erkennbar, welcher Titel
    ausgewählt ist, ohne dass es aussieht, als würde noch etwas laufen. */
-.explorer-row.paused .eq-bar {
+#audioarchive .explorer-row.paused .eq-bar {
   animation-play-state: paused;
 }
 
-.eq-bar:nth-child(1) { height: 40%; animation-delay: -0.6s; }
-.eq-bar:nth-child(2) { height: 100%; animation-delay: -0.3s; }
-.eq-bar:nth-child(3) { height: 65%; animation-delay: 0s; }
+#audioarchive .eq-bar:nth-child(1) { height: 40%; animation-delay: -0.6s; }
+#audioarchive .eq-bar:nth-child(2) { height: 100%; animation-delay: -0.3s; }
+#audioarchive .eq-bar:nth-child(3) { height: 65%; animation-delay: 0s; }
 
 @keyframes eq-bounce {
   0%, 100% { transform: scaleY(0.4); }
   50% { transform: scaleY(1); }
 }
 
-.explorer-row-icon {
+#audioarchive .explorer-row-icon {
   flex-shrink: 0;
   color: var(--color-accent);
   display: flex;
 }
 
-.explorer-row.active .explorer-row-icon {
+#audioarchive .explorer-row.active .explorer-row-icon {
   color: var(--color-accent-deep);
 }
 
-.explorer-row-label {
+#audioarchive .explorer-row-label {
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -561,20 +636,20 @@ svg[hidden] {
   white-space: nowrap;
 }
 
-.explorer-row.active .explorer-row-label {
+#audioarchive .explorer-row.active .explorer-row-label {
   color: var(--color-accent-deep);
   font-weight: 600;
 }
 
-.explorer-row-meta {
+#audioarchive .explorer-row-meta {
   flex-shrink: 0;
-  font-size: 0.78rem;
+  font-size: calc(0.78 * var(--aa-rem));
   color: var(--color-ink-soft);
 }
 
 /* ===================== PLAYER-LEISTE (schwebende Glas-Kapsel) ===================== */
 
-.player-bar {
+#audioarchive .player-bar {
   position: fixed;
   left: 12px;
   right: 12px;
@@ -589,56 +664,56 @@ svg[hidden] {
   -webkit-backdrop-filter: var(--glass-blur);
   z-index: 10;
 }
-.player-bar[hidden] { display: none !important; }
+#audioarchive .player-bar[hidden] { display: none !important; }
 
-.player-info {
+#audioarchive .player-info {
   text-align: center;
   margin-bottom: 6px;
 }
 
-.player-track-title {
+#audioarchive .player-track-title {
   margin: 0;
   font-family: var(--font-display);
-  font-size: 1.02rem;
+  font-size: calc(1.02 * var(--aa-rem));
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.player-track-context {
+#audioarchive .player-track-context {
   margin: 2px 0 0;
-  font-size: 0.78rem;
+  font-size: calc(0.78 * var(--aa-rem));
   color: var(--color-cream-soft);
 }
 
-.player-progress {
+#audioarchive .player-progress {
   display: flex;
   align-items: center;
   gap: 8px;
   margin-bottom: 6px;
 }
 
-.player-time {
-  font-size: 0.72rem;
+#audioarchive .player-time {
+  font-size: calc(0.72 * var(--aa-rem));
   color: var(--color-cream-soft);
   min-width: 32px;
   text-align: center;
 }
 
-.player-seek {
+#audioarchive .player-seek {
   flex: 1;
   accent-color: var(--color-accent);
   height: 22px;
 }
 
-.player-controls {
+#audioarchive .player-controls {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
 }
 
-.control-btn {
+#audioarchive .control-btn {
   position: relative;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
@@ -653,18 +728,18 @@ svg[hidden] {
   padding: 0;
   transition: background 0.12s ease, transform 0.08s ease;
 }
-.control-btn:active { background: rgba(255, 255, 255, 0.18); transform: scale(0.92); }
+#audioarchive .control-btn:active { background: rgba(255, 255, 255, 0.18); transform: scale(0.92); }
 
-.control-btn-label {
+#audioarchive .control-btn-label {
   position: absolute;
   bottom: 1px;
-  font-size: 0.52rem;
+  font-size: calc(0.52 * var(--aa-rem));
   font-weight: 700;
   letter-spacing: 0.02em;
   pointer-events: none;
 }
 
-.control-btn--main {
+#audioarchive .control-btn--main {
   width: 58px;
   height: 58px;
   border-radius: 50%;
@@ -674,7 +749,7 @@ svg[hidden] {
   box-shadow: 0 6px 18px rgba(138, 84, 41, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.5);
 }
 
-.control-btn--main:active { filter: brightness(0.95); transform: scale(0.93); }
+#audioarchive .control-btn--main:active { filter: brightness(0.95); transform: scale(0.93); }
 
 /* ===================== MOBILE-ANPASSUNGEN ===================== */
 
@@ -685,30 +760,30 @@ svg[hidden] {
  * laengeren Saetzen (z.B. einem Bibelvers) der halbe Text verloren.
  */
 @media (max-width: 640px) {
-  .topbar {
+  #audioarchive .topbar {
     align-items: flex-start;
   }
 
-  .topbar h1 {
+  #audioarchive .topbar h1 {
     white-space: normal;
     overflow: visible;
-    font-size: 1.15rem;
+    font-size: calc(1.15 * var(--aa-rem));
     line-height: 1.25;
   }
 
-  .topbar-subtitle {
+  #audioarchive .topbar-subtitle {
     white-space: normal;
     overflow: visible;
     line-height: 1.35;
   }
 
-  .topbar-titles {
+  #audioarchive .topbar-titles {
     padding: 10px 14px;
   }
 }
 
 @media (min-width: 700px) {
-  .player-bar {
+  #audioarchive .player-bar {
     max-width: 620px;
     margin: 0 auto;
     left: 0;
@@ -719,7 +794,7 @@ svg[hidden] {
 /* Hinweis im Offline-Betrieb: erklaert, warum nur ein Teil der Aufnahmen
    sichtbar ist. Wird von app.js eingeblendet, wenn der Server nicht
    erreichbar ist und lokal gespeicherte Aufnahmen vorliegen. */
-.offline-banner {
+#audioarchive .offline-banner {
   margin: 0 0 12px;
   padding: 10px 16px;
   border-radius: 14px;
@@ -727,15 +802,15 @@ svg[hidden] {
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
   color: var(--color-ink);
-  font-size: 0.84rem;
+  font-size: calc(0.84 * var(--aa-rem));
   text-align: center;
 }
 
-.offline-banner[hidden] { display: none !important; }
+#audioarchive .offline-banner[hidden] { display: none !important; }
 
 /* Download-Knopf am rechten Rand einer Dateizeile. Nur sichtbar, wenn der
    Admin das Herunterladen freigegeben hat. */
-.row-download {
+#audioarchive .row-download {
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -749,13 +824,13 @@ svg[hidden] {
   transition: background 0.12s ease, transform 0.08s ease;
 }
 
-.row-download:active {
+#audioarchive .row-download:active {
   transform: scale(0.9);
   background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.18);
 }
 
 /* Abfrage der Offline-PIN (erscheint beim ersten Speichern eines Ordners) */
-.offline-pin {
+#audioarchive .offline-pin {
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -763,12 +838,12 @@ svg[hidden] {
   padding: 14px 16px;
   margin-bottom: 12px;
   color: var(--color-ink);
-  font-size: 0.88rem;
+  font-size: calc(0.88 * var(--aa-rem));
 }
 
-.offline-pin p { margin: 0 0 10px; }
+#audioarchive .offline-pin p { margin: 0 0 10px; }
 
-.offline-pin input[type="password"] {
+#audioarchive .offline-pin input[type="password"] {
   width: 100%;
   padding: 10px 14px;
   border-radius: 12px;
@@ -779,35 +854,35 @@ svg[hidden] {
   margin-bottom: 10px;
 }
 
-.offline-pin-actions {
+#audioarchive .offline-pin-actions {
   display: flex;
   gap: 8px;
 }
 
-.offline-pin-actions button {
+#audioarchive .offline-pin-actions button {
   border: 1px solid var(--glass-light-border);
   background: rgba(255, 255, 255, 0.75);
   color: var(--color-accent-deep);
   font-weight: 600;
-  font-size: 0.85rem;
+  font-size: calc(0.85 * var(--aa-rem));
   padding: 8px 14px;
   border-radius: 999px;
   cursor: pointer;
 }
 
-.offline-pin-actions button:active { transform: scale(0.96); }
+#audioarchive .offline-pin-actions button:active { transform: scale(0.96); }
 
-.offline-pin-error {
+#audioarchive .offline-pin-error {
   color: var(--color-danger);
   margin: 8px 0 0 !important;
 }
 
-.offline-pin-error[hidden] { display: none !important; }
+#audioarchive .offline-pin-error[hidden] { display: none !important; }
 
 /* ===================== BETA-KENNZEICHNUNG ===================== */
 
 /* Kleines Zeichen neben dem Titel - soll auffallen, aber nicht stoeren */
-.beta-badge {
+#audioarchive .beta-badge {
   display: inline-block;
   margin-left: 8px;
   padding: 2px 8px;
@@ -815,7 +890,7 @@ svg[hidden] {
   background: var(--color-accent);
   color: #2a1a0e;
   font-family: var(--font-body);
-  font-size: 0.62rem;
+  font-size: calc(0.62 * var(--aa-rem));
   font-weight: 700;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -823,7 +898,7 @@ svg[hidden] {
 }
 
 /* Hinweisstreifen ueber dem Pfad */
-.beta-notice {
+#audioarchive .beta-notice {
   margin: 0 0 12px;
   padding: 10px 16px;
   border-radius: 14px;
@@ -831,14 +906,39 @@ svg[hidden] {
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
   color: var(--color-ink);
-  font-size: 0.84rem;
+  font-size: calc(0.84 * var(--aa-rem));
   line-height: 1.4;
 }
 
-.beta-notice a {
+#audioarchive .beta-notice a {
   color: var(--color-accent-deep);
   font-weight: 600;
   white-space: nowrap;
 }
 
-.beta-notice[hidden] { display: none !important; }
+#audioarchive .beta-notice[hidden] { display: none !important; }
+
+/* ===================== KNOPF "APP INSTALLIEREN" ===================== */
+
+#audioarchive .install-btn {
+  width: auto;
+  gap: 8px;
+  padding: 0 16px 0 13px;
+  margin-left: auto;
+  text-decoration: none;
+  font-size: calc(0.85 * var(--aa-rem));
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+/* Neben dem Abmelde-Knopf nicht an den Rand schieben */
+#audioarchive .install-btn + .icon-btn { margin-left: 0; }
+
+/* Auf dem Telefon nur das Symbol, damit der Titel Platz behaelt */
+@media (max-width: 640px) {
+  #audioarchive .install-btn {
+    width: 42px;
+    padding: 0;
+  }
+  #audioarchive .install-btn-label { display: none; }
+}

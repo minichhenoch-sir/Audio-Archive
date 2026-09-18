@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v6';
+const SHELL_CACHE = 'audioarchive-shell-v7';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
@@ -109,6 +109,15 @@ async function serveAudioFromCache(request) {
   });
 }
 
+/**
+ * Ist das eine Seite ohne Nextcloud-Leiste? Das sind die installierbare
+ * Fassung (/app) und die oeffentliche Seite (/s/<token>).
+ */
+function isStandalonePage(url) {
+  const path = url.pathname.replace(/\/+$/, '');
+  return path.endsWith('/audioarchive/app') || /\/audioarchive\/s\/[^/]+$/.test(path);
+}
+
 self.addEventListener('fetch', (event) => {
   const request = event.request;
 
@@ -132,8 +141,11 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request, { redirect: 'manual' })
         .then((response) => {
-          // Letzte funktionierende Seite fuer den Offline-Start aufheben
-          if (response && response.ok && response.type === 'basic') {
+          // Letzte funktionierende Seite fuer den Offline-Start aufheben -
+          // aber nur die Fassungen OHNE Nextcloud-Leiste. Die eingebettete
+          // Seite braucht Nextclouds Skripte und Stylesheets, die hier
+          // nicht gespeichert werden; offline bliebe sie leer.
+          if (response && response.ok && response.type === 'basic' && isStandalonePage(url)) {
             const copy = response.clone();
             caches.open(SHELL_CACHE).then((cache) => cache.put(PAGE_CACHE_KEY, copy));
           }
@@ -214,6 +226,14 @@ self.addEventListener('fetch', (event) => {
   // Aenderungen sofort an, und offline sieht die App trotzdem nicht kaputt
   // aus. Die Adressen tragen eine Versionskennung, alte Fassungen werden
   // also nie faelschlich weiterverwendet.
+  //
+  // Nur Dateien dieser App: Innerhalb von Nextcloud laufen auch Nextclouds
+  // eigene Skripte und Stylesheets hier durch. Die gehoeren nicht in
+  // diesen Speicher.
+  if (!url.pathname.includes('/audioarchive/')) {
+    return;
+  }
+
   if (/\.(css|js|png|svg|webmanifest)$/.test(url.pathname) || url.search.includes('v=')) {
     event.respondWith(
       fetch(request)

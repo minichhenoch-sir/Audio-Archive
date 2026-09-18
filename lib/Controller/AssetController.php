@@ -111,8 +111,24 @@ class AssetController extends Controller {
     public function manifest(string $s = ''): DataDisplayResponse {
         $base = $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index');
 
+        /*
+         * Angemeldet startet die installierte App in der Fassung OHNE
+         * Nextcloud-Leiste (/app). Die App-Wurzel zeigt seit 0.8 die
+         * eingebettete Fassung mit Leiste.
+         */
         $start = $s !== ''
             ? $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.publicPlayer.index', ['token' => $s])
+            : $this->urlGenerator->linkToRouteAbsolute(Application::APP_ID . '.page.standalone');
+
+        /*
+         * Kennung der installierten App. Ohne ausdrueckliche Angabe nimmt
+         * der Browser dafuer die Startadresse. Bis 0.7 war das die
+         * App-Wurzel - mit der neuen Startadresse wuerden bereits
+         * installierte Apps sonst als fremde App gelten. Deshalb wird die
+         * alte Adresse hier als feste Kennung weitergefuehrt.
+         */
+        $id = $s !== ''
+            ? $start
             : $this->urlGenerator->getAbsoluteURL($base);
 
         $title = $this->appConfig->getValueString(
@@ -138,6 +154,7 @@ class AssetController extends Controller {
         );
 
         $manifest = [
+            'id' => $id,
             'name' => $title,
             'short_name' => $title,
             'start_url' => $start,

@@ -12,6 +12,14 @@ use OCP\IRequest;
 
 /**
  * Player-Oberflaeche fuer angemeldete Nextcloud-Nutzer.
+ *
+ * Zwei Darstellungen desselben Players:
+ *  - index():      innerhalb von Nextcloud, mit Kopfleiste (Menue-Eintrag)
+ *  - standalone(): ohne Nextcloud-Rahmen, als installierte App
+ *
+ * Getrennt, weil Nextcloud auf seinen eigenen Seiten ein eigenes Manifest
+ * einbindet. Von der eingebetteten Seite aus wuerde der Browser deshalb
+ * Nextcloud installieren statt des Players.
  */
 class PageController extends Controller {
 
@@ -26,6 +34,12 @@ class PageController extends Controller {
     #[NoAdminRequired]
     #[NoCSRFRequired]
     public function index(): TemplateResponse {
-        return $this->playerPage->build('');
+        return $this->playerPage->build('', true);
+    }
+
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function standalone(): TemplateResponse {
+        return $this->playerPage->build('', false);
     }
 }
