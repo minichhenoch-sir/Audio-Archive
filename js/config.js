@@ -15,6 +15,7 @@ const AudioArchive = (() => {
   const data = {
     publicToken: el.dataset.publicToken || '',
     embedded: el.dataset.embedded === '1',
+    design: el.dataset.design || 'custom',
     standaloneUrl: el.dataset.standaloneUrl || '',
     headerTitle: el.dataset.headerTitle || '',
     headerSubtitle: el.dataset.headerSubtitle || '',
@@ -57,6 +58,15 @@ const AudioArchive = (() => {
      */
     isEmbedded() {
       return data.embedded;
+    },
+
+    /**
+     * Nextcloud-Gestaltung? Dann kommen Farben und Hintergrund aus
+     * Nextclouds CSS-Variablen (siehe style.css, .aa-design-nextcloud),
+     * und die eigenen Farben werden nicht gesetzt.
+     */
+    isNextcloudDesign() {
+      return data.design === 'nextcloud';
     },
 
     /** Ist der Aufruf ueber die oeffentliche Seite erfolgt? */

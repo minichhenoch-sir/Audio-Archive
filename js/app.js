@@ -257,6 +257,10 @@
   }
 
   function applyTheme(accentHex, barHex, baseHex) {
+    // Bei Nextcloud-Gestaltung bleiben Farben und Hintergrund ganz bei
+    // Nextclouds Variablen - eigene Werte wuerden sie hier ueberschreiben.
+    if (AudioArchive.isNextcloudDesign()) return;
+
     const root = document.documentElement.style;
 
     const accent = hexToRgb(accentHex);

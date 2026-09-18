@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\BackgroundImage;
+use OCA\AudioArchive\Service\PlayerPage;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -36,6 +37,7 @@ class AssetController extends Controller {
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
+        private PlayerPage $playerPage,
     ) {
         parent::__construct($appName, $request);
     }
@@ -137,11 +139,9 @@ class AssetController extends Controller {
             'Recordings'
         );
 
-        $barColor = $this->appConfig->getValueString(
-            Application::APP_ID,
-            Application::SETTING_THEME_BAR,
-            '#291c12'
-        );
+        // Bei Nextcloud-Gestaltung Nextclouds Hauptfarbe, sonst die eigene
+        // Leistenfarbe (siehe PlayerPage::barColor()).
+        $barColor = $this->playerPage->barColor();
 
         /*
          * Bewusst absolute Adressen: Das Manifest wird auch von der

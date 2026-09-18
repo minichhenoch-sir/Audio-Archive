@@ -20,7 +20,7 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
 <title><?php echo $escape($_['headerTitle']); ?></title>
 
 <link rel="manifest" href="<?php echo $escape($_['manifestUrl']); ?>">
-<meta name="theme-color" content="<?php echo $escape($_['themeBar']); ?>">
+<meta name="theme-color" content="<?php echo $escape($_['themeColor']); ?>">
 
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -29,6 +29,9 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
 <link rel="apple-touch-icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
 <link rel="icon" href="<?php echo $escape($_['assetBase']); ?>img/icon-192.png">
 
+<?php foreach ($_['themeStylesheets'] as $theme) { ?>
+<link rel="stylesheet" media="<?php echo $escape($theme['media']); ?>" href="<?php echo $escape($theme['href']); ?>">
+<?php } ?>
 <link rel="stylesheet" href="<?php echo $asset('css/style.css'); ?>">
 </head>
 <body>

@@ -44,6 +44,9 @@
   const betaText = el('aa-beta-text');
   const betaLinkUrl = el('aa-beta-link-url');
   const betaLinkLabel = el('aa-beta-link-label');
+  const designCustom = el('aa-design-custom');
+  const designNextcloud = el('aa-design-nextcloud');
+  const customDesign = el('aa-custom-design');
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const status = el('aa-status');
@@ -60,6 +63,24 @@
   betaText.value = state.betaText || '';
   betaLinkUrl.value = state.betaLinkUrl || '';
   betaLinkLabel.value = state.betaLinkLabel || '';
+  if (state.design === 'nextcloud') {
+    designNextcloud.checked = true;
+  } else {
+    designCustom.checked = true;
+  }
+
+  /*
+   * Farben und Hintergrundbild wirken nur bei eigener Gestaltung. Sie
+   * bleiben trotzdem bedienbar - wer zurueckwechselt, findet seine Werte
+   * unveraendert vor.
+   */
+  function updateDesignState() {
+    customDesign.classList.toggle('aa-inactive', designNextcloud.checked);
+  }
+  designCustom.addEventListener('change', updateDesignState);
+  designNextcloud.addEventListener('change', updateDesignState);
+  updateDesignState();
+
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
 
@@ -179,6 +200,7 @@
       themeAccent: accent.value,
       themeBar: bar.value,
       themeBase: base.value,
+      design: designNextcloud.checked ? 'nextcloud' : 'custom',
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       betaEnabled: betaEnabled.checked,

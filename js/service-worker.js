@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v7';
+const SHELL_CACHE = 'audioarchive-shell-v8';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
@@ -229,12 +229,14 @@ self.addEventListener('fetch', (event) => {
   //
   // Nur Dateien dieser App: Innerhalb von Nextcloud laufen auch Nextclouds
   // eigene Skripte und Stylesheets hier durch. Die gehoeren nicht in
-  // diesen Speicher.
-  if (!url.pathname.includes('/audioarchive/')) {
+  // diesen Speicher. Ausnahme: die Theming-App. Bei Nextcloud-Gestaltung
+  // kommen Farben und Hintergrund von dort, und ohne sie saehe die
+  // installierte App offline ungestaltet aus.
+  if (!url.pathname.includes('/audioarchive/') && !url.pathname.includes('/apps/theming/')) {
     return;
   }
 
-  if (/\.(css|js|png|svg|webmanifest)$/.test(url.pathname) || url.search.includes('v=')) {
+  if (/\.(css|js|png|jpe?g|webp|svg|webmanifest)$/.test(url.pathname) || url.search.includes('v=')) {
     event.respondWith(
       fetch(request)
         .then((response) => {

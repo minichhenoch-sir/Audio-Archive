@@ -50,6 +50,7 @@ class SettingsController extends Controller {
      * @param string|null $themeAccent
      * @param string|null $themeBar
      * @param string|null $themeBase
+     * @param string|null $design 'custom' oder 'nextcloud'
      * @param bool|null $featureOffline
      * @param bool|null $featureDownload
      */
@@ -62,6 +63,7 @@ class SettingsController extends Controller {
         ?string $themeAccent = null,
         ?string $themeBar = null,
         ?string $themeBase = null,
+        ?string $design = null,
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
         ?bool $betaEnabled = null,
@@ -167,6 +169,17 @@ class SettingsController extends Controller {
                 );
             }
             $this->appConfig->setValueString(Application::APP_ID, $key, strtolower($value));
+        }
+
+        // ---------- Gestaltung ----------
+        if ($design !== null) {
+            if (!in_array($design, [Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD], true)) {
+                return new DataResponse(
+                    ['error' => 'Unbekannte Gestaltung: ' . $design],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+            $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_DESIGN, $design);
         }
 
         // ---------- Funktionen ----------

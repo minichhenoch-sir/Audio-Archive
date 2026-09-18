@@ -24,6 +24,15 @@ class Application extends App implements IBootstrap {
     public const SETTING_THEME_ACCENT = 'theme_accent';
     public const SETTING_THEME_BAR = 'theme_bar';
     public const SETTING_THEME_BASE = 'theme_base';
+
+    /**
+     * Gestaltung: 'custom' = eigene Farben und eigenes Hintergrundbild,
+     * 'nextcloud' = Nextclouds Farben, Hintergrund, Schrift und Hell/Dunkel.
+     * Gilt fuer alle Zugaenge, auch den geteilten Link.
+     */
+    public const SETTING_DESIGN = 'design';
+    public const DESIGN_CUSTOM = 'custom';
+    public const DESIGN_NEXTCLOUD = 'nextcloud';
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 

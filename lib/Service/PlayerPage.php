@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\Defaults;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 
@@ -33,7 +34,77 @@ class PlayerPage {
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
+        private Defaults $defaults,
     ) {
+    }
+
+    /** Ist die Nextcloud-Gestaltung eingestellt? */
+    public function usesNextcloudDesign(): bool {
+        return $this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
+        ) === Application::DESIGN_NEXTCLOUD;
+    }
+
+    /**
+     * Farbe fuer die Statusleiste der installierten App und das Manifest.
+     * Bei Nextcloud-Gestaltung Nextclouds Hauptfarbe, sonst die eigene
+     * Leistenfarbe.
+     */
+    public function barColor(): string {
+        if ($this->usesNextcloudDesign()) {
+            $primary = $this->defaults->getColorPrimary();
+            if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $primary)) {
+                return $primary;
+            }
+        }
+        return $this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
+        );
+    }
+
+    /**
+     * Stylesheets mit Nextclouds Gestaltungs-Variablen fuer die Seiten
+     * OHNE Nextcloud-Rahmen.
+     *
+     * Innerhalb von Nextcloud bindet das Seitengeruest diese Variablen
+     * selbst ein - und zwar passend zum Design, das der Nutzer gewaehlt hat.
+     * Die eigenstaendigen Seiten (geteilter Link, installierte App) liefern
+     * ihr Markup selbst und muessen sie deshalb selbst einbinden. Das geht
+     * ueber denselben oeffentlichen Endpunkt der Theming-App, den Nextcloud
+     * auch auf seinen Anmeldeseiten nutzt:
+     *   - 'default' immer (hell),
+     *   - 'dark' zusaetzlich, wenn das Geraet auf dunkel steht.
+     * Mit plain=1 liefert der Endpunkt die Variablen direkt auf :root.
+     *
+     * Ist die Theming-App abgeschaltet, gibt es die Route nicht - dann
+     * greifen die Ersatzwerte in style.css.
+     *
+     * @return list<array{href: string, media: string}>
+     */
+    private function themeStylesheets(): array {
+        try {
+            $cacheBuster = $this->appConfig->getValueString('theming', 'cachebuster', '0');
+        } catch (\Throwable $e) {
+            $cacheBuster = '0';
+        }
+
+        $links = [];
+        foreach (['default' => 'all', 'dark' => '(prefers-color-scheme: dark)'] as $themeId => $media) {
+            try {
+                $href = $this->urlGenerator->linkToRoute('theming.Theming.getThemeStylesheet', [
+                    'themeId' => $themeId,
+                    'plain' => 1,
+                    'v' => $cacheBuster,
+                ]);
+            } catch (\Throwable $e) {
+                return [];
+            }
+            if ($href === '') {
+                return [];
+            }
+            $links[] = ['href' => $href, 'media' => $media];
+        }
+        return $links;
     }
 
     public function build(string $publicToken, bool $embedded = false): TemplateResponse {
@@ -44,6 +115,14 @@ class PlayerPage {
         $params = [
             'publicToken' => $publicToken,
             'embedded' => $embedded ? '1' : '',
+            'design' => $this->usesNextcloudDesign()
+                ? Application::DESIGN_NEXTCLOUD
+                : Application::DESIGN_CUSTOM,
+            // Nur eigenstaendig noetig, siehe themeStylesheets()
+            'themeStylesheets' => (!$embedded && $this->usesNextcloudDesign())
+                ? $this->themeStylesheets()
+                : [],
+            'themeColor' => $this->barColor(),
             // Adresse der eigenstaendigen Fassung, fuer den Knopf
             // "App installieren" auf der eingebetteten Seite
             'standaloneUrl' => $this->urlGenerator->linkToRoute(

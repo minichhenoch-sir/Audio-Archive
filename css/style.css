@@ -942,3 +942,342 @@ body.has-bg-image #audioarchive .explorer-row.active {
   }
   #audioarchive .install-btn-label { display: none; }
 }
+
+/* =====================================================================
+ * NEXTCLOUD-GESTALTUNG (Einstellung "Gestaltung: Nextcloud")
+ * =====================================================================
+ *
+ * Statt der eigenen Farben gelten hier Nextclouds CSS-Variablen aus der
+ * Theming-App: Hauptfarbe, Hintergrund, Flaechen, Schrift - und damit auch
+ * Hell/Dunkel. Innerhalb von Nextcloud stehen die Variablen ohnehin auf der
+ * Seite, auf den eigenstaendigen Seiten bindet PlayerPage sie eigens ein.
+ *
+ * Die Ersatzwerte hinter jedem var() entsprechen Nextclouds hellem
+ * Standard und greifen nur, falls die Theming-App abgeschaltet ist.
+ *
+ * Aufbau wie eine eingebaute Nextcloud-App: ruhige Flaechen in der
+ * Hintergrundfarbe, Eintraege wie in Nextclouds Navigation (Hover-Flaeche,
+ * gewaehlter Eintrag in der hellen Hauptfarbe), Knoepfe im Nextcloud-Stil.
+ * Glas und Unschaerfe gibt es nur noch an der Player-Leiste.
+ */
+
+#audioarchive.aa-design-nextcloud {
+  --aa-nc-bg: var(--color-main-background, #ffffff);
+  --aa-nc-text: var(--color-main-text, #222222);
+  --aa-nc-text-soft: var(--color-text-maxcontrast, #6b6b6b);
+  --aa-nc-hover: var(--color-background-hover, #f5f5f5);
+  --aa-nc-dark: var(--color-background-dark, #ededed);
+  --aa-nc-border: var(--color-border, #ededed);
+  --aa-nc-border-strong: var(--color-border-maxcontrast, #7f7f7f);
+  --aa-nc-primary: var(--color-primary-element, #00679e);
+  --aa-nc-primary-hover: var(--color-primary-element-hover, #005a8a);
+  --aa-nc-primary-text: var(--color-primary-element-text, #ffffff);
+  --aa-nc-primary-light: var(--color-primary-element-light, #e5eff5);
+  --aa-nc-primary-light-hover: var(--color-primary-element-light-hover, #dbe4ea);
+  --aa-nc-primary-light-text: var(--color-primary-element-light-text, #00293f);
+  --aa-nc-radius: var(--border-radius-element, 8px);
+  --aa-nc-radius-large: var(--border-radius-container-large, 16px);
+  --aa-nc-shadow: 0 2px 12px var(--color-box-shadow, rgba(77, 77, 77, 0.5));
+
+  /* Eigene Variablen auf Nextcloud umlenken - damit passt alles, was
+     unten nicht ausdruecklich ueberschrieben wird, schon farblich */
+  --color-ink: var(--aa-nc-text);
+  --color-ink-soft: var(--aa-nc-text-soft);
+  --color-cream: var(--aa-nc-text);
+  --color-cream-soft: var(--aa-nc-text-soft);
+  --color-accent: var(--aa-nc-primary);
+  --color-accent-deep: var(--aa-nc-primary);
+  --color-danger: var(--color-text-error, #c9302c);
+  --glass-row-bg: var(--aa-nc-bg);
+  --glass-light-bg: var(--aa-nc-bg);
+  --glass-light-bg-strong: var(--aa-nc-bg);
+  --glass-light-border: var(--aa-nc-border);
+  --glass-light-shadow: none;
+  --glass-dark-bg: var(--aa-nc-bg);
+  --glass-dark-bg-strong: var(--color-main-background-blur, rgba(255, 255, 255, 0.85));
+  --glass-dark-border: var(--aa-nc-border);
+  --glass-dark-shadow: var(--aa-nc-shadow);
+  --glass-blur: var(--filter-background-blur, blur(25px));
+  --font-display: var(--font-face, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+  --font-body: var(--font-face, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif);
+
+  color: var(--aa-nc-text);
+  font-family: var(--font-body);
+}
+
+/* Hintergrundfarbe nur am html-Element: Auf body wuerde sie ueber
+   #bg-layer (z-index -1) gemalt und das Hintergrundbild verdecken. */
+html.aa-standalone:has(.aa-design-nextcloud) {
+  background: var(--color-main-background, #ffffff);
+}
+
+/* Knoepfe und Eingabefelder erben sonst die Systemschrift des Browsers */
+#audioarchive.aa-design-nextcloud button,
+#audioarchive.aa-design-nextcloud input,
+#audioarchive.aa-design-nextcloud a {
+  font-family: var(--font-body);
+}
+
+/* ---------- Hintergrund ----------
+ * Eingebettet: schlichte Hauptflaeche wie jede Nextcloud-App - das
+ * Hintergrundbild zeigt Nextcloud selbst rund um den Inhaltsbereich.
+ * Eigenstaendig: dieselbe Hauptflaeche; nur der Anmelde-Bildschirm zeigt
+ * Nextclouds Hintergrundbild, wie Nextclouds eigene Anmeldeseite. */
+#audioarchive.aa-design-nextcloud #bg-layer {
+  background: var(--aa-nc-bg);
+}
+
+#audioarchive.aa-design-nextcloud #login-screen {
+  background-color: var(--color-background-plain, #00679e);
+  background-image: var(--image-background, none);
+  background-size: cover;
+  background-position: center;
+}
+
+/* ---------- Anmeldung (oeffentlicher Link) ---------- */
+#audioarchive.aa-design-nextcloud .login-card {
+  background: var(--color-main-background-blur, rgba(255, 255, 255, 0.85));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: none;
+  border-radius: var(--aa-nc-radius-large);
+  box-shadow: var(--aa-nc-shadow);
+}
+#audioarchive.aa-design-nextcloud .login-card::before { display: none; }
+
+#audioarchive.aa-design-nextcloud .login-title {
+  font-weight: 600;
+  font-size: calc(1.5 * var(--aa-rem));
+}
+
+#audioarchive.aa-design-nextcloud #login-form input[type="password"] {
+  background: var(--aa-nc-bg);
+  color: var(--aa-nc-text);
+  border: 1px solid var(--aa-nc-border-strong);
+  border-radius: var(--aa-nc-radius);
+  box-shadow: none;
+}
+#audioarchive.aa-design-nextcloud #login-form input[type="password"]::placeholder {
+  color: var(--aa-nc-text-soft);
+}
+#audioarchive.aa-design-nextcloud #login-form input[type="password"]:focus {
+  border-color: var(--aa-nc-primary);
+  box-shadow: 0 0 0 1px var(--aa-nc-primary);
+}
+
+#audioarchive.aa-design-nextcloud #login-submit {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+  border: none;
+  border-radius: var(--aa-nc-radius);
+  box-shadow: none;
+}
+#audioarchive.aa-design-nextcloud #login-submit:hover { background: var(--aa-nc-primary-hover); }
+
+#audioarchive.aa-design-nextcloud .login-error { color: var(--color-danger); }
+
+/* ---------- Kopfzeile ---------- */
+#audioarchive.aa-design-nextcloud .topbar {
+  background: var(--aa-nc-bg);
+  border-bottom: 1px solid var(--aa-nc-border);
+  padding-bottom: 12px;
+}
+
+#audioarchive.aa-design-nextcloud .glass-pill {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+
+#audioarchive.aa-design-nextcloud .topbar-titles { padding: 4px 6px; }
+
+#audioarchive.aa-design-nextcloud .topbar h1 {
+  font-weight: 600;
+  letter-spacing: normal;
+}
+
+#audioarchive.aa-design-nextcloud .icon-btn {
+  color: var(--aa-nc-text);
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .icon-btn:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .icon-btn:active { background: var(--aa-nc-dark); }
+
+/* "App installieren" als hervorgehobener Knopf, wie Nextclouds
+   Hauptaktionen */
+#audioarchive.aa-design-nextcloud .install-btn {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+}
+#audioarchive.aa-design-nextcloud .install-btn:hover { background: var(--aa-nc-primary-light-hover); }
+
+#audioarchive.aa-design-nextcloud .beta-badge {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+}
+
+/* ---------- Pfad, Hinweise, Offline-Leiste ---------- */
+#audioarchive.aa-design-nextcloud .breadcrumb {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding: 4px 2px;
+  border-radius: 0;
+}
+
+#audioarchive.aa-design-nextcloud .crumb {
+  color: var(--aa-nc-text);
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .crumb:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .crumb:active { background: var(--aa-nc-dark); }
+#audioarchive.aa-design-nextcloud .crumb--current {
+  color: var(--aa-nc-text-soft);
+  font-weight: 400;
+}
+
+#audioarchive.aa-design-nextcloud .status-text,
+#audioarchive.aa-design-nextcloud .offline-info {
+  color: var(--aa-nc-text-soft);
+  text-shadow: none;
+}
+
+#audioarchive.aa-design-nextcloud .beta-notice,
+#audioarchive.aa-design-nextcloud .offline-banner {
+  background: var(--aa-nc-hover);
+  border: none;
+  border-left: 4px solid var(--aa-nc-primary);
+  border-radius: var(--aa-nc-radius);
+  box-shadow: none;
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .beta-notice a { color: var(--aa-nc-primary); }
+
+#audioarchive.aa-design-nextcloud .offline-btn {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+  border: none;
+  box-shadow: none;
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .offline-btn:hover { background: var(--aa-nc-primary-light-hover); }
+#audioarchive.aa-design-nextcloud .offline-btn.is-stored {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+}
+
+#audioarchive.aa-design-nextcloud .offline-pin {
+  background: var(--aa-nc-bg);
+  border: 1px solid var(--aa-nc-border);
+  border-radius: var(--aa-nc-radius-large);
+  box-shadow: var(--aa-nc-shadow);
+}
+#audioarchive.aa-design-nextcloud .offline-pin input[type="password"] {
+  background: var(--aa-nc-bg);
+  color: var(--aa-nc-text);
+  border: 1px solid var(--aa-nc-border-strong);
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .offline-pin-actions button {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+  border: none;
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .offline-pin-actions button:first-child {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+}
+
+/* ---------- Liste ----------
+ * Wie Eintraege in Nextclouds Navigation: keine Karten, sondern ruhige
+ * Zeilen mit Hover-Flaeche. Der laufende Titel in der hellen Hauptfarbe. */
+#audioarchive.aa-design-nextcloud .explorer-list { gap: 2px; }
+
+#audioarchive.aa-design-nextcloud .explorer-row {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  border-radius: var(--aa-nc-radius);
+  padding: 11px 12px;
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .explorer-row:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .explorer-row:active {
+  background: var(--aa-nc-dark);
+  transform: none;
+}
+
+#audioarchive.aa-design-nextcloud .explorer-row.active {
+  background: var(--aa-nc-primary-light);
+  border: none;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+#audioarchive.aa-design-nextcloud .explorer-row.active:hover { background: var(--aa-nc-primary-light-hover); }
+
+#audioarchive.aa-design-nextcloud .explorer-row.active .explorer-row-label,
+#audioarchive.aa-design-nextcloud .explorer-row.active .explorer-row-meta,
+#audioarchive.aa-design-nextcloud .explorer-row.active .explorer-row-icon {
+  color: var(--aa-nc-primary-light-text);
+}
+#audioarchive.aa-design-nextcloud .explorer-row.active .eq-bar {
+  background: var(--aa-nc-primary-light-text);
+}
+
+#audioarchive.aa-design-nextcloud .explorer-row-icon { color: var(--aa-nc-primary); }
+#audioarchive.aa-design-nextcloud .explorer-row-meta { color: var(--aa-nc-text-soft); }
+
+#audioarchive.aa-design-nextcloud .row-download { color: var(--aa-nc-text-soft); }
+#audioarchive.aa-design-nextcloud .row-download:hover { background: var(--aa-nc-dark); }
+
+/* ---------- Player-Leiste ----------
+ * Schwebende Flaeche wie Nextclouds Menues: halbdurchsichtige
+ * Hauptfarbe mit Unschaerfe, Schatten, Knoepfe im Nextcloud-Stil. */
+#audioarchive.aa-design-nextcloud .player-bar {
+  background: var(--color-main-background-blur, rgba(255, 255, 255, 0.85));
+  border: 1px solid var(--aa-nc-border);
+  border-radius: var(--aa-nc-radius-large);
+  box-shadow: var(--aa-nc-shadow);
+  color: var(--aa-nc-text);
+}
+
+#audioarchive.aa-design-nextcloud .player-track-title { font-weight: 600; }
+
+#audioarchive.aa-design-nextcloud .player-seek { accent-color: var(--aa-nc-primary); }
+
+#audioarchive.aa-design-nextcloud .control-btn {
+  background: transparent;
+  border: none;
+  color: var(--aa-nc-text);
+  border-radius: 50%;
+}
+#audioarchive.aa-design-nextcloud .control-btn:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .control-btn:active { background: var(--aa-nc-dark); }
+
+#audioarchive.aa-design-nextcloud .control-btn--main {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+  border: none;
+  box-shadow: none;
+}
+#audioarchive.aa-design-nextcloud .control-btn--main:hover { background: var(--aa-nc-primary-hover); }
+
+/* ---------- Eigenstaendig: Abstand wie Nextclouds Inhaltsbereich ----------
+ * Auf breiten Bildschirmen rahmt Nextclouds Hintergrundbild die
+ * Hauptflaeche ein - so wie innerhalb von Nextcloud, nur ohne Leiste. */
+@media (min-width: 1024px) {
+  #audioarchive.aa-standalone.aa-design-nextcloud #bg-layer {
+    background-color: var(--color-background-plain, #00679e);
+    background-image: var(--image-background, none);
+    background-size: cover;
+    background-position: center;
+  }
+
+  #audioarchive.aa-standalone.aa-design-nextcloud #main-screen {
+    inset: var(--body-container-margin, 8px);
+    border-radius: var(--aa-nc-radius-large);
+    background: var(--aa-nc-bg);
+  }
+}

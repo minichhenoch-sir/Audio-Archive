@@ -72,6 +72,9 @@ class Admin implements ISettings {
             'betaLinkLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
             ),
+            'design' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
+            ),
             'featureOffline' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
             ),

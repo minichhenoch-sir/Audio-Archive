@@ -11,7 +11,13 @@
  * Erwartet $_, $escape und $asset aus der einbindenden Vorlage.
  */
 ?>
-<div id="audioarchive" class="<?php echo $_['embedded'] === '1' ? 'aa-embedded' : 'aa-standalone'; ?>">
+<?php
+$rootClasses = [$_['embedded'] === '1' ? 'aa-embedded' : 'aa-standalone'];
+if ($_['design'] === 'nextcloud') {
+    $rootClasses[] = 'aa-design-nextcloud';
+}
+?>
+<div id="audioarchive" class="<?php echo $escape(implode(' ', $rootClasses)); ?>">
 
 <!--
   Startwerte fuer die Skripte. Bewusst als data-Attribute statt als
@@ -20,6 +26,7 @@
 -->
 <div id="app-config"
      data-public-token="<?php echo $escape($_['publicToken']); ?>"
+     data-design="<?php echo $escape($_['design']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"

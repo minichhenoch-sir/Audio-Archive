@@ -51,6 +51,29 @@
         <label for="aa-subtitle">Zusatzzeile (optional)</label>
         <input type="text" id="aa-subtitle">
     </div>
+    <div class="aa-field">
+        <label>Gestaltung</label>
+        <p>
+            <input type="radio" name="aa-design" id="aa-design-custom" value="custom" class="radio">
+            <label for="aa-design-custom">Eigene Gestaltung</label>
+        </p>
+        <p class="settings-hint">
+            Eigene Farben und eigenes Hintergrundbild (unten).
+        </p>
+        <p>
+            <input type="radio" name="aa-design" id="aa-design-nextcloud" value="nextcloud" class="radio">
+            <label for="aa-design-nextcloud">Nextcloud-Gestaltung</label>
+        </p>
+        <p class="settings-hint">
+            Übernimmt Farben, Hintergrund und Schrift von Nextcloud
+            (Einstellungen → Verwaltung → Design) und wechselt mit dem
+            Hell-/Dunkelmodus. Gilt auch für den öffentlichen Link, dort
+            ohne Nextcloud-Kopfleiste.
+        </p>
+    </div>
+
+    <!-- Nur fuer die eigene Gestaltung; bei Nextcloud-Gestaltung abgeblendet -->
+    <div id="aa-custom-design">
     <div class="aa-colors">
         <div class="aa-field">
             <label for="aa-accent">Akzentfarbe</label>
@@ -78,6 +101,7 @@
             <button type="button" id="aa-background-remove" hidden>Entfernen</button>
         </div>
         <p class="settings-hint" id="aa-background-state"></p>
+    </div>
     </div>
 
     <!-- ============ Funktionen ============ -->

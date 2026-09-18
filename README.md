@@ -325,3 +325,55 @@ eingebettet genauso aus wie eigenständig.
 Nach dem Einspielen den Container neu starten, weil sich PHP-Dateien geändert
 haben. Weil `routes.php` und `info.xml` geändert sind, die App außerdem aus-
 und wieder einschalten.
+
+---
+
+## 0.9.0: Gestaltung „Eigene" oder „Nextcloud"
+
+Einstellungen → Verwaltung → Audio Archive → Darstellung → **Gestaltung**.
+
+| Gestaltung | Wirkung |
+|---|---|
+| Eigene (Vorgabe) | wie bisher: eigene Farben, Hintergrundbild, Glas-Design |
+| Nextcloud | Farben, Hintergrund und Schrift von Nextcloud, Hell/Dunkel automatisch |
+
+Die Einstellung gilt überall: innerhalb von Nextcloud, für die installierte
+App und für den geteilten Link. Der geteilte Link bleibt dabei ohne
+Nextcloud-Kopfleiste. Bei „Nextcloud" werden die eigenen Farben und das
+Hintergrundbild abgeblendet angezeigt, bleiben aber gespeichert, sodass ein
+Zurückwechseln nichts verliert.
+
+### So sieht die Nextcloud-Gestaltung aus
+- Ruhige Hauptfläche statt Glas. Einträge sehen aus wie in Nextclouds
+  Navigation, der laufende Titel ist in der hellen Hauptfarbe hinterlegt.
+- Die Knöpfe folgen Nextclouds Stil, der Abspielknopf ist in der Hauptfarbe.
+- Die Player-Leiste schwebt wie Nextclouds Menüs: halbdurchsichtig, mit
+  Unschärfe.
+- Der Anmelde-Bildschirm des geteilten Links zeigt Nextclouds
+  Hintergrundbild, wie Nextclouds eigene Anmeldeseite.
+- Ohne Leiste auf breiten Bildschirmen: Das Hintergrundbild rahmt die
+  Hauptfläche ein, wie innerhalb von Nextcloud.
+
+### Woher die Farben kommen
+Innerhalb von Nextcloud stehen Nextclouds CSS-Variablen ohnehin auf der
+Seite, und zwar passend zum Design, das der jeweilige Nutzer gewählt hat. Die
+Seiten ohne Leiste binden sie selbst ein, über denselben öffentlichen
+Endpunkt der Theming-App, den Nextcloud auf seinen Anmeldeseiten nutzt:
+`theme/default.css` immer, `theme/dark.css` bei dunklem Gerät. Der Service
+Worker speichert diese Dateien mit, damit die App auch offline gestaltet
+bleibt. Ist die Theming-App abgeschaltet, gelten Ersatzwerte (Nextclouds
+helles Standard-Design).
+
+Statusleiste und Manifest der installierten App nehmen bei
+Nextcloud-Gestaltung Nextclouds Hauptfarbe.
+
+### Prüfen
+1. Gestaltung auf „Nextcloud" stellen und speichern.
+2. Die App in Nextcloud öffnen: Farben wie Nextcloud, im persönlichen Design
+   auf „Dunkel" umstellen, dann muss der Player mitwechseln.
+3. Den geteilten Link im privaten Fenster öffnen: Der Anmelde-Bildschirm
+   zeigt das Nextcloud-Hintergrundbild, danach die helle oder dunkle Liste
+   passend zur Geräte-Einstellung.
+4. Zurück auf „Eigene": wieder das bisherige Design mit den alten Farben.
+
+Da sich PHP-Dateien geändert haben, den Container neu starten.
