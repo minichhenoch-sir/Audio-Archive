@@ -11,7 +11,13 @@ use OCP\Files\SimpleFS\ISimpleFile;
 use OCP\Files\SimpleFS\ISimpleFolder;
 
 /**
- * Verwaltet das vom Administrator hochgeladene Hintergrundbild.
+ * Verwaltet die hochgeladenen Hintergrundbilder.
+ *
+ * Es gibt mehrere Ebenen, jede mit eigenem Schluessel:
+ *   - ADMIN:            vom Administrator, gilt als Vorgabe fuer alle
+ *   - userKey($uid):    vom einzelnen Nutzer fuer seine eigene Ansicht
+ *   - shareKey($id):    fuer eine einzelne Freigabe (ab 0.12)
+ * Welches Bild eine Seite tatsaechlich zeigt, entscheidet PlayerPage.
  *
  * Abgelegt wird im AppData-Bereich von Nextcloud, NICHT im App-Ordner.
  * Bei der Code-Signierung fuer den App Store werden Pruefsummen aller
@@ -20,7 +26,8 @@ use OCP\Files\SimpleFS\ISimpleFolder;
  */
 class BackgroundImage {
 
-    private const FILE_NAME = 'background';
+    /** Schluessel des Administrator-Bildes (Dateiname seit 0.6, unveraendert). */
+    public const ADMIN = 'background';
     private const MAX_BYTES = 8 * 1024 * 1024;
 
     /** Erlaubte Typen, geprueft am tatsaechlichen Inhalt - nicht am Dateinamen. */
@@ -43,7 +50,17 @@ class BackgroundImage {
      * @param int $size Groesse in Bytes
      * @return string Leerer String bei Erfolg, sonst die Fehlermeldung
      */
-    public function store(string $tmpPath, int $size): string {
+    /** Schluessel fuer das Bild eines Nutzers. Gehasht, damit beliebige Kennungen gueltige Dateinamen ergeben. */
+    public static function userKey(string $uid): string {
+        return 'background-user-' . md5($uid);
+    }
+
+    /** Schluessel fuer das Bild einer Freigabe. */
+    public static function shareKey(int $shareId): string {
+        return 'background-share-' . $shareId;
+    }
+
+    public function store(string $tmpPath, int $size, string $key = self::ADMIN): string {
         if ($size <= 0) {
             return 'Die Datei ist leer.';
         }
@@ -71,9 +88,9 @@ class BackgroundImage {
         }
 
         try {
-            $folder->getFile(self::FILE_NAME)->putContent($content);
+            $folder->getFile($key)->putContent($content);
         } catch (NotFoundException $e) {
-            $folder->newFile(self::FILE_NAME, $content);
+            $folder->newFile($key, $content);
         }
 
         return '';
@@ -94,22 +111,28 @@ class BackgroundImage {
         }
     }
 
-    public function remove(): void {
+    public function remove(string $key = self::ADMIN): void {
         try {
-            $this->appData->getFolder('/')->getFile(self::FILE_NAME)->delete();
+            $this->appData->getFolder('/')->getFile($key)->delete();
         } catch (\Throwable $e) {
             // Nichts vorhanden - dann ist nichts zu tun.
         }
     }
 
-    public function exists(): bool {
-        return $this->get() !== null;
+    public function exists(string $key = self::ADMIN): bool {
+        return $this->get($key) !== null;
+    }
+
+    /** Aenderungszeitpunkt - als Versionskennung fuer die Bild-Adresse. */
+    public function version(string $key = self::ADMIN): string {
+        $file = $this->get($key);
+        return $file === null ? '' : (string)$file->getMTime();
     }
 
     /** Liefert die Datei zur Ausgabe, oder null wenn keine gesetzt ist. */
-    public function get(): ?ISimpleFile {
+    public function get(string $key = self::ADMIN): ?ISimpleFile {
         try {
-            return $this->appData->getFolder('/')->getFile(self::FILE_NAME);
+            return $this->appData->getFolder('/')->getFile($key);
         } catch (\Throwable $e) {
             // Auch der Fall "Ordner existiert noch nicht" landet hier.
             return null;

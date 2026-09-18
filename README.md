@@ -377,3 +377,46 @@ Nextcloud-Gestaltung Nextclouds Hauptfarbe.
 4. Zurück auf „Eigene": wieder das bisherige Design mit den alten Farben.
 
 Da sich PHP-Dateien geändert haben, den Container neu starten.
+
+---
+
+## 0.10.0: Persönliche Darstellung, flexibles Hintergrundbild
+
+### Nutzer wählen selbst
+Angemeldete Nutzer öffnen über das **Zahnrad** oben rechts ihre persönliche
+Darstellung:
+- **Gestaltung:** Vorgabe des Administrators, Eigene oder Nextcloud
+  (Hell/Dunkel automatisch)
+- **Hintergrundbild:** eigenes Bild hochladen oder entfernen
+
+Das gilt nur für die eigene Ansicht, andere Nutzer und der öffentliche Link
+bleiben unberührt. Der Administrator kann es unter „Nutzer dürfen
+Gestaltung und Hintergrundbild selbst wählen" abschalten.
+
+### Welches Hintergrundbild gilt
+| Ebene | gilt |
+|---|---|
+| Nutzer-Bild | für diesen Nutzer, in **beiden** Gestaltungen |
+| Administrator-Bild | bei eigener Gestaltung immer, bei Nextcloud-Gestaltung nur mit Häkchen „auch bei Nextcloud-Gestaltung" |
+| kein Bild | Verlauf aus dem Grundton bzw. Nextclouds Hintergrund |
+
+Bei Nextcloud-Gestaltung mit Bild liegt das Bild hinter allem, und die Liste
+steht auf einer ruhigen Fläche.
+
+### Wichtige Fehlerbehebung: Service Worker unter Nextcloud 34
+Seit Nextcloud 34 enthält die Sicherheitsrichtlinie für Skripte nur noch das
+Nonce, kein `'self'` mehr. Ohne eigene `worker-src`-Angabe verweigerte der
+Browser deshalb die Registrierung des Service Workers, und zwar ohne
+sichtbare Fehlermeldung. Folgen: keine Offline-Wiedergabe, kein Vorausladen,
+keine Installation als App. Behoben durch `worker-src 'self'`. Gefunden an
+einer echten Nextcloud 34.0.3 in der Testumgebung.
+
+### Weitere Änderungen
+- Autor: Henoch Minich
+- Hintergrundbilder werden mit dem richtigen Typ ausgeliefert (bisher
+  `application/octet-stream`)
+- Überbleibsel der eigenständigen Fassung entfernt: Die Eingabe „admin" im
+  Passwortfeld führte auf eine nicht mehr existierende Seite.
+
+Nach dem Einspielen: Container neu starten. Nextcloud meldet wegen der neuen
+Version ein Update. Bestätigen (oder `occ upgrade`).

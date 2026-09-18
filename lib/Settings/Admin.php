@@ -75,6 +75,12 @@ class Admin implements ISettings {
             'design' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
             ),
+            'backgroundNextcloud' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, false
+            ),
+            'userCustomization' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_USER_CUSTOMIZATION, true
+            ),
             'featureOffline' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true
             ),

@@ -33,6 +33,15 @@ class Application extends App implements IBootstrap {
     public const SETTING_DESIGN = 'design';
     public const DESIGN_CUSTOM = 'custom';
     public const DESIGN_NEXTCLOUD = 'nextcloud';
+
+    /** Administrator-Bild auch bei Nextcloud-Gestaltung zeigen (Vorgabe: nein). */
+    public const SETTING_BACKGROUND_NEXTCLOUD = 'background_nextcloud';
+
+    /** Duerfen Nutzer in der App eigene Gestaltung und eigenes Bild waehlen? (Vorgabe: ja) */
+    public const SETTING_USER_CUSTOMIZATION = 'user_customization';
+
+    /** Schluessel der persoenlichen Einstellungen je Nutzer (IConfig-Nutzerwerte). */
+    public const USER_DESIGN = 'design';
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 

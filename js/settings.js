@@ -47,6 +47,8 @@
   const designCustom = el('aa-design-custom');
   const designNextcloud = el('aa-design-nextcloud');
   const customDesign = el('aa-custom-design');
+  const backgroundNextcloud = el('aa-background-nextcloud');
+  const userCustomization = el('aa-user-customization');
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const status = el('aa-status');
@@ -81,6 +83,8 @@
   designNextcloud.addEventListener('change', updateDesignState);
   updateDesignState();
 
+  backgroundNextcloud.checked = state.backgroundNextcloud === true;
+  userCustomization.checked = state.userCustomization !== false;
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
 
@@ -201,6 +205,8 @@
       themeBar: bar.value,
       themeBase: base.value,
       design: designNextcloud.checked ? 'nextcloud' : 'custom',
+      backgroundNextcloud: backgroundNextcloud.checked,
+      userCustomization: userCustomization.checked,
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       betaEnabled: betaEnabled.checked,

@@ -72,7 +72,7 @@
         </p>
     </div>
 
-    <!-- Nur fuer die eigene Gestaltung; bei Nextcloud-Gestaltung abgeblendet -->
+    <!-- Farben nur fuer die eigene Gestaltung; bei Nextcloud-Gestaltung abgeblendet -->
     <div id="aa-custom-design">
     <div class="aa-colors">
         <div class="aa-field">
@@ -88,6 +88,7 @@
             <input type="color" id="aa-base" value="#a86a3d">
         </div>
     </div>
+    </div>
 
     <div class="aa-field">
         <label>Hintergrundbild</label>
@@ -102,7 +103,23 @@
         </div>
         <p class="settings-hint" id="aa-background-state"></p>
     </div>
-    </div>
+
+    <p>
+        <input type="checkbox" id="aa-background-nextcloud" class="checkbox">
+        <label for="aa-background-nextcloud">Hintergrundbild auch bei Nextcloud-Gestaltung verwenden</label>
+    </p>
+    <p class="settings-hint">
+        Sonst zeigt die Nextcloud-Gestaltung Nextclouds eigenen Hintergrund.
+    </p>
+
+    <p>
+        <input type="checkbox" id="aa-user-customization" class="checkbox">
+        <label for="aa-user-customization">Nutzer dürfen Gestaltung und Hintergrundbild selbst wählen</label>
+    </p>
+    <p class="settings-hint">
+        Angemeldete Nutzer finden das in der App über das Zahnrad. Es gilt nur
+        für ihre eigene Ansicht, nicht für den öffentlichen Link.
+    </p>
 
     <!-- ============ Funktionen ============ -->
     <h3>Funktionen</h3>

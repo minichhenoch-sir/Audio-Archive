@@ -16,6 +16,8 @@ const AudioArchive = (() => {
     publicToken: el.dataset.publicToken || '',
     embedded: el.dataset.embedded === '1',
     design: el.dataset.design || 'custom',
+    userSettings: el.dataset.userSettings === '1',
+    requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
     headerTitle: el.dataset.headerTitle || '',
     headerSubtitle: el.dataset.headerSubtitle || '',

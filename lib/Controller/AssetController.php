@@ -5,9 +5,10 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\BackgroundImage;
-use OCA\AudioArchive\Service\PlayerPage;
+use OCA\AudioArchive\Service\Appearance;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
+use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
@@ -16,6 +17,7 @@ use OCP\AppFramework\Http\Response;
 use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\IURLGenerator;
+use OCP\IUserSession;
 
 /**
  * Liefert die beiden Dateien aus, die eine PWA braucht: das Manifest und den
@@ -37,7 +39,8 @@ class AssetController extends Controller {
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
-        private PlayerPage $playerPage,
+        private Appearance $appearance,
+        private IUserSession $userSession,
     ) {
         parent::__construct($appName, $request);
     }
@@ -90,22 +93,57 @@ class AssetController extends Controller {
     #[PublicPage]
     #[NoCSRFRequired]
     public function background(): Response {
-        $file = $this->backgroundImage->get();
+        return $this->imageResponse(BackgroundImage::ADMIN, true);
+    }
+
+    /**
+     * Gibt ein gespeichertes Bild aus.
+     *
+     * @param bool $public darf von Zwischenspeichern (Proxy, CDN) gehalten
+     *                     werden; persoenliche Bilder nur im Browser
+     */
+    private function imageResponse(string $key, bool $public): Response {
+        $file = $this->backgroundImage->get($key);
 
         if ($file === null) {
             return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
         }
 
-        $response = new DataDisplayResponse(
-            $file->getContent(),
-            Http::STATUS_OK,
-            ['Content-Type' => $file->getMimeType()]
-        );
+        $content = $file->getContent();
+
+        /*
+         * Typ am Inhalt bestimmen: Die Datei liegt ohne Endung im
+         * AppData-Bereich, Nextcloud meldet dafuer nur
+         * application/octet-stream. Beim Hochladen ist bereits geprueft,
+         * dass es PNG, JPEG oder WebP ist.
+         */
+        $finfo = new \finfo(FILEINFO_MIME_TYPE);
+        $mime = (string)$finfo->buffer($content);
+        if (!in_array($mime, ['image/png', 'image/jpeg', 'image/webp'], true)) {
+            $mime = 'application/octet-stream';
+        }
+
+        $response = new DataDisplayResponse($content, Http::STATUS_OK, ['Content-Type' => $mime]);
 
         // Einen Tag zwischenspeichern; bei Aenderung sorgt die
         // Versionskennung in der Adresse fuer ein Neuladen.
-        $response->cacheFor(60 * 60 * 24);
+        $response->cacheFor(60 * 60 * 24, $public);
         return $response;
+    }
+
+
+    /**
+     * Persoenliches Hintergrundbild des angemeldeten Nutzers. Nur fuer ihn
+     * selbst abrufbar - andere Nutzer oder Gaeste erreichen es nicht.
+     */
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function userBackground(): Response {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        return $this->imageResponse(BackgroundImage::userKey($user->getUID()), false);
     }
 
     #[PublicPage]
@@ -140,8 +178,9 @@ class AssetController extends Controller {
         );
 
         // Bei Nextcloud-Gestaltung Nextclouds Hauptfarbe, sonst die eigene
-        // Leistenfarbe (siehe PlayerPage::barColor()).
-        $barColor = $this->playerPage->barColor();
+        // Leistenfarbe. Angemeldet zaehlt die persoenliche Wahl.
+        $uid = $s === '' ? $this->userSession->getUser()?->getUID() : null;
+        $barColor = $this->appearance->barColor($this->appearance->resolve($uid)['design']);
 
         /*
          * Bewusst absolute Adressen: Das Manifest wird auch von der

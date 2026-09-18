@@ -635,6 +635,10 @@
     // Server - der Abmelde-Knopf wuerde nur in einen Fehler laufen.
     const logout = document.getElementById('logout-btn');
     if (logout) logout.hidden = true;
+
+    // Persoenliche Einstellungen brauchen den Server
+    const settingsBtn = document.getElementById('user-settings-btn');
+    if (settingsBtn) settingsBtn.hidden = true;
   }
 
   /**
@@ -678,20 +682,13 @@
   }
 
   // ------------------------------------------------------------------
-  // Login (inkl. Admin-Trigger: Passwort "admin" führt ins Admin-Portal)
+  // Login
   // ------------------------------------------------------------------
   loginForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     loginError.hidden = true;
 
     const entered = loginPassword.value;
-
-    // Trigger für das Admin-Portal: Wort "admin" eingeben -> zweite,
-    // separate Passwortabfrage auf admin.html.
-    if (entered.trim().toLowerCase() === 'admin') {
-      window.location.href = 'admin.html';
-      return;
-    }
 
     loginSubmit.disabled = true;
     loginSubmit.textContent = 'Anmelden …';
@@ -1323,6 +1320,132 @@
   // Play/Pause spiegeln sich beide in der Liste wider.
   Player.onTrackChange(updateActiveRow);
   Player.onPlayStateChange(updateActiveRow);
+
+  // ------------------------------------------------------------------
+  // Persoenliche Darstellung (Zahnrad, nur angemeldet)
+  //
+  // Gestaltung und Hintergrundbild gelten nur fuer die eigene Ansicht.
+  // Nach dem Uebernehmen wird die Seite neu geladen: Gestaltung und Bild
+  // setzt der Server bereits beim Ausliefern, so steht alles sofort richtig
+  // da - auch in der installierten App und im Offline-Start.
+  // ------------------------------------------------------------------
+  const userSettingsBtn = document.getElementById('user-settings-btn');
+  const userSettingsPanel = document.getElementById('user-settings');
+
+  if (AudioArchive.userSettings && userSettingsBtn && userSettingsPanel) {
+    userSettingsBtn.hidden = false;
+
+    const usError = document.getElementById('us-error');
+    const usBackgroundState = document.getElementById('us-background-state');
+    const usBackgroundFile = document.getElementById('us-background-file');
+    const usBackgroundRemove = document.getElementById('us-background-remove');
+    const usDefaultLabel = document.getElementById('us-design-default-label');
+    let usChanged = false;
+
+    const designName = (d) => (d === 'nextcloud' ? 'Nextcloud' : 'Eigene Gestaltung');
+
+    function usShowError(message) {
+      usError.textContent = message || '';
+      usError.hidden = !message;
+    }
+
+    function usShowBackground(has) {
+      usBackgroundRemove.hidden = !has;
+      usBackgroundState.textContent = has
+        ? 'Eigenes Bild gesetzt. Es gilt in beiden Gestaltungen.'
+        : 'Kein eigenes Bild – es gilt die Vorgabe.';
+    }
+
+    /** Schreibender Aufruf mit Nextclouds Anfrage-Token. */
+    async function usRequest(name, options) {
+      const res = await fetch(AudioArchive.api(name), {
+        credentials: 'same-origin',
+        ...options,
+        headers: { requesttoken: AudioArchive.requestToken, ...(options.headers || {}) },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || (res.status === 412
+          ? 'Sitzung abgelaufen – bitte die Seite neu laden.'
+          : 'Speichern fehlgeschlagen.'));
+      }
+      return data;
+    }
+
+    async function openUserSettings() {
+      usShowError('');
+      userSettingsPanel.hidden = false;
+      userSettingsPanel.scrollIntoView({ block: 'nearest' });
+      try {
+        const res = await fetch(AudioArchive.api('user/settings'), { credentials: 'same-origin' });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || '');
+        usDefaultLabel.textContent = 'Vorgabe des Administrators (' + designName(data.adminDesign) + ')';
+        userSettingsPanel.querySelectorAll('input[name="us-design"]').forEach((input) => {
+          input.checked = input.value === (data.design || '');
+        });
+        usShowBackground(data.hasBackground === true);
+      } catch (err) {
+        usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
+      }
+    }
+
+    function closeUserSettings() {
+      userSettingsPanel.hidden = true;
+      // Ein neues oder entferntes Bild zeigt sich erst nach dem Neuladen
+      if (usChanged) location.reload();
+    }
+
+    userSettingsBtn.addEventListener('click', () => {
+      if (userSettingsPanel.hidden) openUserSettings(); else closeUserSettings();
+    });
+    document.getElementById('us-cancel').addEventListener('click', closeUserSettings);
+
+    document.getElementById('us-save').addEventListener('click', async () => {
+      const chosen = userSettingsPanel.querySelector('input[name="us-design"]:checked');
+      usShowError('');
+      try {
+        await usRequest('user/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ design: chosen ? chosen.value : '' }),
+        });
+        location.reload();
+      } catch (err) {
+        usShowError(err.message);
+      }
+    });
+
+    usBackgroundFile.addEventListener('change', async () => {
+      const file = usBackgroundFile.files[0];
+      if (!file) return;
+      usShowError('');
+      usBackgroundState.textContent = 'Lade hoch …';
+      const form = new FormData();
+      form.append('file', file);
+      try {
+        await usRequest('user/background', { method: 'POST', body: form });
+        usChanged = true;
+        usShowBackground(true);
+      } catch (err) {
+        usShowError(err.message);
+        usShowBackground(!usBackgroundRemove.hidden);
+      } finally {
+        usBackgroundFile.value = '';
+      }
+    });
+
+    usBackgroundRemove.addEventListener('click', async () => {
+      usShowError('');
+      try {
+        await usRequest('user/background/remove', { method: 'POST' });
+        usChanged = true;
+        usShowBackground(false);
+      } catch (err) {
+        usShowError(err.message);
+      }
+    });
+  }
 
   // ------------------------------------------------------------------
   // Start

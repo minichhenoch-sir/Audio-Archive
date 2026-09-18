@@ -16,8 +16,18 @@ $rootClasses = [$_['embedded'] === '1' ? 'aa-embedded' : 'aa-standalone'];
 if ($_['design'] === 'nextcloud') {
     $rootClasses[] = 'aa-design-nextcloud';
 }
+/*
+ * Hintergrundbild fuer die Nextcloud-Gestaltung als CSS-Variable. (Bei
+ * eigener Gestaltung setzt app.js das Bild, zusammen mit dem Farbverlauf.)
+ * Die Adresse stammt aus dem eigenen Router und wird trotzdem maskiert.
+ */
+$rootStyle = '';
+if ($_['backgroundUrl'] !== '') {
+    $rootClasses[] = 'aa-has-image';
+    $rootStyle = '--aa-image: url("' . str_replace(['"', '\\', "\n"], '', $_['backgroundUrl']) . '")';
+}
 ?>
-<div id="audioarchive" class="<?php echo $escape(implode(' ', $rootClasses)); ?>">
+<div id="audioarchive" class="<?php echo $escape(implode(' ', $rootClasses)); ?>"<?php if ($rootStyle !== '') { ?> style="<?php echo $escape($rootStyle); ?>"<?php } ?>>
 
 <!--
   Startwerte fuer die Skripte. Bewusst als data-Attribute statt als
@@ -27,6 +37,8 @@ if ($_['design'] === 'nextcloud') {
 <div id="app-config"
      data-public-token="<?php echo $escape($_['publicToken']); ?>"
      data-design="<?php echo $escape($_['design']); ?>"
+     data-user-settings="<?php echo $escape($_['userSettings']); ?>"
+     data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
@@ -74,6 +86,15 @@ if ($_['design'] === 'nextcloud') {
       <h1 id="topbar-title"></h1>
       <p id="topbar-subtitle" class="topbar-subtitle" hidden></p>
     </div>
+    <!-- Persoenliche Einstellungen (nur angemeldet, sofern erlaubt) -->
+    <button id="user-settings-btn" class="icon-btn glass-pill" type="button"
+            title="Darstellung" aria-label="Darstellung" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+      </svg>
+    </button>
+
     <!--
       Eingebettet: fuehrt zur Fassung ohne Nextcloud-Leiste, wo der Browser
       die Installation anbietet. Eigenstaendig: erscheint nur, wenn der
@@ -100,6 +121,37 @@ if ($_['design'] === 'nextcloud') {
     <p id="offline-banner" class="offline-banner" hidden>
       Keine Internetverbindung &ndash; es werden nur gespeicherte Aufnahmen angezeigt.
     </p>
+
+    <!-- Persoenliche Darstellung, geoeffnet ueber das Zahnrad -->
+    <section id="user-settings" class="panel" hidden>
+      <h2 class="panel-title">Darstellung</h2>
+      <p class="panel-hint">Gilt nur für deine eigene Ansicht.</p>
+
+      <fieldset class="panel-group">
+        <legend>Gestaltung</legend>
+        <label class="panel-choice"><input type="radio" name="us-design" value=""> <span id="us-design-default-label">Vorgabe</span></label>
+        <label class="panel-choice"><input type="radio" name="us-design" value="custom"> Eigene Gestaltung</label>
+        <label class="panel-choice"><input type="radio" name="us-design" value="nextcloud"> Nextcloud (Hell/Dunkel automatisch)</label>
+      </fieldset>
+
+      <fieldset class="panel-group">
+        <legend>Hintergrundbild</legend>
+        <p class="panel-hint" id="us-background-state"></p>
+        <div class="panel-row">
+          <label class="panel-button">
+            Bild wählen …
+            <input type="file" id="us-background-file" accept="image/png,image/jpeg,image/webp" hidden>
+          </label>
+          <button type="button" class="panel-button" id="us-background-remove" hidden>Entfernen</button>
+        </div>
+      </fieldset>
+
+      <p class="panel-error" id="us-error" hidden></p>
+      <div class="panel-row panel-actions">
+        <button type="button" class="panel-button panel-button--primary" id="us-save">Übernehmen</button>
+        <button type="button" class="panel-button" id="us-cancel">Schließen</button>
+      </div>
+    </section>
 
     <!-- Hinweisstreifen, vom Administrator gefuellt (siehe Einstellungen) -->
     <div id="beta-notice" class="beta-notice" hidden></div>

@@ -924,15 +924,14 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: auto;
   gap: 8px;
   padding: 0 16px 0 13px;
-  margin-left: auto;
   text-decoration: none;
   font-size: calc(0.85 * var(--aa-rem));
   font-weight: 500;
   white-space: nowrap;
 }
 
-/* Neben dem Abmelde-Knopf nicht an den Rand schieben */
-#audioarchive .install-btn + .icon-btn { margin-left: 0; }
+/* Titel links, alle Knoepfe rechts gebuendelt - egal wie viele sichtbar sind */
+#audioarchive .topbar-titles { margin-right: auto; }
 
 /* Auf dem Telefon nur das Symbol, damit der Titel Platz behaelt */
 @media (max-width: 640px) {
@@ -941,6 +940,89 @@ body.has-bg-image #audioarchive .explorer-row.active {
     padding: 0;
   }
   #audioarchive .install-btn-label { display: none; }
+}
+
+/* ===================== PERSOENLICHE DARSTELLUNG (Panel) ===================== */
+
+#audioarchive .panel {
+  margin: 0 0 14px;
+  padding: 16px 18px;
+  border-radius: 18px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font-size: calc(0.9 * var(--aa-rem));
+}
+
+#audioarchive .panel-title {
+  margin: 0 0 2px;
+  font-size: calc(1.05 * var(--aa-rem));
+  font-weight: 600;
+}
+
+#audioarchive .panel-hint {
+  margin: 0 0 10px;
+  color: var(--color-ink-soft);
+  font-size: calc(0.82 * var(--aa-rem));
+}
+
+#audioarchive .panel-group {
+  border: none;
+  margin: 12px 0 0;
+  padding: 0;
+  min-width: 0;
+}
+
+#audioarchive .panel-group legend {
+  padding: 0;
+  margin-bottom: 6px;
+  font-weight: 600;
+}
+
+#audioarchive .panel-choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+}
+
+#audioarchive .panel-choice input { accent-color: var(--color-accent); margin: 0; }
+
+#audioarchive .panel-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+#audioarchive .panel-actions { margin-top: 16px; }
+
+#audioarchive .panel-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-light-border);
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--color-accent-deep);
+  font-size: calc(0.85 * var(--aa-rem));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+#audioarchive .panel-button--primary {
+  background: var(--color-accent);
+  color: #2a1a0e;
+  border-color: transparent;
+}
+
+#audioarchive .panel-button:active { transform: scale(0.96); }
+
+#audioarchive .panel-error {
+  margin: 10px 0 0;
+  color: var(--color-danger);
 }
 
 /* =====================================================================
@@ -1279,5 +1361,67 @@ html.aa-standalone:has(.aa-design-nextcloud) {
     inset: var(--body-container-margin, 8px);
     border-radius: var(--aa-nc-radius-large);
     background: var(--aa-nc-bg);
+  }
+}
+
+/* ---------- Persoenliche Darstellung ---------- */
+#audioarchive.aa-design-nextcloud .panel {
+  background: var(--aa-nc-bg);
+  border: 1px solid var(--aa-nc-border);
+  border-radius: var(--aa-nc-radius-large);
+  box-shadow: var(--aa-nc-shadow);
+}
+#audioarchive.aa-design-nextcloud .panel-choice input { accent-color: var(--aa-nc-primary); }
+#audioarchive.aa-design-nextcloud .panel-button {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+  border: none;
+  border-radius: var(--aa-nc-radius);
+}
+#audioarchive.aa-design-nextcloud .panel-button:hover { background: var(--aa-nc-primary-light-hover); }
+#audioarchive.aa-design-nextcloud .panel-button--primary {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+}
+#audioarchive.aa-design-nextcloud .panel-button--primary:hover { background: var(--aa-nc-primary-hover); }
+
+/* ---------- Eigenes Hintergrundbild bei Nextcloud-Gestaltung ----------
+ * Das Bild liegt hinter allem (wie bei eigener Gestaltung); Kopfzeile und
+ * Liste stehen auf ruhigen Flaechen in Nextclouds Hauptfarbe, damit alles
+ * lesbar bleibt - aehnlich wie Nextcloud selbst sein Hintergrundbild rund
+ * um den Inhaltsbereich zeigt. */
+#audioarchive.aa-design-nextcloud.aa-has-image #bg-layer,
+#audioarchive.aa-design-nextcloud.aa-has-image #login-screen {
+  background-color: var(--color-background-plain, #00679e);
+  background-image: var(--aa-image);
+  background-size: cover;
+  background-position: center;
+}
+
+#audioarchive.aa-design-nextcloud.aa-has-image .topbar {
+  background: var(--color-main-background-blur, rgba(255, 255, 255, 0.85));
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+}
+
+#audioarchive.aa-design-nextcloud.aa-has-image .library {
+  background: var(--aa-nc-bg);
+  border-radius: var(--aa-nc-radius-large);
+  margin-top: 16px;
+  margin-bottom: 16px;
+  padding-top: 16px;
+  box-shadow: var(--aa-nc-shadow);
+}
+
+@media (min-width: 1024px) {
+  #audioarchive.aa-standalone.aa-design-nextcloud.aa-has-image #bg-layer {
+    background-image: var(--aa-image);
+  }
+  /* Mit eigenem Bild keine zusaetzliche Rahmung: Die Liste ist bereits
+     eine eigene Flaeche. */
+  #audioarchive.aa-standalone.aa-design-nextcloud.aa-has-image #main-screen {
+    inset: 0;
+    border-radius: 0;
+    background: transparent;
   }
 }

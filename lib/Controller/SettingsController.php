@@ -64,6 +64,8 @@ class SettingsController extends Controller {
         ?string $themeBar = null,
         ?string $themeBase = null,
         ?string $design = null,
+        ?bool $backgroundNextcloud = null,
+        ?bool $userCustomization = null,
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
         ?bool $betaEnabled = null,
@@ -180,6 +182,17 @@ class SettingsController extends Controller {
                 );
             }
             $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_DESIGN, $design);
+        }
+
+        if ($backgroundNextcloud !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, $backgroundNextcloud
+            );
+        }
+        if ($userCustomization !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_USER_CUSTOMIZATION, $userCustomization
+            );
         }
 
         // ---------- Funktionen ----------

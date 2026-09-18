@@ -4,10 +4,9 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Service;
 
 use OCA\AudioArchive\AppInfo\Application;
-use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
-use OCP\Defaults;
+use OCP\IUserSession;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 
@@ -33,33 +32,9 @@ class PlayerPage {
     public function __construct(
         private IAppConfig $appConfig,
         private IURLGenerator $urlGenerator,
-        private BackgroundImage $backgroundImage,
-        private Defaults $defaults,
+        private Appearance $appearance,
+        private IUserSession $userSession,
     ) {
-    }
-
-    /** Ist die Nextcloud-Gestaltung eingestellt? */
-    public function usesNextcloudDesign(): bool {
-        return $this->appConfig->getValueString(
-            Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
-        ) === Application::DESIGN_NEXTCLOUD;
-    }
-
-    /**
-     * Farbe fuer die Statusleiste der installierten App und das Manifest.
-     * Bei Nextcloud-Gestaltung Nextclouds Hauptfarbe, sonst die eigene
-     * Leistenfarbe.
-     */
-    public function barColor(): string {
-        if ($this->usesNextcloudDesign()) {
-            $primary = $this->defaults->getColorPrimary();
-            if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $primary)) {
-                return $primary;
-            }
-        }
-        return $this->appConfig->getValueString(
-            Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
-        );
     }
 
     /**
@@ -112,17 +87,29 @@ class PlayerPage {
         // Nextcloud-Leiste.
         $embedded = $embedded && $publicToken === '';
 
+        // Angemeldeter Nutzer - nur ausserhalb der oeffentlichen Seite
+        // relevant: Dort gilt, was fuer den Link eingestellt ist.
+        $user = $publicToken === '' ? $this->userSession->getUser() : null;
+        $uid = $user?->getUID();
+
+        $look = $this->appearance->resolve($uid);
+        $design = $look['design'];
+
         $params = [
             'publicToken' => $publicToken,
             'embedded' => $embedded ? '1' : '',
-            'design' => $this->usesNextcloudDesign()
-                ? Application::DESIGN_NEXTCLOUD
-                : Application::DESIGN_CUSTOM,
+            'design' => $design,
             // Nur eigenstaendig noetig, siehe themeStylesheets()
-            'themeStylesheets' => (!$embedded && $this->usesNextcloudDesign())
+            'themeStylesheets' => (!$embedded && $design === Application::DESIGN_NEXTCLOUD)
                 ? $this->themeStylesheets()
                 : [],
-            'themeColor' => $this->barColor(),
+            'themeColor' => $this->appearance->barColor($design),
+            // Darf der Nutzer in der App Gestaltung und Bild selbst waehlen?
+            'userSettings' => ($uid !== null && $this->appearance->userCustomizationAllowed()) ? '1' : '',
+            // Fuer Schreibzugriffe der App (persoenliche Einstellungen):
+            // Nextcloud verlangt dafuer das Anfrage-Token. Die eigenstaendige
+            // Seite hat kein OC.requestToken, deshalb steht es im Dokument.
+            'requestToken' => $uid !== null ? $this->requestToken() : '',
             // Adresse der eigenstaendigen Fassung, fuer den Knopf
             // "App installieren" auf der eingebetteten Seite
             'standaloneUrl' => $this->urlGenerator->linkToRoute(
@@ -167,12 +154,9 @@ class PlayerPage {
             'betaLinkLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
             ),
-            // Leer, wenn kein Bild gesetzt ist - dann zeigt die App den
-            // Verlauf aus dem Grundton.
-            'backgroundUrl' => $this->backgroundImage->exists()
-                ? $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.background')
-                  . '?v=' . $this->assetVersion()
-                : '',
+            // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
+            // dem Grundton bzw. Nextclouds Hintergrund (siehe Appearance).
+            'backgroundUrl' => $look['backgroundUrl'],
         ];
 
         $response = new TemplateResponse(
@@ -188,6 +172,16 @@ class PlayerPage {
         $csp->addAllowedMediaDomain("'self'");
         $csp->addAllowedImageDomain("'self'");
         $csp->addAllowedImageDomain('data:');
+
+        /*
+         * Service Worker ausdruecklich erlauben. Ohne worker-src greift der
+         * Browser auf script-src zurueck - und dort steht seit Nextcloud 34
+         * nur noch das Nonce, kein 'self'. Die Registrierung scheiterte dann
+         * still: keine Offline-Wiedergabe, kein Vorausladen, und die App war
+         * nicht installierbar. (Gefunden 0.10.0 an einer echten
+         * Nextcloud 34.0.3.)
+         */
+        $csp->addAllowedWorkerSrcDomain("'self'");
 
         /*
          * Hinweis zu 'strict-dynamic':
@@ -246,6 +240,14 @@ class PlayerPage {
      * Geheimnis - der vordere Teil traegt keine zusaetzliche Zufaelligkeit bei.
      * Deshalb wird hier am Doppelpunkt zerlegt und das letzte Stueck genommen.
      */
+    private function requestToken(): string {
+        try {
+            return \OCP\Util::callRegister();
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
     private function cspNonce(): string {
         try {
             $token = \OCP\Util::callRegister();
