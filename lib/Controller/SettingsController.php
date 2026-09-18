@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\BackgroundImage;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -37,6 +38,7 @@ class SettingsController extends Controller {
         private ISecureRandom $secureRandom,
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
+        private ShareService $shares,
     ) {
         parent::__construct($appName, $request);
     }
@@ -45,6 +47,8 @@ class SettingsController extends Controller {
      * @param string|null $sourceFolder Pfad innerhalb der Dateien des Administrators
      * @param bool|null $publicEnabled Oeffentlichen Zugang ein-/ausschalten
      * @param string|null $publicPassword Neues Passwort (leer = unveraendert)
+     * @param string|null $publicSlug Wunschname fuer den Link (ab 0.13),
+     *                                '' = wieder zufaellig
      * @param string|null $headerTitle
      * @param string|null $headerSubtitle
      * @param string|null $themeAccent
@@ -58,6 +62,7 @@ class SettingsController extends Controller {
         ?string $sourceFolder = null,
         ?bool $publicEnabled = null,
         ?string $publicPassword = null,
+        ?string $publicSlug = null,
         ?string $headerTitle = null,
         ?string $headerSubtitle = null,
         ?string $themeAccent = null,
@@ -132,6 +137,52 @@ class SettingsController extends Controller {
                         Application::APP_ID, Application::SETTING_PUBLIC_TOKEN, $token
                     );
                 }
+            }
+        }
+
+        // ---------- Wunschname fuer den Link (ab 0.13) ----------
+        if ($publicSlug !== null) {
+            $current = $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_PUBLIC_TOKEN, ''
+            );
+            $slug = ShareService::normalizeSlug($publicSlug);
+            $newToken = null;
+
+            if ($slug === '') {
+                // Wunschname entfernen: wieder ein zufaelliger Token
+                if ($current !== '' && preg_match(ShareService::SLUG_PATTERN, $current)) {
+                    do {
+                        $newToken = $this->secureRandom->generate(
+                            24,
+                            ISecureRandom::CHAR_LOWER . ISecureRandom::CHAR_UPPER . ISecureRandom::CHAR_DIGITS
+                        );
+                    } while (!$this->shares->isTokenAvailable($newToken));
+                }
+            } elseif ($slug !== $current) {
+                if (!preg_match(ShareService::SLUG_PATTERN, $slug)) {
+                    return new DataResponse(
+                        ['error' => 'Der Wunschname braucht 3 bis 64 Zeichen: Buchstaben a–z, Ziffern und Bindestriche.'],
+                        Http::STATUS_BAD_REQUEST
+                    );
+                }
+                // Gegen die Links der Nutzer pruefen. Der bisherige eigene
+                // Token zaehlt dabei nicht als Konflikt.
+                if (strtolower($current) !== $slug && !$this->shares->isTokenAvailable($slug)) {
+                    return new DataResponse(['error' => 'Dieser Name ist bereits vergeben.'], Http::STATUS_BAD_REQUEST);
+                }
+                $newToken = $slug;
+            }
+
+            /*
+             * Ein neuer Token macht den alten Link ungueltig - und damit
+             * auch bestehende Sitzungen und die Startadresse bereits
+             * installierter Apps. Das ist gewollt: Wer den Link aendert,
+             * will den alten meist nicht mehr gelten lassen.
+             */
+            if ($newToken !== null) {
+                $this->appConfig->setValueString(
+                    Application::APP_ID, Application::SETTING_PUBLIC_TOKEN, $newToken
+                );
             }
         }
 
@@ -255,7 +306,11 @@ class SettingsController extends Controller {
             );
         }
 
-        return new DataResponse(['publicUrl' => $this->publicUrl()]);
+        $token = $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_PUBLIC_TOKEN, '');
+        return new DataResponse([
+            'publicUrl' => $this->publicUrl(),
+            'publicSlug' => preg_match(ShareService::SLUG_PATTERN, $token) ? $token : '',
+        ]);
     }
 
     /**

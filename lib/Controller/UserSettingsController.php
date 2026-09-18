@@ -6,6 +6,7 @@ namespace OCA\AudioArchive\Controller;
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\BackgroundImage;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -15,8 +16,12 @@ use OCP\IRequest;
 use OCP\IUserSession;
 
 /**
- * Persoenliche Einstellungen eines angemeldeten Nutzers: Gestaltung und
- * eigenes Hintergrundbild. Sie gelten nur fuer seine eigene Ansicht.
+ * Persoenliche Einstellungen eines angemeldeten Nutzers. Seit 0.13 alle
+ * Oberflaechen-Einstellungen: Gestaltung, Titel, Zusatzzeile, die drei
+ * Farben und das Hintergrundbild. Sie gelten nur fuer seine eigene Ansicht.
+ * Leer bedeutet jeweils: Vorgabe des Administrators.
+ *
+ * Nicht dabei: der Beta-Hinweis. Den schaltet nur der Administrator.
  *
  * Alle Methoden verlangen einen angemeldeten Nutzer und - weil ohne
  * NoCSRFRequired - das Anfrage-Token von Nextcloud. Der Administrator kann
@@ -45,15 +50,23 @@ class UserSettingsController extends Controller {
 
         return new DataResponse([
             'allowed' => $this->appearance->userCustomizationAllowed(),
+            // Eigene Werte ('' = Vorgabe) und die Vorgaben des Administrators
+            'values' => $this->appearance->userValues($uid),
+            'admin' => $this->appearance->adminValues(),
             'design' => $this->appearance->userDesignPreference($uid),
             'adminDesign' => $this->appearance->adminDesign(),
             'hasBackground' => $this->backgroundImage->exists(BackgroundImage::userKey($uid)),
         ]);
     }
 
-    /** @param string $design '' (Vorgabe), 'custom' oder 'nextcloud' */
+    /**
+     * @param string $design '' (Vorgabe), 'custom' oder 'nextcloud'
+     * @param string|null $title, $subtitle, $themeAccent, $themeBar, $themeBase
+     *        null = unveraendert, '' = Vorgabe des Administrators
+     */
     #[NoAdminRequired]
-    public function set(string $design = ''): DataResponse {
+    public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
+        ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
@@ -65,8 +78,27 @@ class UserSettingsController extends Controller {
             return new DataResponse(['error' => 'Unbekannte Gestaltung.'], Http::STATUS_BAD_REQUEST);
         }
 
+        $values = [];
+        if ($title !== null) {
+            $values['title'] = mb_substr(trim($title), 0, 200);
+        }
+        if ($subtitle !== null) {
+            $values['subtitle'] = mb_substr(trim($subtitle), 0, 500);
+        }
+        foreach (['themeAccent' => $themeAccent, 'themeBar' => $themeBar, 'themeBase' => $themeBase] as $key => $value) {
+            if ($value === null) {
+                continue;
+            }
+            $value = trim($value);
+            if ($value !== '' && ShareService::normalizeColor($value) === '') {
+                return new DataResponse(['error' => 'Ungültiger Farbwert: ' . $value], Http::STATUS_BAD_REQUEST);
+            }
+            $values[$key] = ShareService::normalizeColor($value);
+        }
+
         $this->appearance->setUserDesignPreference($uid, $design);
-        return new DataResponse(['design' => $design]);
+        $this->appearance->setUserValues($uid, $values);
+        return new DataResponse(['design' => $design, 'values' => $this->appearance->userValues($uid)]);
     }
 
     #[NoAdminRequired]

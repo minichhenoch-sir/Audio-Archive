@@ -50,6 +50,8 @@ class Admin implements ISettings {
                 Application::APP_ID, Application::SETTING_PUBLIC_ENABLED, false
             ),
             'publicToken' => $token,
+            // Wunschname, sofern der Token einer ist (ab 0.13)
+            'publicSlug' => preg_match(\OCA\AudioArchive\Service\ShareService::SLUG_PATTERN, $token) ? $token : '',
             'publicUrl' => $token === '' ? '' : $this->urlGenerator->linkToRouteAbsolute(
                 Application::APP_ID . '.publicPlayer.index', ['token' => $token]
             ),

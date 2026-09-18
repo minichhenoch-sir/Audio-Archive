@@ -527,3 +527,82 @@ Weißes Mikrofon auf blauem Grund (vom Nutzer gewählt).
 Bereits installierte Apps übernehmen das neue Symbol, sobald der Browser das
 Manifest neu einliest. Das kann bis zu einem Tag dauern, auf dem iPhone ist
 eine Neuinstallation nötig.
+
+---
+
+## 0.13.0: Wunschnamen, persönliche Oberfläche, Teilen mit Nextcloud-Nutzern
+
+### Links mit Wunschnamen
+Statt einer Zufallsadresse lässt sich ein eigener Name vergeben:
+`/apps/audioarchive/s/gottesdienst-sonntag`.
+
+- Bei jedem Link eines Nutzers („Neuer Link" bzw. „Bearbeiten") und beim
+  öffentlichen Link des Administrators (Einstellungen → Verwaltung).
+- Erlaubt: a–z, Ziffern, Bindestrich, 3 bis 64 Zeichen. Eingaben werden
+  umgewandelt: „Gottesdienst Sonntag Über" → `gottesdienst-sonntag-ueber`.
+- Groß-/Kleinschreibung in der Adresse spielt keine Rolle.
+- Jeder Name nur einmal, auch nicht gleich dem Administrator-Link.
+- Feld leeren = wieder eine zufällige Adresse.
+- **Ändern macht den alten Link ungültig** (auch in installierten Apps
+  und für offline Gespeichertes dieses Links).
+- Wunschnamen sind leichter zu erraten. Aufrufe unbekannter Adressen werden
+  deshalb über Nextclouds Brute-Force-Schutz gedrosselt. Für private
+  Inhalte ein Passwort setzen.
+
+### Alle Oberflächen-Einstellungen persönlich
+Das Zahnrad bietet jetzt alles, was der Administrator für die Oberfläche
+einstellt: Gestaltung, **Titel, Zusatzzeile, die drei Farben** und
+Hintergrundbild. Leere Felder = Vorgabe des Administrators. Gilt nur für die
+eigene Ansicht (auch Titel und Leistenfarbe der installierten App). Der
+Schalter des Administrators „Nutzer dürfen … selbst wählen" sperrt weiterhin
+alles.
+
+### Beta-Hinweis nur durch den Administrator
+Aus den Freigaben entfernt. Ist er in der Verwaltung eingeschaltet, erscheint
+er **überall**: in der App, auf dem Administrator-Link und auf allen Links der
+Nutzer. Alte Beta-Werte in bestehenden Freigaben werden ignoriert.
+
+### Ordner mit Nextcloud-Nutzern und -Gruppen teilen
+„Diesen Ordner teilen" hat zwei Bereiche:
+
+| Bereich | Wirkung |
+|---|---|
+| **Mit Personen und Gruppen** | Suche über Nextcloud (beachtet dessen Einstellungen zum Teilen). Die Personen sehen den Ordner im Ordnerbaum unter **„Mit mir geteilt"** – nur in dieser App, nicht in der Dateien-App. Weiterteilen können sie nicht. |
+| **Öffentliche Links** | wie bisher, jetzt mit Wunschnamen |
+
+Beide Arten haben Ablaufdatum, Funktionen (Offline/Herunterladen) und ein
+eigenes Aussehen (Titel, Zusatzzeile, Gestaltung, Farben, Hintergrundbild).
+
+### Aussehen beim Empfänger: er entscheidet
+Öffnet der Empfänger einen mit ihm geteilten Ordner, erscheint darüber
+„Geteilt von …" und das Häkchen **„Aussehen der Freigabe verwenden"**
+(Vorgabe: an). Gespeichert je Freigabe und Nutzer. Felder, die der Teilende
+leer lässt, übernehmen die eigene Darstellung des Empfängers. Der Wechsel
+geschieht ohne Neuladen; Wiedergabe und Ordnerbaum bleiben erhalten. Beim
+Verlassen des Ordners gilt wieder die eigene Ansicht.
+
+Offline: Mit mir geteilte Ordner lassen sich wie andere speichern (eigener
+Bereich im Verzeichnis, `@@in:<id>:`).
+
+### Technik
+- Datenbank: Spalte `kind` in `audioarchive_shares` (`link`/`internal`,
+  bestehende Zeilen = `link`) und neue Tabelle `audioarchive_share_members`.
+  **Nextcloud meldet ein Update – bestätigen oder `occ upgrade`.**
+- Neue Quelle `in:<id>` für `api/list`, `api/tree`, `api/stream`; Zugriff
+  nur für Empfänger (direkt oder über eine Gruppe) und den Ersteller.
+- Interne Freigaben sind über keinen öffentlichen Weg erreichbar (Link-Seite,
+  Anmeldung, Bild, Manifest suchen ausschließlich `kind = link`).
+- Neue Endpunkte: `GET api/incoming`, `POST api/incoming/{id}/design`,
+  `GET api/members/search`, `GET background/incoming/{id}`.
+
+### Prüfen
+1. Update bestätigen, Container neu starten.
+2. Ordner teilen → „Neuer Link" mit Wunschnamen → Link im privaten Fenster
+   öffnen, auch mit Großbuchstaben in der Adresse.
+3. Ordner mit einem zweiten Nutzer teilen, Gestaltung „Nextcloud" wählen. Als
+   zweiter Nutzer: „Mit mir geteilt" → Ordner öffnen → Aussehen wechselt;
+   Häkchen abwählen → eigenes Aussehen; zurück zu „Meine Dateien" → eigenes.
+4. Empfänger aus der Freigabe entfernen → beim Empfänger verschwindet der
+   Ordner (nach Neuladen), direkter Aufruf liefert „nicht mehr geteilt".
+5. Zahnrad → Titel und Farben ändern → Übernehmen.
+6. Beta in der Verwaltung einschalten → erscheint auch auf Links der Nutzer.

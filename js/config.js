@@ -38,7 +38,21 @@ const AudioArchive = (() => {
     themeAccent: el.dataset.themeAccent || '#b9793f',
     themeBar: el.dataset.themeBar || '#291c12',
     themeBase: el.dataset.themeBase || '#a86a3d',
+    // Nextclouds Gestaltungs-Stylesheets zum Nachladen, falls ein mit dem
+    // Nutzer geteilter Ordner die Nextcloud-Gestaltung verwendet (ab 0.13)
+    themeStylesheets: (() => {
+      try {
+        const list = JSON.parse(el.dataset.themeStylesheets || '[]');
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        return [];
+      }
+    })(),
   };
+
+  // Aktuelle Gestaltung. Veraenderlich, weil ein mit dem Nutzer geteilter
+  // Ordner sein eigenes Aussehen mitbringen kann (siehe app.js, Look).
+  let currentDesign = data.design;
 
   return {
     ...data,
@@ -59,7 +73,10 @@ const AudioArchive = (() => {
     sourceQuery(source) {
       // Seite einer Freigabe: alles laeuft ueber deren Token
       if (data.apiToken) return 's=' + encodeURIComponent(data.apiToken) + '&';
-      return source === 'home' ? 'source=home&' : '';
+      if (source === 'home') return 'source=home&';
+      // Mit dem Nutzer geteilter Ordner (ab 0.13): 'in:<id>'
+      if (/^in:\d+$/.test(source || '')) return 'source=' + encodeURIComponent(source) + '&';
+      return '';
     },
 
     /** Anmelde-Status der oeffentlichen Seite (mit Token bei einer Freigabe). */
@@ -112,7 +129,17 @@ const AudioArchive = (() => {
      * und die eigenen Farben werden nicht gesetzt.
      */
     isNextcloudDesign() {
-      return data.design === 'nextcloud';
+      return currentDesign === 'nextcloud';
+    },
+
+    /** Gestaltung wechseln - nur ueber Look in app.js aufrufen. */
+    setDesign(design) {
+      currentDesign = design === 'nextcloud' ? 'nextcloud' : 'custom';
+    },
+
+    /** Ist die Quelle ein mit dem Nutzer geteilter Ordner ('in:<id>')? */
+    isIncoming(source) {
+      return /^in:\d+$/.test(source || '');
     },
 
     /** Ist der Aufruf ueber die oeffentliche Seite erfolgt? */

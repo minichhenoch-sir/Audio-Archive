@@ -1307,6 +1307,102 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 #audioarchive .tree-item.is-inactive { opacity: 0.55; }
 
+/* ---------- Ab 0.13: Wunschname, Personenauswahl, geteilter Ordner ---------- */
+#audioarchive .share-slug-preview {
+  word-break: break-all;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: calc(0.78 * var(--aa-rem));
+}
+
+#audioarchive .member-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 6px 0;
+}
+
+#audioarchive .member-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#audioarchive .member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 4px 12px;
+  border-radius: 999px;
+  background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.16);
+  color: var(--color-ink);
+  font-size: calc(0.85 * var(--aa-rem));
+}
+
+#audioarchive .member-chip-remove {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: calc(1.05 * var(--aa-rem));
+  line-height: 1;
+  cursor: pointer;
+}
+
+#audioarchive .member-chip-remove:hover { background: rgba(0, 0, 0, 0.08); }
+
+#audioarchive .member-results {
+  display: flex;
+  flex-direction: column;
+  max-height: 220px;
+  overflow-y: auto;
+  border-radius: 10px;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(255, 255, 255, 0.92);
+}
+
+#audioarchive .member-result {
+  text-align: left;
+  padding: 9px 12px;
+  border: none;
+  background: transparent;
+  color: var(--color-ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+#audioarchive .member-result:hover,
+#audioarchive .member-result:focus-visible { background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.14); }
+
+#audioarchive .member-results .panel-hint { padding: 9px 12px; margin: 0; }
+
+#audioarchive .incoming-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  margin-bottom: 12px;
+  padding: 9px 16px;
+  border-radius: 14px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  color: var(--color-ink);
+  font-size: calc(0.85 * var(--aa-rem));
+}
+
+#audioarchive .incoming-info { font-weight: 600; }
+
+#audioarchive .incoming-design {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+#audioarchive .incoming-design input { accent-color: var(--color-accent); margin: 0; }
+#audioarchive .incoming-design[hidden] { display: none; }
+
 /* =====================================================================
  * NEXTCLOUD-GESTALTUNG (Einstellung "Gestaltung: Nextcloud")
  * =====================================================================
@@ -1784,3 +1880,24 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   box-shadow: 0 0 0 1px var(--aa-nc-primary);
 }
 #audioarchive.aa-design-nextcloud .panel-button--danger { color: var(--color-text-error, #c9302c); }
+
+/* ---------- Nextcloud-Gestaltung: Ergaenzungen 0.13 ---------- */
+#audioarchive.aa-design-nextcloud .member-chip {
+  background: var(--aa-nc-primary-light);
+  color: var(--aa-nc-primary-light-text);
+}
+#audioarchive.aa-design-nextcloud .member-chip-remove:hover { background: var(--aa-nc-primary-light-hover); }
+#audioarchive.aa-design-nextcloud .member-results {
+  background: var(--aa-nc-bg);
+  border-color: var(--aa-nc-border);
+}
+#audioarchive.aa-design-nextcloud .member-result { color: var(--aa-nc-text); }
+#audioarchive.aa-design-nextcloud .member-result:hover,
+#audioarchive.aa-design-nextcloud .member-result:focus-visible { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud .incoming-bar {
+  background: var(--aa-nc-bg);
+  border-color: var(--aa-nc-border);
+  color: var(--aa-nc-text);
+  border-radius: var(--aa-nc-radius-large);
+}
+#audioarchive.aa-design-nextcloud .incoming-design input { accent-color: var(--aa-nc-primary); }

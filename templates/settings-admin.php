@@ -36,6 +36,14 @@
                placeholder="Passwort setzen oder ändern">
     </div>
     <p class="settings-hint" id="aa-public-password-state"></p>
+    <div class="aa-field">
+        <label for="aa-public-slug">Wunschname im Link (optional)</label>
+        <input type="text" id="aa-public-slug" autocomplete="off" placeholder="z. B. gottesdienste">
+        <p class="settings-hint" id="aa-public-slug-preview">
+            Leer = zufällige Adresse. Wird der Name geändert, funktioniert der
+            bisherige Link nicht mehr – auch nicht in bereits installierten Apps.
+        </p>
+    </div>
     <div class="aa-row" id="aa-public-url-row" hidden>
         <input type="text" id="aa-public-url" readonly>
         <button type="button" id="aa-public-copy">Link kopieren</button>
@@ -48,14 +56,15 @@
         <label for="aa-user-shares">Angemeldete Nutzer dürfen Ordner über die App teilen</label>
     </p>
     <p class="settings-hint">
-        Jede Freigabe hat einen eigenen Link mit eigenen Einstellungen
-        (Passwort, Ablaufdatum, Aussehen, Funktionen). Abschalten sperrt nur das
-        Anlegen neuer Freigaben. Bestehende bleiben gültig, bis sie hier
-        gelöscht werden.
+        Zwei Arten: öffentliche Links (auch mit Wunschnamen) und Freigaben an
+        Nextcloud-Nutzer und -Gruppen, die nur in dieser App unter „Mit mir
+        geteilt" erscheinen. Jede Freigabe hat eigene Einstellungen (Ablauf,
+        Aussehen, Funktionen). Abschalten sperrt nur das Anlegen neuer
+        Freigaben. Bestehende bleiben gültig, bis sie hier gelöscht werden.
     </p>
     <table class="aa-shares" id="aa-shares" hidden>
         <thead>
-            <tr><th>Ordner</th><th>Angelegt von</th><th>Passwort</th><th>Ablauf</th><th></th></tr>
+            <tr><th>Ordner</th><th>Angelegt von</th><th>Art / Zugang</th><th>Ablauf</th><th></th></tr>
         </thead>
         <tbody></tbody>
     </table>
@@ -164,7 +173,9 @@
     <h3>Beta-Hinweis</h3>
     <p class="settings-hint">
         Kennzeichnet die App als in Entwicklung: ein „Beta"-Zeichen neben dem
-        Titel und ein Hinweisstreifen über dem Pfad.
+        Titel und ein Hinweisstreifen über dem Pfad. Nur hier ein- und
+        ausschaltbar – eingeschaltet erscheint er überall: in der App, auf dem
+        öffentlichen Link und auf allen Links der Nutzer.
     </p>
     <p>
         <input type="checkbox" id="aa-beta-enabled" class="checkbox">

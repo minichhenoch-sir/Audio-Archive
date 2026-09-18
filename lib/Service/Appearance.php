@@ -74,6 +74,126 @@ class Appearance {
     }
 
     /**
+     * Persoenliche Oberflaechen-Werte eines Nutzers (ab 0.13). Leere Werte
+     * bedeuten "Vorgabe des Administrators". Ist die persoenliche
+     * Einstellung abgeschaltet, gelten alle Werte als leer.
+     *
+     * @return array{design: string, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string}
+     */
+    public function userValues(?string $uid): array {
+        $values = ['design' => '', 'title' => '', 'subtitle' => '', 'themeAccent' => '', 'themeBar' => '', 'themeBase' => ''];
+        if ($uid === null || !$this->userCustomizationAllowed()) {
+            return $values;
+        }
+        $values['design'] = $this->userDesignPreference($uid);
+        $values['title'] = $this->config->getUserValue($uid, Application::APP_ID, Application::USER_TITLE, '');
+        $values['subtitle'] = $this->config->getUserValue($uid, Application::APP_ID, Application::USER_SUBTITLE, '');
+        foreach ([
+            'themeAccent' => Application::USER_THEME_ACCENT,
+            'themeBar' => Application::USER_THEME_BAR,
+            'themeBase' => Application::USER_THEME_BASE,
+        ] as $key => $configKey) {
+            $values[$key] = ShareService::normalizeColor(
+                $this->config->getUserValue($uid, Application::APP_ID, $configKey, '')
+            );
+        }
+        return $values;
+    }
+
+    /** Speichert die persoenlichen Texte und Farben ('' = Vorgabe). */
+    public function setUserValues(string $uid, array $values): void {
+        $map = [
+            'title' => Application::USER_TITLE,
+            'subtitle' => Application::USER_SUBTITLE,
+            'themeAccent' => Application::USER_THEME_ACCENT,
+            'themeBar' => Application::USER_THEME_BAR,
+            'themeBase' => Application::USER_THEME_BASE,
+        ];
+        foreach ($map as $key => $configKey) {
+            if (!array_key_exists($key, $values)) {
+                continue;
+            }
+            $value = (string)$values[$key];
+            if ($value === '') {
+                $this->config->deleteUserValue($uid, Application::APP_ID, $configKey);
+            } else {
+                $this->config->setUserValue($uid, Application::APP_ID, $configKey, $value);
+            }
+        }
+    }
+
+    /** Wert des Administrators fuer Titel, Zusatzzeile und Farben. */
+    public function adminValues(): array {
+        $get = fn (string $key, string $default) => $this->appConfig->getValueString(Application::APP_ID, $key, $default);
+        return [
+            'design' => $this->adminDesign(),
+            'title' => $get(Application::SETTING_HEADER_TITLE, 'Recordings'),
+            'subtitle' => $get(Application::SETTING_HEADER_SUBTITLE, ''),
+            'themeAccent' => $get(Application::SETTING_THEME_ACCENT, '#b9793f'),
+            'themeBar' => $get(Application::SETTING_THEME_BAR, '#291c12'),
+            'themeBase' => $get(Application::SETTING_THEME_BASE, '#a86a3d'),
+        ];
+    }
+
+    /**
+     * Vollstaendiges Aussehen der eigenen Ansicht eines Nutzers: seine
+     * Werte, wo gesetzt, sonst die des Administrators. Ohne Nutzer (null)
+     * nur die Werte des Administrators.
+     *
+     * @return array{design: string, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
+     */
+    public function effectiveLook(?string $uid): array {
+        $look = $this->adminValues();
+        foreach ($this->userValues($uid) as $key => $value) {
+            if ($value !== '') {
+                $look[$key] = $value;
+            }
+        }
+        $look['backgroundUrl'] = $this->resolve($uid)['backgroundUrl'];
+        return $look;
+    }
+
+    /**
+     * Aussehen einer internen Freigabe fuer ihren Empfaenger (ab 0.13):
+     * Was der Teilende festgelegt hat, sonst die eigene Ansicht des
+     * Empfaengers - nicht die des Administrators. So wirkt eine Freigabe,
+     * die nur die Farben aendert, beim Empfaenger nicht fremder als noetig.
+     *
+     * @return array{design: string, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
+     */
+    public function incomingLook(array $share, string $uid): array {
+        $own = $this->effectiveLook($uid);
+        $settings = $share['settings'];
+        $look = $own;
+        foreach (['design', 'title', 'subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
+            if (($settings[$key] ?? '') !== '') {
+                $look[$key] = $settings[$key];
+            }
+        }
+
+        $key = BackgroundImage::shareKey($share['id']);
+        if ($this->backgroundImage->exists($key)) {
+            $look['backgroundUrl'] = $this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.asset.incomingBackground', ['id' => $share['id']]
+            ) . '?v=' . $this->backgroundImage->version($key);
+        } elseif ($look['design'] !== $own['design']) {
+            // Andere Gestaltung als die eigene: das dazu passende Bild
+            $look['backgroundUrl'] = $this->backgroundFor($uid, $look['design']);
+        }
+        return $look;
+    }
+
+    /** Hintergrundbild eines Nutzers fuer eine bestimmte Gestaltung. */
+    private function backgroundFor(?string $uid, string $design): string {
+        if ($uid !== null && $this->userCustomizationAllowed()
+            && $this->backgroundImage->exists(BackgroundImage::userKey($uid))) {
+            return $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.userBackground')
+                . '?v=' . $this->backgroundImage->version(BackgroundImage::userKey($uid));
+        }
+        return $this->adminBackgroundUrl($design);
+    }
+
+    /**
      * Aussehen fuer einen angemeldeten Nutzer (uid) bzw. ohne Nutzer (null,
      * etwa der Administrator-Link).
      *

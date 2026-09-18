@@ -109,24 +109,43 @@ class PlayerPage {
         $design = $look['design'];
         $shareSettings = $share['settings'] ?? null;
 
-        // Wert der Freigabe, sonst die Einstellung des Administrators
-        $pick = function (string $shareKey, string $adminKey, string $default) use ($shareSettings): string {
-            if ($shareSettings !== null && $shareSettings[$shareKey] !== '') {
-                return $shareSettings[$shareKey];
+        /*
+         * Titel, Zusatzzeile und Farben, jeweils die spezifischste Ebene:
+         *   Link-Seite:   Wert der Freigabe, sonst Administrator
+         *   angemeldet:   persoenlicher Wert (ab 0.13), sonst Administrator
+         *   Admin-Link:   Administrator
+         */
+        $values = $share !== null ? $this->appearance->adminValues() : $this->appearance->effectiveLook($uid);
+        if ($shareSettings !== null) {
+            foreach (['subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
+                if ($shareSettings[$key] !== '') {
+                    $values[$key] = $shareSettings[$key];
+                }
             }
-            return $this->appConfig->getValueString(Application::APP_ID, $adminKey, $default);
-        };
+            $values['title'] = $shareSettings['title'] !== '' ? $shareSettings['title'] : $this->shareFolderName($share);
+            // Ohne eigene Zusatzzeile keine des Administrators - der Link
+            // zeigt einen anderen Ordner als dessen Seite
+            if ($shareSettings['subtitle'] === '') {
+                $values['subtitle'] = '';
+            }
+        }
+
+        // Stylesheets mit Nextclouds Variablen - eigenstaendig bei
+        // Nextcloud-Gestaltung sofort, angemeldet zusaetzlich zum Nachladen,
+        // falls ein mit dem Nutzer geteilter Ordner diese Gestaltung hat
+        $themeStylesheets = !$embedded ? $this->themeStylesheets() : [];
 
         $params = [
             'publicToken' => $publicToken,
             'embedded' => $embedded ? '1' : '',
             'design' => $design,
             // Nur eigenstaendig noetig, siehe themeStylesheets()
-            'themeStylesheets' => (!$embedded && $design === Application::DESIGN_NEXTCLOUD)
-                ? $this->themeStylesheets()
-                : [],
-            'themeColor' => $this->appearance->barColor($design, $shareSettings['themeBar'] ?? ''),
-            // Darf der Nutzer in der App Gestaltung und Bild selbst waehlen?
+            'themeStylesheets' => $design === Application::DESIGN_NEXTCLOUD ? $themeStylesheets : [],
+            'themeStylesheetsJson' => ($uid !== null && $design !== Application::DESIGN_NEXTCLOUD)
+                ? (string)json_encode($themeStylesheets, JSON_UNESCAPED_SLASHES)
+                : '[]',
+            'themeColor' => $this->appearance->barColor($design, $values['themeBar']),
+            // Darf der Nutzer in der App seine Darstellung selbst waehlen?
             'userSettings' => ($uid !== null && $this->appearance->userCustomizationAllowed()) ? '1' : '',
             // Fuer Schreibzugriffe der App (persoenliche Einstellungen):
             // Nextcloud verlangt dafuer das Anfrage-Token. Die eigenstaendige
@@ -143,19 +162,11 @@ class PlayerPage {
             'standaloneUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.page.standalone'
             ),
-            'headerTitle' => $shareSettings !== null
-                ? ($shareSettings['title'] !== '' ? $shareSettings['title'] : $this->shareFolderName($share))
-                : $this->appConfig->getValueString(
-                    Application::APP_ID, Application::SETTING_HEADER_TITLE, 'Recordings'
-                ),
-            'headerSubtitle' => $shareSettings !== null
-                ? $shareSettings['subtitle']
-                : $this->appConfig->getValueString(
-                    Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
-                ),
-            'themeBar' => $pick('themeBar', Application::SETTING_THEME_BAR, '#291c12'),
-            'themeAccent' => $pick('themeAccent', Application::SETTING_THEME_ACCENT, '#b9793f'),
-            'themeBase' => $pick('themeBase', Application::SETTING_THEME_BASE, '#a86a3d'),
+            'headerTitle' => $values['title'],
+            'headerSubtitle' => $values['subtitle'],
+            'themeBar' => $values['themeBar'],
+            'themeAccent' => $values['themeAccent'],
+            'themeBase' => $values['themeBase'],
             // Freigabe eines Nutzers: Die App haengt diesen Token an alle
             // Abrufe (s=...). Beim Administrator-Link bleibt er leer, damit
             // dessen Adressen - und damit offline Gespeichertes - gleich
@@ -165,7 +176,7 @@ class PlayerPage {
             'openAccess' => ($share !== null && !$share['hasPassword']) ? '1' : '',
             'manifestUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.asset.manifest'
-            ) . ($publicToken !== '' ? '?s=' . urlencode($publicToken) : ''),
+            ) . ($publicToken !== '' ? '?s=' . urlencode($share !== null ? $share['token'] : $publicToken) : ''),
             'serviceWorkerUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.asset.serviceWorker'
             ),
@@ -175,17 +186,22 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
-            'betaEnabled' => ($shareSettings !== null
-                ? $shareSettings['betaEnabled']
-                : $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_BETA_ENABLED, false)
+            /*
+             * Beta-Hinweis: seit 0.13 ausschliesslich Sache des
+             * Administrators. Ist er eingeschaltet, erscheint er ueberall -
+             * in der App, auf dem Administrator-Link und auf allen Links der
+             * Nutzer. Nutzer koennen ihn weder ein- noch ausschalten.
+             */
+            'betaEnabled' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ) ? '1' : '',
-            'betaText' => $shareSettings !== null ? $shareSettings['betaText'] : $this->appConfig->getValueString(
+            'betaText' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_TEXT, ''
             ),
-            'betaLinkUrl' => $shareSettings !== null ? $shareSettings['betaLinkUrl'] : $this->appConfig->getValueString(
+            'betaLinkUrl' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''
             ),
-            'betaLinkLabel' => $shareSettings !== null ? $shareSettings['betaLinkLabel'] : $this->appConfig->getValueString(
+            'betaLinkLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
             ),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus

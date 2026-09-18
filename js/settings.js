@@ -35,6 +35,7 @@
   const publicPasswordState = el('aa-public-password-state');
   const publicUrlRow = el('aa-public-url-row');
   const publicUrl = el('aa-public-url');
+  const publicSlug = el('aa-public-slug');
   const title = el('aa-title');
   const subtitle = el('aa-subtitle');
   const accent = el('aa-accent');
@@ -57,6 +58,7 @@
   // ---------- Startwerte einsetzen ----------
   folder.value = state.sourceFolder || '';
   publicEnabled.checked = !!state.publicEnabled;
+  publicSlug.value = state.publicSlug || '';
   title.value = state.headerTitle || '';
   subtitle.value = state.headerSubtitle || '';
   accent.value = state.themeAccent || '#b9793f';
@@ -201,6 +203,7 @@
     const payload = {
       sourceFolder: folder.value,
       publicEnabled: publicEnabled.checked,
+      publicSlug: publicSlug.value,
       headerTitle: title.value,
       headerSubtitle: subtitle.value,
       themeAccent: accent.value,
@@ -248,6 +251,7 @@
       }
 
       showPublicUrl(data.publicUrl);
+      publicSlug.value = data.publicSlug || '';
       setStatus('Gespeichert.', false);
     } catch (err) {
       setStatus('Verbindung fehlgeschlagen.', true);
@@ -282,10 +286,13 @@
 
       const folderCell = document.createElement('td');
       folderCell.className = 'aa-share-folder';
-      const link = document.createElement('a');
-      link.href = share.url;
-      link.target = '_blank';
-      link.rel = 'noopener';
+      // Interne Freigaben haben keinen Link
+      const link = document.createElement(share.url ? 'a' : 'span');
+      if (share.url) {
+        link.href = share.url;
+        link.target = '_blank';
+        link.rel = 'noopener';
+      }
       link.textContent = share.settings.title || share.folderName || share.path || '–';
       folderCell.appendChild(link);
       const note = document.createElement('span');
@@ -299,7 +306,13 @@
       const creatorCell = document.createElement('td');
       creatorCell.textContent = share.creator;
       const passwordCell = document.createElement('td');
-      passwordCell.textContent = share.hasPassword ? 'ja' : 'nein';
+      if (share.kind === 'internal') {
+        passwordCell.textContent = 'Personen: ' + ((share.members || [])
+          .map((m) => (m.type === 'group' ? 'Gruppe ' : '') + m.label).join(', ') || '–');
+      } else {
+        passwordCell.textContent = 'Link' + (share.slug ? ' „' + share.slug + '"' : '')
+          + (share.hasPassword ? ', mit Passwort' : ', ohne Passwort');
+      }
       const expiresCell = document.createElement('td');
       expiresCell.textContent = share.expires || 'unbegrenzt';
 
@@ -308,7 +321,10 @@
       remove.type = 'button';
       remove.textContent = 'Löschen';
       remove.addEventListener('click', async () => {
-        if (!window.confirm('Freigabe „' + link.textContent + '" löschen? Der Link funktioniert danach nicht mehr.')) return;
+        const consequence = share.kind === 'internal'
+          ? 'Die Personen sehen den Ordner danach nicht mehr.'
+          : 'Der Link funktioniert danach nicht mehr.';
+        if (!window.confirm('Freigabe „' + link.textContent + '" löschen? ' + consequence)) return;
         remove.disabled = true;
         try {
           const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/api/shares/' + share.id + '/delete'), {

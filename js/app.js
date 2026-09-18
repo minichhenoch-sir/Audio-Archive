@@ -125,16 +125,20 @@
    * Der Link wird bewusst NUR mit seiner Beschriftung angezeigt, nicht mit
    * der vollen Adresse - lange Adressen sprengen auf dem Telefon die Zeile.
    */
+  // Das "Beta"-Zeichen - einmal erzeugt, bei jedem Titelwechsel wieder
+  // angehaengt (siehe renderTitles)
+  let betaBadge = null;
+
   function applyBetaNotice() {
     if (!AudioArchive.betaEnabled) return;
 
     // Kennzeichnung in der Kopfzeile
-    const badge = document.createElement('span');
-    badge.className = 'beta-badge';
-    badge.textContent = 'Beta';
+    betaBadge = document.createElement('span');
+    betaBadge.className = 'beta-badge';
+    betaBadge.textContent = 'Beta';
     // In die Ueberschrift hinein, nicht daneben: Als eigenstaendiges
     // Element neben dem h1 wuerde es in einer eigenen Zeile landen.
-    topbarTitle.appendChild(badge);
+    topbarTitle.appendChild(betaBadge);
 
     const notice = document.getElementById('beta-notice');
     if (!notice) return;
@@ -171,18 +175,23 @@
     notice.hidden = false;
   }
 
+  /** Titel und Zusatzzeile in der Kopfzeile setzen (Beta-Zeichen bleibt). */
+  function renderTitles(title, subtitle) {
+    document.title = title;
+    topbarTitle.textContent = title;
+    if (betaBadge) topbarTitle.appendChild(betaBadge);
+    topbarSubtitle.textContent = subtitle;
+    topbarSubtitle.hidden = subtitle === '';
+  }
+
   function applySettingsFromDocument() {
     applyTheme(AudioArchive.themeAccent, AudioArchive.themeBar, AudioArchive.themeBase);
 
     const title = AudioArchive.headerTitle || 'Audio Archive';
     const subtitle = AudioArchive.headerSubtitle || '';
 
-    document.title = title;
-    topbarTitle.textContent = title;
+    renderTitles(title, subtitle);
     loginTitle.textContent = title;
-
-    topbarSubtitle.textContent = subtitle;
-    topbarSubtitle.hidden = subtitle === '';
 
     const loginSubtitle = document.getElementById('login-subtitle');
     if (loginSubtitle) {
@@ -312,6 +321,92 @@
   }
 
   // ------------------------------------------------------------------
+  // Aussehen wechseln (ab 0.13)
+  //
+  // Ein mit dem Nutzer geteilter Ordner kann sein eigenes Aussehen
+  // mitbringen: Gestaltung, Farben, Hintergrundbild, Titel. Der Empfaenger
+  // entscheidet je Freigabe, ob er es sehen will. Gewechselt wird ohne
+  // Neuladen der Seite - der Ordnerbaum und die laufende Wiedergabe bleiben
+  // so erhalten. Beim Verlassen des Ordners gilt wieder die eigene Ansicht.
+  // ------------------------------------------------------------------
+  const Look = (() => {
+    const rootEl = document.getElementById('audioarchive');
+    const base = {
+      design: AudioArchive.design,
+      title: AudioArchive.headerTitle || 'Audio Archive',
+      subtitle: AudioArchive.headerSubtitle || '',
+      themeAccent: AudioArchive.themeAccent,
+      themeBar: AudioArchive.themeBar,
+      themeBase: AudioArchive.themeBase,
+      backgroundUrl: AudioArchive.backgroundUrl || '',
+    };
+    let activeKey = 'base';
+    let stylesheetsLoaded = AudioArchive.design === 'nextcloud' || AudioArchive.isEmbedded();
+
+    /*
+     * Nextclouds Variablen: Innerhalb von Nextcloud sind sie immer da. Auf
+     * der Seite ohne Leiste werden sie nur bei Nextcloud-Gestaltung
+     * eingebunden und muessen fuer einen geteilten Ordner mit dieser
+     * Gestaltung nachgeladen werden.
+     */
+    function ensureNextcloudStylesheets() {
+      if (stylesheetsLoaded) return;
+      stylesheetsLoaded = true;
+      const first = document.head.querySelector('link[rel="stylesheet"]');
+      AudioArchive.themeStylesheets.forEach((sheet) => {
+        const link = document.createElement('link');
+        link.rel = 'stylesheet';
+        link.media = sheet.media || 'all';
+        link.href = sheet.href;
+        document.head.insertBefore(link, first);
+      });
+    }
+
+    function apply(look, key) {
+      if (key === activeKey) return;
+      activeKey = key;
+
+      const nc = look.design === 'nextcloud';
+      AudioArchive.setDesign(look.design);
+      if (nc) ensureNextcloudStylesheets();
+      rootEl.classList.toggle('aa-design-nextcloud', nc);
+
+      // Bild fuer die Nextcloud-Gestaltung (CSS-Variable, siehe style.css)
+      const url = look.backgroundUrl || '';
+      rootEl.classList.toggle('aa-has-image', url !== '');
+      if (url) {
+        rootEl.style.setProperty('--aa-image', `url("${url.replace(/["\\\n]/g, '')}")`);
+      } else {
+        rootEl.style.removeProperty('--aa-image');
+      }
+
+      if (nc) {
+        // Die eigene Gestaltung malt auf #bg-layer - das muss weg, sonst
+        // verdeckt es Nextclouds ruhige Flaeche
+        const layer = document.getElementById('bg-layer');
+        if (layer) layer.style.backgroundImage = '';
+        document.body.classList.remove('has-bg-image');
+      } else {
+        backgroundImageUrl = url;
+        applyTheme(look.themeAccent, look.themeBar, look.themeBase);
+      }
+
+      renderTitles(look.title || base.title, look.subtitle || '');
+    }
+
+    return {
+      /** Eigene Ansicht wiederherstellen. */
+      reset() {
+        apply(base, 'base');
+      },
+      /** Aussehen eines geteilten Ordners anwenden. */
+      show(look, key) {
+        apply({ ...base, ...look }, key);
+      },
+    };
+  })();
+
+  // ------------------------------------------------------------------
   // Bildschirm-Wechsel
   // ------------------------------------------------------------------
   function showLogin() {
@@ -329,7 +424,8 @@
     if (offlineMode) {
       const available = offlineSources();
       if (!available.has(view.source) && available.size > 0) {
-        view.source = available.has('shared') ? 'shared' : 'home';
+        view.source = available.has('shared') ? 'shared'
+          : (available.has('home') ? 'home' : Array.from(available)[0]);
       }
     }
     // Basis-Historie-Eintrag setzen (ersetzt den aktuellen Eintrag, statt
@@ -361,10 +457,98 @@
 
   /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
   function sourceLabel(source) {
+    if (AudioArchive.isIncoming(source)) return Incoming.label(source);
     return source === 'home' ? 'Meine Dateien' : (AudioArchive.loggedIn && !AudioArchive.isPublic()
       ? 'Gemeinsame Aufnahmen'
       : 'Aufnahmen');
   }
+
+  // ------------------------------------------------------------------
+  // Mit mir geteilte Ordner (ab 0.13)
+  //
+  // Andere Nutzer koennen Ordner gezielt mit einem teilen. Sie erscheinen im
+  // Ordnerbaum unter "Mit mir geteilt" und haben die Quelle 'in:<id>'. Die
+  // Liste wird lokal mitgespeichert, damit Namen und Aussehen auch ohne
+  // Verbindung bekannt sind.
+  // ------------------------------------------------------------------
+  const Incoming = (() => {
+    const LS_KEY = 'audioarchive_incoming';
+    const enabled = AudioArchive.loggedIn && !AudioArchive.isPublic();
+    let byId = lsGet(LS_KEY) || {};
+    let loading = null;
+
+    function idOf(source) {
+      return String(source).slice(3);
+    }
+
+    function remember(list) {
+      byId = {};
+      list.forEach((share) => { byId[share.id] = share; });
+      lsSet(LS_KEY, byId);
+    }
+
+    return {
+      enabled,
+
+      /** Liste vom Server holen (nur mit Verbindung). */
+      load() {
+        if (!enabled) return Promise.resolve([]);
+        if (offlineMode) return Promise.resolve(Object.values(byId));
+        if (!loading) {
+          loading = fetch(AudioArchive.api('incoming'), { credentials: 'same-origin' })
+            .then((res) => (res.ok ? res.json() : Promise.reject(new Error('incoming'))))
+            .then((data) => {
+              const list = Array.isArray(data.shares) ? data.shares : [];
+              remember(list);
+              return list;
+            })
+            .catch(() => Object.values(byId))
+            .finally(() => { loading = null; });
+        }
+        return loading;
+      },
+
+      /** Bekannte Freigaben (zuletzt geladen bzw. gespeichert). */
+      all() {
+        return Object.values(byId);
+      },
+
+      get(source) {
+        return AudioArchive.isIncoming(source) ? (byId[idOf(source)] || null) : null;
+      },
+
+      label(source) {
+        const share = this.get(source);
+        return share ? share.label : 'Geteilter Ordner';
+      },
+
+      /** Aussehen fuer die geoeffnete Quelle anwenden. */
+      applyLookFor(source) {
+        const share = this.get(source);
+        if (share && share.useShareDesign && share.hasLook && share.look) {
+          Look.show(share.look, source);
+        } else {
+          Look.reset();
+        }
+      },
+
+      /** Empfaenger waehlt: Design der Freigabe verwenden oder das eigene. */
+      async setUseShareDesign(source, value) {
+        const share = this.get(source);
+        if (!share) return;
+        const res = await fetch(AudioArchive.api('incoming/' + share.id + '/design'), {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers: { 'Content-Type': 'application/json', requesttoken: AudioArchive.requestToken },
+          body: JSON.stringify({ useShareDesign: value }),
+        });
+        if (!res.ok) throw new Error('design');
+        share.useShareDesign = value;
+        lsSet(LS_KEY, byId);
+        this.applyLookFor(source);
+      },
+    };
+  })();
 
   window.addEventListener('popstate', (e) => {
     if (mainScreen.hidden) return; // nicht relevant, solange nicht eingeloggt
@@ -491,9 +675,12 @@
   // Seite einer Freigabe: eigener Bereich im Verzeichnis, damit sich
   // gleich benannte Ordner verschiedener Links nicht vermischen
   const SHARE_PREFIX = AudioArchive.apiToken ? '@@s:' + AudioArchive.apiToken + ':' : '';
+  // Mit dem Nutzer geteilte Ordner (ab 0.13): '@@in:<id>:<pfad>'
+  const INCOMING_KEY = /^@@in:(\d+):/;
 
   function indexKey(source, path) {
     if (SHARE_PREFIX) return SHARE_PREFIX + path;
+    if (AudioArchive.isIncoming(source)) return '@@' + source + ':' + path;
     return source === 'home' ? HOME_PREFIX + path : path;
   }
 
@@ -508,6 +695,10 @@
         : null;
     }
     if (key.startsWith('@@s:')) return null;
+    const incoming = key.match(INCOMING_KEY);
+    if (incoming) {
+      return { source: 'in:' + incoming[1], path: key.slice(incoming[0].length) };
+    }
     return key.startsWith(HOME_PREFIX)
       ? { source: 'home', path: key.slice(HOME_PREFIX.length) }
       : { source: 'shared', path: key };
@@ -585,7 +776,8 @@
           // Nur Aufnahmen dieser Seite: einer Freigabe bzw. ohne Freigabe
           if ((url.searchParams.get('s') || '') !== AudioArchive.apiToken) return;
           path = url.searchParams.get('path');
-          source = url.searchParams.get('source') === 'home' ? 'home' : 'shared';
+          const param = url.searchParams.get('source') || '';
+          source = param === 'home' ? 'home' : (AudioArchive.isIncoming(param) ? param : 'shared');
         } catch (e) {
           return;
         }
@@ -885,6 +1077,7 @@
         currentEntries = offlineEntriesFor(path, source);
       }
       tagEntries(currentEntries, source);
+      Incoming.applyLookFor(source);
       Tree.select(source, path);
       Shares.onFolderLoaded();
       renderBreadcrumb();
@@ -927,13 +1120,17 @@
       const data = await res.json();
 
       if (!res.ok) {
-        libraryStatus.textContent = data.error || 'Fehler beim Laden der Aufnahmen.';
+        libraryStatus.textContent = res.status === 404 && AudioArchive.isIncoming(source)
+          ? 'Dieser Ordner ist nicht mehr mit dir geteilt.'
+          : (data.error || 'Fehler beim Laden der Aufnahmen.');
+        Look.reset();
         renderBreadcrumb();
         return;
       }
 
       view = { source, path: data.path || '' };
       currentEntries = tagEntries(data.entries || [], source);
+      Incoming.applyLookFor(source);
       Tree.select(source, view.path);
       Shares.onFolderLoaded();
 
@@ -1459,12 +1656,15 @@
     const nodes = new Map();
     let selectedKey = null;
     let built = false;
+    // Wird erfuellt, sobald "Mit mir geteilt" aufgebaut ist
+    let incomingReady = Promise.resolve();
 
     const key = (source, path) => source + '|' + path;
 
     const folderSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
     const homeSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3 2 12h3v8h6v-6h2v6h6v-8h3z"/></svg>';
     const sharedSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18 9 9 0 0 0 0-18zm-1 13.5v-9l6 4.5z"/></svg>';
+    const peopleSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm7 0a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM9 13c-3.3 0-7 1.7-7 4v3h14v-3c0-2.3-3.7-4-7-4zm7 0c-.5 0-1 0-1.5.1 1.5 1 2.5 2.3 2.5 3.9v3h5v-3c0-2.2-3.4-4-6-4z"/></svg>';
     const linkSvg = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>';
     const chevronSvg = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>';
 
@@ -1618,6 +1818,40 @@
         expand(node);
       });
 
+      // Mit mir geteilt (ab 0.13) - erscheint nur, wenn es etwas gibt
+      const incomingSlot = document.createElement('li');
+      incomingSlot.hidden = true;
+      treeEl.appendChild(incomingSlot);
+      incomingReady = Incoming.load().then((list) => {
+        const shares = offlineMode
+          ? list.filter((share) => offlineSources().has('in:' + share.id))
+          : list;
+        if (shares.length === 0) {
+          incomingSlot.remove();
+          return;
+        }
+        const group = createNode('incoming', '', 'Mit mir geteilt', true, peopleSvg, true, {
+          onSelect: () => {},
+          loader: async (node) => {
+            node.children.innerHTML = '';
+            shares.forEach((share) => {
+              const child = createNode('in:' + share.id, '', share.label, true, sharedSvg, false);
+              child.li.title = 'Geteilt von ' + share.creatorName;
+              node.children.appendChild(child.li);
+            });
+          },
+        });
+        incomingSlot.replaceWith(group.li);
+        return expand(group);
+      }).then(() => {
+        markSelected();
+        // Namen und Aussehen sind jetzt bekannt
+        if (AudioArchive.isIncoming(view.source)) {
+          Incoming.applyLookFor(view.source);
+          renderBreadcrumb();
+        }
+      }).catch(() => incomingSlot.remove());
+
       // Eigene Freigaben - nur mit Verbindung, sie sind nicht offline gespeichert
       if (AudioArchive.canShare && !offlineMode) {
         const sharesNode = createNode('shares', '', 'Meine Freigaben', true, linkSvg, true, {
@@ -1639,7 +1873,8 @@
       }
       shares.forEach((share) => {
         const label = share.settings.title || share.folderName || share.path || 'Freigabe';
-        const child = createNode('share', String(share.id), label, false, linkSvg, false, {
+        const child = createNode('share', String(share.id), label, false,
+          share.kind === 'internal' ? peopleSvg : linkSvg, false, {
           onSelect: () => Shares.openFromList(share),
         });
         if (share.expired || share.missing) child.item.classList.add('is-inactive');
@@ -1689,6 +1924,7 @@
 
         const segments = path === '' ? [] : path.split('/');
         let current = '';
+        if (AudioArchive.isIncoming(source)) await incomingReady;
         const rootNode = nodes.get(key(source, ''));
         if (rootNode && !rootNode.expanded) await expand(rootNode);
 
@@ -1714,6 +1950,48 @@
   // Hintergrundbild, Beta-Hinweis. Verwaltet wird hier in der App - ueber
   // den Knopf ueber der Liste oder "Meine Freigaben" im Ordnerbaum.
   // ------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // Leiste ueber einem mit mir geteilten Ordner (ab 0.13): wer ihn geteilt
+  // hat, und die Wahl, ob sein Aussehen gelten soll
+  // ------------------------------------------------------------------
+  const IncomingBar = (() => {
+    const bar = document.getElementById('incoming-bar');
+    const info = document.getElementById('incoming-info');
+    const toggle = document.getElementById('incoming-design');
+    const toggleWrap = document.getElementById('incoming-design-wrap');
+
+    if (toggle) {
+      toggle.addEventListener('change', async () => {
+        toggle.disabled = true;
+        try {
+          await Incoming.setUseShareDesign(view.source, toggle.checked);
+        } catch (err) {
+          toggle.checked = !toggle.checked;
+        } finally {
+          toggle.disabled = false;
+        }
+      });
+    }
+
+    return {
+      update() {
+        if (!bar) return;
+        const share = Incoming.get(view.source);
+        if (!share) {
+          bar.hidden = true;
+          return;
+        }
+        info.textContent = 'Geteilt von ' + share.creatorName
+          + (share.expires ? ' · bis ' + share.expires.split('-').reverse().join('.') : '');
+        // Die Wahl gibt es nur, wenn der Teilende ein Aussehen festgelegt
+        // hat - und nur mit Verbindung, sie wird auf dem Server gespeichert
+        toggleWrap.hidden = !share.hasLook || offlineMode;
+        toggle.checked = share.useShareDesign !== false;
+        bar.hidden = false;
+      },
+    };
+  })();
+
   const Shares = (() => {
     const enabled = AudioArchive.canShare && !AudioArchive.isPublic();
     const actions = document.getElementById('folder-actions');
@@ -1809,25 +2087,51 @@
         panel.appendChild(button('Schließen', '', close));
         return;
       }
+      status.textContent = 'Eine Freigabe umfasst immer auch alle Unterordner.';
 
-      status.textContent = current.length === 0
-        ? 'Dieser Ordner ist noch nicht geteilt. Eine Freigabe umfasst auch alle Unterordner.'
-        : 'Jede Freigabe hat einen eigenen Link mit eigenen Einstellungen und umfasst alle Unterordner.';
+      const links = current.filter((share) => share.kind !== 'internal');
+      const internal = current.filter((share) => share.kind === 'internal');
 
-      current.forEach((share) => panel.appendChild(renderShareItem(share, share.id === highlightId)));
+      // Mit Personen aus Nextcloud
+      const people = group('Mit Personen und Gruppen');
+      people.appendChild(el('p', 'panel-hint', internal.length === 0
+        ? 'Noch nicht geteilt. Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt".'
+        : 'Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt".'));
+      internal.forEach((share) => people.appendChild(renderShareItem(share, share.id === highlightId)));
+      const peopleRow = el('div', 'panel-row');
+      peopleRow.appendChild(button('Mit Personen teilen', 'panel-button--primary', () => openForm(null, 'internal')));
+      people.appendChild(peopleRow);
+      panel.appendChild(people);
+
+      // Oeffentliche Links
+      const linkGroup = group('Öffentliche Links');
+      linkGroup.appendChild(el('p', 'panel-hint', links.length === 0
+        ? 'Noch kein Link. Über einen Link kann man auch ohne Nextcloud-Konto zuhören.'
+        : 'Jeder Link hat eigene Einstellungen. Zuhören geht auch ohne Nextcloud-Konto.'));
+      links.forEach((share) => linkGroup.appendChild(renderShareItem(share, share.id === highlightId)));
+      const linkRow = el('div', 'panel-row');
+      linkRow.appendChild(button('Neuer Link', 'panel-button--primary', () => openForm(null, 'link')));
+      linkGroup.appendChild(linkRow);
+      panel.appendChild(linkGroup);
 
       const row = el('div', 'panel-row panel-actions');
-      row.append(
-        button('Neue Freigabe', 'panel-button--primary', () => openForm(null)),
-        button('Schließen', '', close)
-      );
+      row.append(button('Schließen', '', close));
       panel.appendChild(row);
       panel.scrollIntoView({ block: 'nearest' });
     }
 
+    function formatDate(iso) {
+      return iso.split('-').reverse().join('.');
+    }
+
     function describe(share) {
-      const parts = [share.hasPassword ? 'mit Passwort' : 'ohne Passwort'];
-      parts.push(share.expires ? 'gültig bis ' + share.expires.split('-').reverse().join('.') : 'unbegrenzt');
+      const parts = [];
+      if (share.kind === 'internal') {
+        parts.push(share.members.map((m) => (m.type === 'group' ? 'Gruppe ' : '') + m.label).join(', ') || 'niemand');
+      } else {
+        parts.push(share.hasPassword ? 'mit Passwort' : 'ohne Passwort');
+      }
+      parts.push(share.expires ? 'gültig bis ' + formatDate(share.expires) : 'unbegrenzt');
       if (share.expired) parts.push('ABGELAUFEN');
       if (share.missing) parts.push('ORDNER FEHLT');
       return parts.join(' · ');
@@ -1837,23 +2141,30 @@
       const item = el('div', 'share-item' + (highlight ? ' is-new' : ''));
       item.appendChild(el('p', 'share-item-title', share.settings.title || share.folderName || 'Freigabe'));
       item.appendChild(el('p', 'panel-hint', describe(share)));
-
-      const linkRow = el('div', 'panel-row');
-      const input = el('input', 'share-link');
-      input.type = 'text';
-      input.readOnly = true;
-      input.value = share.url;
       const feedback = el('span', 'panel-hint share-feedback');
-      linkRow.append(input, button('Kopieren', '', () => copyLink(input, feedback)));
-      item.appendChild(linkRow);
+
+      if (share.kind !== 'internal') {
+        const linkRow = el('div', 'panel-row');
+        const input = el('input', 'share-link');
+        input.type = 'text';
+        input.readOnly = true;
+        input.value = share.url;
+        linkRow.append(input, button('Kopieren', '', () => copyLink(input, feedback)));
+        item.appendChild(linkRow);
+      }
 
       const row = el('div', 'panel-row');
+      row.appendChild(button('Bearbeiten', '', () => openForm(share, share.kind)));
+      if (share.kind !== 'internal') {
+        row.appendChild(button('Öffnen', '', () => window.open(share.url, '_blank', 'noopener')));
+      }
       row.append(
-        button('Bearbeiten', '', () => openForm(share)),
-        button('Öffnen', '', () => window.open(share.url, '_blank', 'noopener')),
         button('Löschen', 'panel-button--danger', async () => {
           const name = share.settings.title || share.folderName || 'diese Freigabe';
-          if (!window.confirm('„' + name + '" löschen? Der Link funktioniert danach nicht mehr.')) return;
+          const consequence = share.kind === 'internal'
+            ? 'Die Personen sehen den Ordner danach nicht mehr.'
+            : 'Der Link funktioniert danach nicht mehr.';
+          if (!window.confirm('„' + name + '" löschen? ' + consequence)) return;
           try {
             await request(AudioArchive.api('shares/' + share.id + '/delete'), { method: 'POST' });
             Tree.refreshShares();
@@ -1900,31 +2211,169 @@
       return fs;
     }
 
-    function openForm(share) {
+    /**
+     * Wunschname wie auf dem Server: klein, Umlaute ausgeschrieben,
+     * Sonderzeichen als Bindestrich. Nur fuer die Vorschau - geprueft wird
+     * auf dem Server.
+     */
+    function slugify(text) {
+      return String(text || '').trim().toLowerCase()
+        .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
+    }
+
+    /** Anfang jeder Link-Adresse: .../apps/audioarchive/s/ */
+    function linkBase() {
+      return new URL(AudioArchive.scope + 's/', location.href).href;
+    }
+
+    /**
+     * Auswahl von Personen und Gruppen mit Suche. Die Suche laeuft ueber
+     * Nextcloud und beachtet dessen Einstellungen zum Teilen.
+     */
+    function memberPicker(initial) {
+      const chosen = new Map();
+      (initial || []).forEach((m) => chosen.set(m.type + '|' + m.id, m));
+
+      const wrap = el('div', 'member-picker');
+      const chips = el('div', 'member-chips');
+      const input = textInput('', 'Name oder Gruppe suchen …');
+      input.setAttribute('autocomplete', 'off');
+      const results = el('div', 'member-results');
+      results.hidden = true;
+      wrap.append(chips, input, results);
+
+      function renderChips() {
+        chips.textContent = '';
+        if (chosen.size === 0) {
+          chips.appendChild(el('span', 'panel-hint', 'Noch niemand ausgewählt.'));
+          return;
+        }
+        chosen.forEach((member, id) => {
+          const chip = el('span', 'member-chip');
+          chip.appendChild(el('span', '', (member.type === 'group' ? 'Gruppe: ' : '') + member.label));
+          const remove = el('button', 'member-chip-remove', '×');
+          remove.type = 'button';
+          remove.setAttribute('aria-label', member.label + ' entfernen');
+          remove.addEventListener('click', () => { chosen.delete(id); renderChips(); });
+          chip.appendChild(remove);
+          chips.appendChild(chip);
+        });
+      }
+
+      let timer = null;
+      let seq = 0;
+      input.addEventListener('input', () => {
+        clearTimeout(timer);
+        const term = input.value.trim();
+        if (term.length < 1) {
+          results.hidden = true;
+          return;
+        }
+        timer = setTimeout(async () => {
+          const mine = ++seq;
+          try {
+            const data = await request(AudioArchive.api('members/search') + '?search=' + encodeURIComponent(term));
+            if (mine !== seq) return; // veraltete Antwort
+            results.textContent = '';
+            const list = (data.results || []).filter((m) => !chosen.has(m.type + '|' + m.id));
+            if (list.length === 0) {
+              results.appendChild(el('p', 'panel-hint', 'Niemand gefunden.'));
+            }
+            list.forEach((member) => {
+              const b = el('button', 'member-result', (member.type === 'group' ? 'Gruppe: ' : '') + member.label);
+              b.type = 'button';
+              b.addEventListener('click', () => {
+                chosen.set(member.type + '|' + member.id, member);
+                input.value = '';
+                results.hidden = true;
+                renderChips();
+                input.focus();
+              });
+              results.appendChild(b);
+            });
+            results.hidden = false;
+          } catch (err) {
+            results.textContent = '';
+            results.appendChild(el('p', 'panel-hint', err.message));
+            results.hidden = false;
+          }
+        }, 250);
+      });
+
+      renderChips();
+      return {
+        wrap,
+        value: () => Array.from(chosen.values()).map((m) => ({ type: m.type, id: m.id })),
+      };
+    }
+
+    /**
+     * @param {object|null} share bestehende Freigabe oder null (neu)
+     * @param {string} kind 'link' oder 'internal'
+     */
+    function openForm(share, kind) {
       const isNew = share === null;
+      const isInternal = (isNew ? kind : share.kind) === 'internal';
       const st = isNew ? {} : share.settings;
 
       panel.hidden = false;
       panel.textContent = '';
-      panel.appendChild(el('h2', 'panel-title', (isNew ? 'Neue Freigabe: ' : 'Freigabe bearbeiten: ')
-        + (isNew ? folderName() : (share.folderName || folderName()))));
+      const heading = isNew
+        ? (isInternal ? 'Mit Personen teilen: ' : 'Neuer Link: ') + folderName()
+        : (isInternal ? 'Freigabe bearbeiten: ' : 'Link bearbeiten: ') + (share.folderName || folderName());
+      panel.appendChild(el('h2', 'panel-title', heading));
       panel.appendChild(el('p', 'panel-hint', 'Umfasst den Ordner mit allen Unterordnern.'));
 
       // Zugang
-      const access = group('Zugang');
-      const password = textInput('', isNew ? 'Ohne Passwort leer lassen' : 'Leer lassen = unverändert', 'password');
-      password.autocomplete = 'new-password';
-      access.appendChild(field('Passwort (optional)', password,
-        isNew ? 'Ohne Passwort kann jeder mit dem Link zuhören.'
-          : (share.hasPassword ? 'Ein Passwort ist gesetzt.' : 'Derzeit ohne Passwort.')));
+      const access = group(isInternal ? 'Personen und Gruppen' : 'Zugang');
+      let members = null;
+      let password = null;
       let removePassword = null;
-      if (!isNew && share.hasPassword) {
-        removePassword = checkbox('Passwort entfernen', false);
-        access.appendChild(removePassword.wrap);
+      let slug = null;
+
+      if (isInternal) {
+        members = memberPicker(isNew ? [] : share.members);
+        access.appendChild(members.wrap);
+        access.appendChild(el('p', 'panel-hint',
+          'Sichtbar nur in dieser App, nicht in der Dateien-App. Weiterteilen können die Personen nicht.'));
+      } else {
+        // Wunschname
+        slug = textInput(isNew ? '' : share.slug, 'z. B. gottesdienst-sonntag');
+        slug.setAttribute('autocomplete', 'off');
+        const preview = el('span', 'panel-hint share-slug-preview');
+        const syncPreview = () => {
+          const value = slugify(slug.value);
+          preview.textContent = value
+            ? linkBase() + value
+            : (isNew ? 'Leer = zufällige Adresse (schwer zu erraten).' : 'Leer = zufällige Adresse.');
+        };
+        slug.addEventListener('input', syncPreview);
+        syncPreview();
+        const slugField = field('Wunschname im Link (optional)', slug);
+        slugField.appendChild(preview);
+        if (!isNew) {
+          slugField.appendChild(el('span', 'panel-hint',
+            'Wird der Name geändert, funktioniert der bisherige Link nicht mehr.'));
+        }
+        access.appendChild(slugField);
+
+        password = textInput('', isNew ? 'Ohne Passwort leer lassen' : 'Leer lassen = unverändert', 'password');
+        password.autocomplete = 'new-password';
+        access.appendChild(field('Passwort (optional)', password,
+          isNew ? 'Ohne Passwort kann jeder mit dem Link zuhören. Wunschnamen sind leichter zu erraten.'
+            : (share.hasPassword ? 'Ein Passwort ist gesetzt.' : 'Derzeit ohne Passwort.')));
+        if (!isNew && share.hasPassword) {
+          removePassword = checkbox('Passwort entfernen', false);
+          access.appendChild(removePassword.wrap);
+        }
       }
+
       const expires = textInput(isNew ? '' : share.expires, '', 'date');
       expires.min = new Date().toISOString().slice(0, 10);
-      access.appendChild(field('Ablaufdatum (optional)', expires, 'Leer = unbegrenzt. Der Link gilt bis einschließlich dieses Tages.'));
+      access.appendChild(field('Ablaufdatum (optional)', expires,
+        'Leer = unbegrenzt. Gilt bis einschließlich dieses Tages.'));
       panel.appendChild(access);
 
       // Funktionen
@@ -1936,13 +2385,17 @@
 
       // Aussehen
       const look = group('Aussehen');
+      if (isInternal) {
+        look.appendChild(el('p', 'panel-hint',
+          'Die Personen können wählen, ob sie dieses Aussehen oder ihr eigenes sehen. Leere Felder übernehmen ihre eigene Darstellung.'));
+      }
       const title = textInput(st.title, folderName());
-      look.appendChild(field('Titel', title, 'Leer = Name des Ordners'));
+      look.appendChild(field('Titel', title, isInternal ? 'Leer = Name des Ordners im Baum, eigener Titel oben' : 'Leer = Name des Ordners'));
       const subtitle = textInput(st.subtitle, '');
       look.appendChild(field('Zusatzzeile (optional)', subtitle));
 
       const design = el('select', 'panel-input');
-      [['', 'Vorgabe des Administrators'], ['custom', 'Eigene Gestaltung'], ['nextcloud', 'Nextcloud (Hell/Dunkel automatisch)']]
+      [['', isInternal ? 'Wie beim Empfänger' : 'Vorgabe des Administrators'], ['custom', 'Eigene Gestaltung'], ['nextcloud', 'Nextcloud (Hell/Dunkel automatisch)']]
         .forEach(([value, text]) => {
           const opt = el('option', '', text);
           opt.value = value;
@@ -2018,29 +2471,12 @@
       }
       panel.appendChild(look);
 
-      // Beta-Hinweis
-      const beta = group('Beta-Hinweis');
-      const betaEnabled = checkbox('„Beta"-Zeichen und Hinweisstreifen zeigen', st.betaEnabled);
-      const betaText = textInput(st.betaText, 'Diese Seite wird noch entwickelt.');
-      const betaLink = textInput(st.betaLinkUrl, 'https://…');
-      const betaLabel = textInput(st.betaLinkLabel, 'Rückmeldung geben');
-      const betaFields = el('div', 'share-beta-fields');
-      betaFields.append(
-        field('Text', betaText),
-        field('Link-Adresse (optional)', betaLink),
-        field('Link-Beschriftung', betaLabel)
-      );
-      const syncBeta = () => { betaFields.hidden = !betaEnabled.input.checked; };
-      betaEnabled.input.addEventListener('change', syncBeta);
-      syncBeta();
-      beta.append(betaEnabled.wrap, betaFields);
-      panel.appendChild(beta);
-
       const error = el('p', 'panel-error');
       error.hidden = true;
       panel.appendChild(error);
 
-      const save = button(isNew ? 'Freigabe anlegen' : 'Speichern', 'panel-button--primary', async () => {
+      const saveLabel = isNew ? (isInternal ? 'Teilen' : 'Link anlegen') : 'Speichern';
+      const save = button(saveLabel, 'panel-button--primary', async () => {
         showError(error, '');
         const settings = {
           title: title.value,
@@ -2051,11 +2487,18 @@
           themeBase: ownColors.input.checked ? colorInputs.themeBase.value : '',
           featureOffline: offline.input.checked,
           featureDownload: download.input.checked,
-          betaEnabled: betaEnabled.input.checked,
-          betaText: betaText.value,
-          betaLinkUrl: betaLink.value,
-          betaLinkLabel: betaLabel.value,
         };
+        if (isInternal && members.value().length === 0) {
+          showError(error, 'Bitte mindestens eine Person oder Gruppe auswählen.');
+          return;
+        }
+        const body = { settings, expires: expires.value };
+        if (isInternal) {
+          body.members = members.value();
+        } else {
+          body.slug = slug.value;
+          body.password = password.value;
+        }
         save.disabled = true;
         try {
           let data;
@@ -2064,23 +2507,18 @@
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
+                ...body,
+                kind: isInternal ? 'internal' : 'link',
                 source: view.source,
                 path: view.path,
-                settings,
-                password: password.value,
-                expires: expires.value,
               }),
             });
           } else {
+            if (!isInternal) body.removePassword = removePassword ? removePassword.input.checked : false;
             data = await request(AudioArchive.api('shares/' + share.id), {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                settings,
-                password: password.value,
-                removePassword: removePassword ? removePassword.input.checked : false,
-                expires: expires.value,
-              }),
+              body: JSON.stringify(body),
             });
           }
           Tree.refreshShares();
@@ -2108,9 +2546,12 @@
 
       /** Nach jedem Ordnerwechsel: Knopf zeigen/verbergen, Panel schliessen. */
       onFolderLoaded() {
+        IncomingBar.update();
         if (!enabled) return;
-        // Die eigenen Dateien als Ganzes lassen sich nicht teilen
-        const shareable = !offlineMode && !(view.source === 'home' && view.path === '');
+        // Die eigenen Dateien als Ganzes lassen sich nicht teilen, mit mir
+        // geteilte Ordner nicht weiterteilen
+        const shareable = !offlineMode && !(view.source === 'home' && view.path === '')
+          && !AudioArchive.isIncoming(view.source);
         actions.hidden = !shareable;
 
         if (pendingShareId !== null) {
@@ -2145,7 +2586,9 @@
   // ------------------------------------------------------------------
   // Persoenliche Darstellung (Zahnrad, nur angemeldet)
   //
-  // Gestaltung und Hintergrundbild gelten nur fuer die eigene Ansicht.
+  // Seit 0.13 alle Oberflaechen-Einstellungen: Gestaltung, Titel,
+  // Zusatzzeile, Farben und Hintergrundbild. Sie gelten nur fuer die eigene
+  // Ansicht. Den Beta-Hinweis schaltet nur der Administrator.
   // Nach dem Uebernehmen wird die Seite neu geladen: Gestaltung und Bild
   // setzt der Server bereits beim Ausliefern, so steht alles sofort richtig
   // da - auch in der installierten App und im Offline-Start.
@@ -2161,7 +2604,18 @@
     const usBackgroundFile = document.getElementById('us-background-file');
     const usBackgroundRemove = document.getElementById('us-background-remove');
     const usDefaultLabel = document.getElementById('us-design-default-label');
+    const usTitle = document.getElementById('us-title');
+    const usSubtitle = document.getElementById('us-subtitle');
+    const usOwnColors = document.getElementById('us-own-colors');
+    const usColors = document.getElementById('us-colors');
+    const usColorInputs = {
+      themeAccent: document.getElementById('us-accent'),
+      themeBar: document.getElementById('us-bar'),
+      themeBase: document.getElementById('us-base'),
+    };
     let usChanged = false;
+
+    usOwnColors.addEventListener('change', () => { usColors.hidden = !usOwnColors.checked; });
 
     const designName = (d) => (d === 'nextcloud' ? 'Nextcloud' : 'Eigene Gestaltung');
 
@@ -2205,6 +2659,18 @@
         userSettingsPanel.querySelectorAll('input[name="us-design"]').forEach((input) => {
           input.checked = input.value === (data.design || '');
         });
+        const values = data.values || {};
+        const admin = data.admin || {};
+        usTitle.value = values.title || '';
+        usTitle.placeholder = admin.title || '';
+        usSubtitle.value = values.subtitle || '';
+        usSubtitle.placeholder = admin.subtitle || '';
+        const ownColors = !!(values.themeAccent || values.themeBar || values.themeBase);
+        usOwnColors.checked = ownColors;
+        usColors.hidden = !ownColors;
+        Object.keys(usColorInputs).forEach((keyName) => {
+          usColorInputs[keyName].value = values[keyName] || admin[keyName] || '#888888';
+        });
         usShowBackground(data.hasBackground === true);
       } catch (err) {
         usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
@@ -2229,7 +2695,14 @@
         await usRequest('user/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ design: chosen ? chosen.value : '' }),
+          body: JSON.stringify({
+            design: chosen ? chosen.value : '',
+            title: usTitle.value,
+            subtitle: usSubtitle.value,
+            themeAccent: usOwnColors.checked ? usColorInputs.themeAccent.value : '',
+            themeBar: usOwnColors.checked ? usColorInputs.themeBar.value : '',
+            themeBase: usOwnColors.checked ? usColorInputs.themeBase.value : '',
+          }),
         });
         location.reload();
       } catch (err) {

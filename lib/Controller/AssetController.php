@@ -163,6 +163,21 @@ class AssetController extends Controller {
         return $this->imageResponse(BackgroundImage::shareKey($share['id']), false);
     }
 
+    /**
+     * Hintergrundbild einer internen Freigabe (ab 0.13). Nur fuer
+     * angemeldete Empfaenger und den Ersteller - es gibt keinen Link.
+     */
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function incomingBackground(int $id): Response {
+        $uid = $this->userSession->getUser()?->getUID();
+        $share = $uid !== null ? $this->shares->findIncoming($id, $uid) : null;
+        if ($share === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        return $this->imageResponse(BackgroundImage::shareKey($share['id']), false);
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function manifest(string $s = ''): DataDisplayResponse {
@@ -208,8 +223,11 @@ class AssetController extends Controller {
                 $share['settings']['themeBar']
             );
         } else {
+            // Angemeldet: persoenlicher Titel und persoenliche Leistenfarbe
             $uid = $s === '' ? $this->userSession->getUser()?->getUID() : null;
-            $barColor = $this->appearance->barColor($this->appearance->resolve($uid)['design']);
+            $look = $this->appearance->effectiveLook($uid);
+            $title = $look['title'] !== '' ? $look['title'] : $title;
+            $barColor = $this->appearance->barColor($look['design'], $look['themeBar']);
         }
 
         /*

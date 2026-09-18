@@ -57,8 +57,7 @@ class ListController extends Controller {
             );
         }
         $root = $scope['root'];
-        $source = $s !== '' ? AudioFolder::SOURCE_SHARED
-            : ($source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED);
+        $source = $s !== '' ? AudioFolder::SOURCE_SHARED : ContentScope::canonicalSource($source);
 
         $node = $this->audioFolder->resolveIn($root, $path);
         if (!$node instanceof Folder) {
@@ -138,14 +137,19 @@ class ListController extends Controller {
     #[NoAdminRequired]
     #[NoCSRFRequired]
     public function tree(string $path = '', string $source = AudioFolder::SOURCE_SHARED): DataResponse {
-        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
-
         if (!$this->guard->isLoggedInUser()) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
 
-        $root = $this->audioFolder->rootFor($source);
-        $node = $root === null ? null : $this->audioFolder->resolveIn($root, $path);
+        // Gleiche Pruefung wie bei der Ordnerliste - gilt auch fuer
+        // Freigaben, die mit dem Nutzer geteilt sind ('in:<id>')
+        $scope = $this->scope->resolve($source, '');
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Ordner nicht gefunden.'], $scope);
+        }
+        $source = ContentScope::canonicalSource($source);
+        $root = $scope['root'];
+        $node = $this->audioFolder->resolveIn($root, $path);
         if (!$node instanceof Folder) {
             return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
         }

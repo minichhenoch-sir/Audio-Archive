@@ -59,6 +59,7 @@ if ($_['backgroundUrl'] !== '') {
      data-theme-bar="<?php echo $escape($_['themeBar']); ?>"
      data-theme-base="<?php echo $escape($_['themeBase']); ?>"
      data-background="<?php echo $escape($_['backgroundUrl']); ?>"
+     data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
      data-beta="<?php echo $escape($_['betaEnabled']); ?>"
      data-beta-text="<?php echo $escape($_['betaText']); ?>"
      data-beta-link-url="<?php echo $escape($_['betaLinkUrl']); ?>"
@@ -149,13 +150,36 @@ if ($_['backgroundUrl'] !== '') {
     <!-- Persoenliche Darstellung, geoeffnet ueber das Zahnrad -->
     <section id="user-settings" class="panel" hidden>
       <h2 class="panel-title">Darstellung</h2>
-      <p class="panel-hint">Gilt nur für deine eigene Ansicht.</p>
+      <p class="panel-hint">Gilt nur für deine eigene Ansicht – andere Nutzer und geteilte Links bleiben unverändert.</p>
 
       <fieldset class="panel-group">
         <legend>Gestaltung</legend>
         <label class="panel-choice"><input type="radio" name="us-design" value=""> <span id="us-design-default-label">Vorgabe</span></label>
         <label class="panel-choice"><input type="radio" name="us-design" value="custom"> Eigene Gestaltung</label>
         <label class="panel-choice"><input type="radio" name="us-design" value="nextcloud"> Nextcloud (Hell/Dunkel automatisch)</label>
+      </fieldset>
+
+      <fieldset class="panel-group">
+        <legend>Texte</legend>
+        <label class="panel-field">
+          <span class="panel-field-label">Titel</span>
+          <input type="text" id="us-title" class="panel-input" maxlength="200">
+        </label>
+        <label class="panel-field">
+          <span class="panel-field-label">Zusatzzeile</span>
+          <input type="text" id="us-subtitle" class="panel-input" maxlength="500">
+          <span class="panel-hint">Leere Felder übernehmen die Vorgabe des Administrators.</span>
+        </label>
+      </fieldset>
+
+      <fieldset class="panel-group">
+        <legend>Farben</legend>
+        <label class="panel-choice"><input type="checkbox" id="us-own-colors"> Eigene Farben (bei eigener Gestaltung)</label>
+        <div class="panel-row share-colors" id="us-colors" hidden>
+          <label class="panel-color-field"><input type="color" id="us-accent" class="panel-color"><span class="panel-hint">Akzent</span></label>
+          <label class="panel-color-field"><input type="color" id="us-bar" class="panel-color"><span class="panel-hint">Leisten</span></label>
+          <label class="panel-color-field"><input type="color" id="us-base" class="panel-color"><span class="panel-hint">Grundton</span></label>
+        </div>
       </fieldset>
 
       <fieldset class="panel-group">
@@ -191,6 +215,14 @@ if ($_['backgroundUrl'] !== '') {
         </svg>
         <span>Diesen Ordner teilen</span>
       </button>
+    </div>
+
+    <!-- Mit mir geteilter Ordner: von wem, und welches Aussehen gelten soll -->
+    <div id="incoming-bar" class="incoming-bar" hidden>
+      <span id="incoming-info" class="incoming-info"></span>
+      <label id="incoming-design-wrap" class="incoming-design" hidden>
+        <input type="checkbox" id="incoming-design"> Aussehen der Freigabe verwenden
+      </label>
     </div>
 
     <!-- Freigaben dieses Ordners: Liste und Formular, von app.js gefuellt -->

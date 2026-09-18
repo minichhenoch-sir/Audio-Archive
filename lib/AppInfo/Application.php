@@ -45,6 +45,24 @@ class Application extends App implements IBootstrap {
 
     /** Schluessel der persoenlichen Einstellungen je Nutzer (IConfig-Nutzerwerte). */
     public const USER_DESIGN = 'design';
+    // Ab 0.13: alle Oberflaechen-Einstellungen auch persoenlich ('' = Vorgabe)
+    public const USER_TITLE = 'header_title';
+    public const USER_SUBTITLE = 'header_subtitle';
+    public const USER_THEME_ACCENT = 'theme_accent';
+    public const USER_THEME_BAR = 'theme_bar';
+    public const USER_THEME_BASE = 'theme_base';
+    /** JSON-Liste der Nutzer-Freigaben, bei denen der Empfaenger sein
+     *  EIGENES Design statt dem der Freigabe sehen will. */
+    public const USER_INCOMING_OWN_DESIGN = 'incoming_own_design';
+
+    /**
+     * Arten von Freigaben (Spalte 'kind', ab 0.13):
+     *  - link:     oeffentlicher Link /s/<token>, auch ohne Nextcloud-Konto
+     *  - internal: nur fuer ausgewaehlte Nextcloud-Nutzer und -Gruppen,
+     *              sichtbar ausschliesslich innerhalb der App
+     */
+    public const SHARE_KIND_LINK = 'link';
+    public const SHARE_KIND_INTERNAL = 'internal';
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 

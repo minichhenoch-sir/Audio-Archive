@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\PlayerPage;
 use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Controller;
+use OCP\AppFramework\Http\Attribute\BruteForceProtection;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\NotFoundResponse;
@@ -36,8 +37,14 @@ class PublicPlayerController extends Controller {
         parent::__construct($appName, $request);
     }
 
+    /*
+     * Seit 0.13 lassen sich Links mit Wunschnamen anlegen - die sind leichter
+     * zu erraten als Zufallstokens. Fehlversuche werden deshalb gedrosselt,
+     * damit sich nicht massenhaft Namen durchprobieren lassen.
+     */
     #[PublicPage]
     #[NoCSRFRequired]
+    #[BruteForceProtection(action: 'audioarchivePublicPage')]
     public function index(string $token): Response {
         $enabled = $this->appConfig->getValueBool(
             Application::APP_ID,
@@ -63,6 +70,8 @@ class PublicPlayerController extends Controller {
             return $this->playerPage->build($token, false, $share);
         }
 
-        return new NotFoundResponse();
+        $response = new NotFoundResponse();
+        $response->throttle(['action' => 'audioarchivePublicPage']);
+        return $response;
     }
 }

@@ -42,6 +42,13 @@ return [
         ['name' => 'share#delete', 'url' => '/api/shares/{id}/delete', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         ['name' => 'share#uploadBackground', 'url' => '/api/shares/{id}/background', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         ['name' => 'share#removeBackground', 'url' => '/api/shares/{id}/background/remove', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        // Mit mir geteilte Ordner (interne Freigaben, ab 0.13)
+        ['name' => 'share#incoming', 'url' => '/api/incoming', 'verb' => 'GET'],
+        ['name' => 'share#setIncomingDesign', 'url' => '/api/incoming/{id}/design', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        // Personen und Gruppen fuer eine interne Freigabe suchen
+        ['name' => 'share#searchMembers', 'url' => '/api/members/search', 'verb' => 'GET'],
+        // Bild einer internen Freigabe (nur fuer Empfaenger und Ersteller)
+        ['name' => 'asset#incomingBackground', 'url' => '/background/incoming/{id}', 'verb' => 'GET', 'requirements' => ['id' => '\\d+']],
         // Bild einer Freigabe (oeffentlich, solange die Freigabe gilt)
         ['name' => 'asset#shareBackground', 'url' => '/background/share/{token}', 'verb' => 'GET'],
 
