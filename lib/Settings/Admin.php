@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\Settings;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\App\IAppManager;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
@@ -19,6 +20,7 @@ class Admin implements ISettings {
         private IInitialState $initialState,
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
+        private IAppManager $appManager,
     ) {
     }
 
@@ -100,7 +102,9 @@ class Admin implements ISettings {
         Util::addScript(Application::APP_ID, 'settings');
         Util::addStyle(Application::APP_ID, 'settings');
 
-        return new TemplateResponse(Application::APP_ID, 'settings-admin');
+        return new TemplateResponse(Application::APP_ID, 'settings-admin', [
+            'version' => $this->appManager->getAppVersion(Application::APP_ID),
+        ]);
     }
 
     public function getSection(): string {

@@ -2831,6 +2831,23 @@
   // ------------------------------------------------------------------
   // Start
   // ------------------------------------------------------------------
+  // ------------------------------------------------------------------
+  // Versionsanzeige (ab 0.15.2): unten in der Liste und in der Darstellung.
+  // Offline gestartet zeigt sie die Fassung, die gerade tatsaechlich laeuft
+  // (die gespeicherte Seite) - genau das ist bei Rueckfragen gefragt.
+  // ------------------------------------------------------------------
+  (() => {
+    if (!AudioArchive.appVersion) return;
+    const text = 'Audio Archive · Version ' + AudioArchive.appVersion;
+    const footer = document.getElementById('app-version');
+    if (footer) {
+      footer.textContent = text;
+      footer.hidden = false;
+    }
+    const panel = document.getElementById('us-version');
+    if (panel) panel.textContent = text;
+  })();
+
   applySettingsFromDocument();
   checkSession();
 })();

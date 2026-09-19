@@ -6,6 +6,7 @@ namespace OCA\AudioArchive\Service;
 use OCA\AudioArchive\AppInfo\Application;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\TemplateResponse;
+use OCP\App\IAppManager;
 use OCP\IUserSession;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
@@ -36,6 +37,7 @@ class PlayerPage {
         private IUserSession $userSession,
         private AudioFolder $audioFolder,
         private ShareService $shares,
+        private IAppManager $appManager,
     ) {
     }
 
@@ -207,6 +209,9 @@ class PlayerPage {
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
             // dem Grundton bzw. Nextclouds Hintergrund (siehe Appearance).
             'backgroundUrl' => $look['backgroundUrl'],
+            // Installierte Fassung der App (ab 0.15.2), unten in der Liste
+            // und in der Darstellung angezeigt
+            'appVersion' => $this->appManager->getAppVersion(Application::APP_ID),
         ];
 
         $response = new TemplateResponse(

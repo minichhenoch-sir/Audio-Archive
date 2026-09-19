@@ -7,7 +7,9 @@
  */
 ?>
 <div id="audioarchive-settings" class="section">
-    <h2>Audio Archive</h2>
+    <h2>Audio Archive
+        <span class="aa-version">Version <?php p($_['version'] ?? ''); ?></span>
+    </h2>
 
     <!-- ============ Quellordner ============ -->
     <h3>Quellordner</h3>

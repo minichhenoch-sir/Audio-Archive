@@ -59,6 +59,7 @@ if ($_['backgroundUrl'] !== '') {
      data-theme-bar="<?php echo $escape($_['themeBar']); ?>"
      data-theme-base="<?php echo $escape($_['themeBase']); ?>"
      data-background="<?php echo $escape($_['backgroundUrl']); ?>"
+     data-app-version="<?php echo $escape($_['appVersion'] ?? ''); ?>"
      data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
      data-beta="<?php echo $escape($_['betaEnabled']); ?>"
      data-beta-text="<?php echo $escape($_['betaText']); ?>"
@@ -194,6 +195,7 @@ if ($_['backgroundUrl'] !== '') {
         </div>
       </fieldset>
 
+      <p class="panel-hint app-version-panel" id="us-version"></p>
       <p class="panel-error" id="us-error" hidden></p>
       <div class="panel-row panel-actions">
         <button type="button" class="panel-button panel-button--primary" id="us-save">Übernehmen</button>
@@ -236,6 +238,9 @@ if ($_['backgroundUrl'] !== '') {
 
     <p id="library-status" class="status-text">Lade Aufnahmen …</p>
     <div id="list-container" class="explorer-list"></div>
+
+    <!-- Versionsanzeige am Ende der Liste (ab 0.15.2) -->
+    <p id="app-version" class="app-version" hidden></p>
   </div>
   </div>
   </div>

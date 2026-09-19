@@ -31,6 +31,7 @@ const AudioArchive = (() => {
     scope: el.dataset.scope || '',
     assetBase: el.dataset.assetBase || '',
     backgroundUrl: el.dataset.background || '',
+    appVersion: el.dataset.appVersion || '',
     betaEnabled: el.dataset.beta === '1',
     betaText: el.dataset.betaText || '',
     betaLinkUrl: el.dataset.betaLinkUrl || '',

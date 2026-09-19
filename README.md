@@ -739,3 +739,18 @@ Position wird bei jedem Sprung sofort gemeldet, damit der Balken stimmt.
 Hinweis zu iPhone/iPad: iOS zeigt nur EIN Knopfpaar und nimmt dabei
 Titel vor/zurück. Gespult wird dort über den Balken; Android zeigt in der
 aufgeklappten Benachrichtigung zusätzlich die 15-Sekunden-Knöpfe.
+
+---
+
+## 0.15.2: Versionsanzeige
+
+Die installierte Fassung steht jetzt an drei Stellen:
+- **Einstellungen → Verwaltung → Audio Archive:** neben der Überschrift
+- **In der App, am Ende jeder Ordnerliste:** dezent „Audio Archive ·
+  Version …“ – für alle, auch Gäste über einen Link
+- **Zahnrad (Darstellung):** unten im Bereich
+
+Die Nummer kommt aus der `info.xml` der installierten App (über Nextclouds
+`IAppManager`). Offline gestartet zeigt die App die Fassung, die gerade
+tatsächlich läuft – bei Rückfragen („welche Version hast du?“) genau die
+richtige Angabe.
