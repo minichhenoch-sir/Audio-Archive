@@ -754,3 +754,23 @@ Die Nummer kommt aus der `info.xml` der installierten App (über Nextclouds
 `IAppManager`). Offline gestartet zeigt die App die Fassung, die gerade
 tatsächlich läuft – bei Rückfragen („welche Version hast du?“) genau die
 richtige Angabe.
+
+---
+
+## 0.15.3: Kleine Bildschirme
+
+Auf kleinen Telefonen (etwa 340 × 600 Punkte) blieben neben Kopfzeile und
+Player-Leiste nur ein bis zwei Einträge der Liste sichtbar.
+
+- **Player-Leiste kompakter:** Die Zeile unter dem Titel (Interpret ·
+  Album) ist einzeilig und wird abgekürzt, statt auf bis zu sechs Zeilen
+  umzubrechen. Kleinere Knöpfe und Abstände. Die Leiste ist dadurch etwa
+  ein Drittel niedriger. Vollständig steht alles weiter im Vollbild-Player.
+- **Kopfzeile scrollt mit:** Auf Telefonen bleibt der Titel samt Vers nicht
+  mehr fest oben stehen, sondern scrollt mit der Liste weg. Der Vers bleibt
+  vollständig sichtbar, sobald man nach oben scrollt. Mit Ordnerbaum
+  scrollt dafür die ganze Seite; das Menü (☰) ist oben erreichbar.
+- **Telefon quer:** Steuerung neben dem Titel, Fortschritt darunter – die
+  Leiste ist dort nur noch gut halb so hoch.
+
+Tablets und Desktop bleiben unverändert.
