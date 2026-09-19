@@ -139,6 +139,50 @@ const Player = (() => {
   }
 
   // ------------------------------------------------------------------
+  // Laufschrift (ab 0.15.4)
+  //
+  // Passen Titel oder Zusatzzeile in der Leiste nicht in eine Zeile,
+  // wandert der Text langsam hin und her, statt abgeschnitten zu werden.
+  // Bewegt wird ein inneres <span>; die Strecke (Ueberstand) und die Dauer
+  // setzt das Skript als CSS-Variablen. Im Vollbild-Player bricht der Text
+  // stattdessen um. Bei "Bewegung reduzieren" bleibt es beim Abschneiden
+  // mit "…" (nur CSS, siehe style.css).
+  // ------------------------------------------------------------------
+  const MARQUEE_SPEED = 30; // Punkte pro Sekunde - gut mitlesbar
+
+  function setMarqueeText(el, text) {
+    const inner = document.createElement('span');
+    inner.className = 'marquee-inner';
+    inner.textContent = text;
+    el.replaceChildren(inner);
+    updateMarquee(el);
+  }
+
+  function updateMarquee(el) {
+    el.classList.remove('is-marquee');
+    if (els.bar.hidden || els.bar.classList.contains('is-expanded')) return;
+    const overflow = el.scrollWidth - el.clientWidth;
+    if (overflow <= 2) return;
+    // 70 % der Zeit in Bewegung, je 15 % Pause an Anfang und Ende
+    const travel = Math.max(4, overflow / MARQUEE_SPEED);
+    el.style.setProperty('--aa-marquee-shift', (-overflow) + 'px');
+    el.style.setProperty('--aa-marquee-duration', (travel / 0.7).toFixed(2) + 's');
+    el.classList.add('is-marquee');
+  }
+
+  function updateMarquees() {
+    updateMarquee(els.title);
+    updateMarquee(els.context);
+  }
+
+  if ('ResizeObserver' in window) {
+    const marqueeObserver = new ResizeObserver(updateMarquees);
+    marqueeObserver.observe(els.title);
+    marqueeObserver.observe(els.context);
+  }
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(updateMarquees);
+
+  // ------------------------------------------------------------------
   // Cover (ab 0.14)
   //
   // Quelle: eingebettetes Bild der mp3, sonst cover.jpg o. ae. im Ordner -
@@ -479,10 +523,11 @@ const Player = (() => {
     mediaSessionNeedsRefresh = true;
 
     audio.src = streamUrlFor(track);
-    els.title.textContent = trackTitle(track);
-    els.context.textContent = trackContext(track);
+    setMarqueeText(els.title, trackTitle(track));
+    setMarqueeText(els.context, trackContext(track));
     showCover(track);
     els.bar.hidden = false;
+    updateMarquees();
     updatePlayerBarSpace();
 
     updateMediaSession(track);
@@ -878,7 +923,7 @@ const Player = (() => {
       }, recoveries === 1 ? 0 : 1000 * recoveries);
       return;
     }
-    els.title.textContent = 'Wiedergabe fehlgeschlagen';
+    setMarqueeText(els.title, 'Wiedergabe fehlgeschlagen');
   });
 
   audio.addEventListener('loadedmetadata', () => {
@@ -935,6 +980,7 @@ const Player = (() => {
     els.bar.classList.toggle('is-expanded', open);
     document.getElementById('audioarchive').classList.toggle('aa-player-expanded', open);
     els.btnExpand.setAttribute('aria-expanded', open ? 'true' : 'false');
+    updateMarquees();
     if (open) {
       els.btnCollapse.focus({ preventScroll: true });
     } else {

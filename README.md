@@ -774,3 +774,19 @@ Player-Leiste nur ein bis zwei Einträge der Liste sichtbar.
   Leiste ist dort nur noch gut halb so hoch.
 
 Tablets und Desktop bleiben unverändert.
+
+---
+
+## 0.15.4: Laufschrift, Kopfzeile bleibt, „App installieren“ wieder da
+
+- **Laufschrift:** Passen Titel oder die Zeile darunter (Interpret · Album)
+  nicht in die Leiste, wandert der Text langsam hin und her – mit kurzer
+  Pause an Anfang und Ende. Ist auf dem Gerät „Bewegung reduzieren“
+  eingeschaltet, wird stattdessen mit „…“ abgekürzt.
+- **Kopfzeile bleibt oben stehen** (das Wegscrollen aus 0.15.3 ist wieder
+  entfernt). Die kompakte Player-Leiste bleibt.
+- **Knopf „App installieren“** erscheint im Browser jetzt immer (außer in
+  der installierten App selbst). Bietet der Browser die Installation nicht
+  von sich aus an – etwa weil sie schon einmal abgelehnt wurde oder die App
+  schon installiert ist, in Firefox und Safari grundsätzlich –, erklärt der
+  Knopf, wo die Installation im Browsermenü zu finden ist.
