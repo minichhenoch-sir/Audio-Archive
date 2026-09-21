@@ -812,3 +812,26 @@ und feststehende Kopfzeile aus 0.15.4 bleiben.
   lädt die App die Aufnahme erst beim nächsten Abspielen neu. Vorher wurde
   sofort neu geladen – dabei verschwand die Benachrichtigung, und die
   Wiedergabe startete ungewollt von selbst weiter.
+
+---
+
+## 0.16.0: App-Symbol in der Leistenfarbe
+
+Das Mikrofon-Symbol hat jetzt überall den Hintergrund in der Farbe der
+Player-Leiste – blaue Leiste, blaues Symbol; gelbe Leiste, gelbes Symbol.
+Das Mikrofon ist weiß, auf hellen Farben (etwa Gelb oder Weiß) schwarz.
+
+- **Wo:** Symbol der installierten App (Startbildschirm), Browser-Tab,
+  Player-Leiste und Vollbild-Player bei Aufnahmen ohne eigenes Cover,
+  Benachrichtigung und Sperrbildschirm.
+- **Welche Farbe:** die der jeweiligen Ansicht – Freigabe-Link mit seinen
+  Farben, Administrator-Link mit den Farben aus der Verwaltung, angemeldete
+  Nutzer mit ihrer persönlichen Darstellung. Bei Nextcloud-Gestaltung
+  Nextclouds Hauptfarbe.
+- **Bereits installierte Apps:** Android übernimmt das neue Symbol erst,
+  wenn Chrome das Manifest wieder prüft (meist innerhalb eines Tages,
+  manchmal mit Rückfrage). Auf iPhone/iPad bleibt das alte Symbol, bis die
+  App neu zum Home-Bildschirm hinzugefügt wird.
+- Die Symbole erzeugt der Server aus dem mitgelieferten Bild und hält sie
+  im Zwischenspeicher. Dafür wird PHP-GD genutzt (bei Nextcloud ohnehin
+  Pflicht); fehlt es, bleibt das blaue Symbol.

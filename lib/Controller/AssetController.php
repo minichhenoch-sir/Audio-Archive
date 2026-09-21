@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
+use OCA\AudioArchive\Service\AppIcon;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\ShareService;
@@ -15,8 +16,11 @@ use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\ContentSecurityPolicy;
 use OCP\AppFramework\Http\DataDisplayResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\App\IAppManager;
 use OCP\IAppConfig;
 use OCP\IRequest;
+use OCP\Security\RateLimiting\ILimiter;
+use OCP\Security\RateLimiting\IRateLimitExceededException;
 use OCP\IURLGenerator;
 use OCP\IUserSession;
 
@@ -43,6 +47,9 @@ class AssetController extends Controller {
         private Appearance $appearance,
         private IUserSession $userSession,
         private ShareService $shares,
+        private AppIcon $appIcon,
+        private IAppManager $appManager,
+        private ILimiter $limiter,
     ) {
         parent::__construct($appName, $request);
     }
@@ -92,6 +99,37 @@ class AssetController extends Controller {
      * Freigabe-Seite gezeigt wird - also bevor jemand angemeldet ist. Es
      * enthaelt keine schutzwuerdigen Angaben.
      */
+    /**
+     * App-Symbol in einer Farbe (ab 0.16). Oeffentlich, weil es auch auf
+     * dem Startbildschirm, im Browser-Tab und auf dem Anmelde-Bildschirm
+     * erscheint; es enthaelt nichts Schutzwuerdiges. Die Farbe steht in
+     * der Adresse, deshalb darf der Browser das Bild ein Jahr behalten.
+     * Das Erzeugen einer NEUEN Farbe kostet etwas Rechenzeit (~0,1 s).
+     * Ohne Anmeldung ist das deshalb begrenzt - aber nur, wenn wirklich neu
+     * gerechnet werden muss. Schon erzeugte Symbole kommen unbegrenzt aus
+     * dem Zwischenspeicher (viele Geraete hinter einem Gemeinde-WLAN).
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function icon(string $color, string $name): Response {
+        if (!$this->appIcon->isCached($color, $name) && $this->userSession->getUser() === null) {
+            try {
+                $this->limiter->registerAnonRequest(
+                    'audioarchive-icon', 30, 60, $this->request->getRemoteAddress()
+                );
+            } catch (IRateLimitExceededException $e) {
+                return new DataDisplayResponse('', Http::STATUS_TOO_MANY_REQUESTS);
+            }
+        }
+        $png = $this->appIcon->render($color, $name);
+        if ($png === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        $response = new DataDisplayResponse($png, Http::STATUS_OK, ['Content-Type' => 'image/png']);
+        $response->cacheFor(365 * 24 * 3600, true, true);
+        return $response;
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function background(): Response {
@@ -236,9 +274,9 @@ class AssetController extends Controller {
          * Angabe wuerde der Browser dann gegen diesen Pfad aufloesen und
          * die Icons nicht finden.
          */
-        $icon = fn (string $file) => $this->urlGenerator->getAbsoluteURL(
-            $this->urlGenerator->imagePath(Application::APP_ID, $file)
-        );
+        // Ab 0.16 in der Leistenfarbe dieser Ansicht (siehe AppIcon)
+        $version = (string)$this->appManager->getAppVersion(Application::APP_ID);
+        $icon = fn (string $variant) => $this->appIcon->url($barColor, $variant, true, $version);
 
         $manifest = [
             'id' => $id,
@@ -253,9 +291,9 @@ class AssetController extends Controller {
             'background_color' => $barColor,
             'theme_color' => $barColor,
             'icons' => [
-                ['src' => $icon('icon-192.png'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
-                ['src' => $icon('icon-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
-                ['src' => $icon('icon-maskable-512.png'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
+                ['src' => $icon('any-192'), 'sizes' => '192x192', 'type' => 'image/png', 'purpose' => 'any'],
+                ['src' => $icon('any-512'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'any'],
+                ['src' => $icon('maskable-512'), 'sizes' => '512x512', 'type' => 'image/png', 'purpose' => 'maskable'],
             ],
         ];
 

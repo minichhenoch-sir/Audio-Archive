@@ -54,6 +54,9 @@ const AudioArchive = (() => {
   // Aktuelle Gestaltung. Veraenderlich, weil ein mit dem Nutzer geteilter
   // Ordner sein eigenes Aussehen mitbringen kann (siehe app.js, Look).
   let currentDesign = data.design;
+  // Farbe des App-Symbols (6 Hexziffern) - folgt der Leistenfarbe (ab 0.16)
+  let iconColor = /^[0-9a-f]{6}$/.test(el.dataset.iconColor || '') ? el.dataset.iconColor : '';
+  const ncPrimary = el.dataset.ncPrimary || '';
 
   return {
     ...data,
@@ -133,6 +136,34 @@ const AudioArchive = (() => {
      * oeffentlichen Seite gegen /apps/audioarchive/s/<token>/ aufgeloest
      * und ins Leere zeigen.
      */
+    /**
+     * App-Symbol in der aktuellen Leistenfarbe (ab 0.16). Varianten:
+     * any-64, any-192, any-512, maskable-512, apple-180. Ohne Farbe das
+     * mitgelieferte blaue Symbol.
+     */
+    iconUrl(variant) {
+      if (!iconColor) {
+        return this.asset(variant === 'any-192' ? 'img/icon-192.png' : 'img/icon-512.png');
+      }
+      return new URL(data.scope + 'icon/' + iconColor + '/' + variant
+        + '?v=' + encodeURIComponent(data.appVersion), location.href).href;
+    },
+
+    /** Symbolfarbe setzen ('#rrggbb'); true, wenn sie sich geaendert hat. */
+    setIconColor(color) {
+      let hex = String(color || '').trim().replace(/^#/, '').toLowerCase();
+      if (/^[0-9a-f]{3}$/.test(hex)) hex = hex.replace(/(.)/g, '$1$1');
+      hex = hex.slice(0, 6);
+      if (!/^[0-9a-f]{6}$/.test(hex) || hex === iconColor) return false;
+      iconColor = hex;
+      return true;
+    },
+
+    /** Nextclouds Hauptfarbe - Symbolfarbe bei Nextcloud-Gestaltung */
+    ncPrimary() {
+      return ncPrimary;
+    },
+
     asset(file) {
       return new URL(data.assetBase + file, location.href).href;
     },

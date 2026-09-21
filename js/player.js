@@ -190,7 +190,10 @@ const Player = (() => {
   // (track.cover = Versionskennung). Ohne Cover, oder wenn es nicht laedt
   // (etwa offline und nicht gespeichert), erscheint das App-Symbol.
   // ------------------------------------------------------------------
-  const FALLBACK_COVER = AudioArchive.asset('img/icon-512.png');
+  // Ab 0.16 in der Leistenfarbe - deshalb eine Funktion statt fester Adresse
+  function fallbackCover() {
+    return AudioArchive.iconUrl('any-512');
+  }
 
   /** Adresse des Covers eines Titels, oder null ohne Cover. */
   function coverUrlFor(track) {
@@ -200,13 +203,18 @@ const Player = (() => {
   function showCover(track) {
     const url = coverUrlFor(track);
     els.bar.classList.toggle('has-cover', !!url);
+    // Kein Cover -> farbiges Symbol -> (falls auch das nicht laedt, etwa
+    // offline oder gedrosselt) das mitgelieferte blaue Symbol
+    const colored = fallbackCover();
+    const plain = AudioArchive.asset('img/icon-512.png');
     els.cover.onerror = () => {
-      els.cover.onerror = null;
-      els.cover.src = FALLBACK_COVER;
       els.bar.classList.remove('has-cover');
       els.bar.style.removeProperty('--aa-cover');
+      const next = els.cover.src === colored ? plain : colored;
+      if (next === plain) els.cover.onerror = null;
+      els.cover.src = next;
     };
-    els.cover.src = url || FALLBACK_COVER;
+    els.cover.src = url || colored;
     // Fuer den unscharfen Hintergrund des Vollbild-Players
     if (url) {
       els.bar.style.setProperty('--aa-cover', `url("${url.replace(/["\\\n]/g, '')}")`);
@@ -225,8 +233,8 @@ const Player = (() => {
     const artwork = cover
       ? [{ src: cover, sizes: '512x512' }]
       : [
-        { src: AudioArchive.asset('img/icon-192.png'), sizes: '192x192', type: 'image/png' },
-        { src: AudioArchive.asset('img/icon-512.png'), sizes: '512x512', type: 'image/png' },
+        { src: AudioArchive.iconUrl('any-192'), sizes: '192x192', type: 'image/png' },
+        { src: AudioArchive.iconUrl('any-512'), sizes: '512x512', type: 'image/png' },
       ];
 
     try {
@@ -1130,6 +1138,17 @@ const Player = (() => {
       if (currentIndex < 0) return null;
       const track = playlist[currentIndex];
       return (track.source || 'shared') + '|' + track.path;
+    },
+
+    /**
+     * Symbolfarbe hat sich geaendert (Aussehen einer Freigabe, ab 0.16):
+     * Titel ohne eigenes Cover zeigen das Symbol in der neuen Farbe.
+     */
+    refreshIcon() {
+      const track = playlist[currentIndex];
+      if (!track || els.bar.hidden || coverUrlFor(track)) return;
+      els.cover.src = fallbackCover();
+      updateMediaSession(track);
     },
 
     onTrackChange(callback) {

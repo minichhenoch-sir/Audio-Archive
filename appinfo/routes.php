@@ -75,5 +75,11 @@ return [
         // gelten.
         ['name' => 'asset#serviceWorker', 'url' => '/service-worker.js', 'verb' => 'GET'],
         ['name' => 'asset#manifest', 'url' => '/manifest.webmanifest', 'verb' => 'GET'],
+
+        // App-Symbol in der Leistenfarbe (ab 0.16). Bewusst ohne ".png" am
+        // Ende: Nextclouds .htaccess reicht Adressen mit Bild-Endung nicht
+        // an index.php weiter, sie kaemen nie beim Controller an.
+        ['name' => 'asset#icon', 'url' => '/icon/{color}/{name}', 'verb' => 'GET',
+            'requirements' => ['color' => '[0-9a-f]{6}', 'name' => '[a-z]+-[0-9]+']],
     ],
 ];

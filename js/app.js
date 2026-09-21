@@ -393,6 +393,15 @@
       }
 
       renderTitles(look.title || base.title, look.subtitle || '');
+      updateAppIcon(nc ? AudioArchive.ncPrimary() : (look.themeBar || base.themeBar));
+    }
+
+    /** App-Symbol (Browser-Tab, Player, Benachrichtigung) umfaerben, ab 0.16 */
+    function updateAppIcon(color) {
+      if (!AudioArchive.setIconColor(color)) return;
+      const favicon = document.querySelector('link[rel="icon"]');
+      if (favicon && !AudioArchive.isEmbedded()) favicon.href = AudioArchive.iconUrl('any-192');
+      Player.refreshIcon();
     }
 
     return {

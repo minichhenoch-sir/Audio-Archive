@@ -38,6 +38,7 @@ class PlayerPage {
         private AudioFolder $audioFolder,
         private ShareService $shares,
         private IAppManager $appManager,
+        private AppIcon $appIcon,
     ) {
     }
 
@@ -147,6 +148,18 @@ class PlayerPage {
                 ? (string)json_encode($themeStylesheets, JSON_UNESCAPED_SLASHES)
                 : '[]',
             'themeColor' => $this->appearance->barColor($design, $values['themeBar']),
+            // App-Symbol in der Leistenfarbe (ab 0.16): Farbe fuer die
+            // Skripte, dazu Browser-Tab und Apple-Startbildschirm
+            'iconColor' => (string)AppIcon::normalizeColor($this->appearance->barColor($design, $values['themeBar'])),
+            'ncPrimary' => (string)AppIcon::normalizeColor($this->appearance->barColor(Application::DESIGN_NEXTCLOUD)),
+            'faviconUrl' => $this->appIcon->url(
+                $this->appearance->barColor($design, $values['themeBar']), 'any-192', false,
+                (string)$this->appManager->getAppVersion(Application::APP_ID)
+            ),
+            'appleIconUrl' => $this->appIcon->url(
+                $this->appearance->barColor($design, $values['themeBar']), 'apple-180', false,
+                (string)$this->appManager->getAppVersion(Application::APP_ID)
+            ),
             // Darf der Nutzer in der App seine Darstellung selbst waehlen?
             'userSettings' => ($uid !== null && $this->appearance->userCustomizationAllowed()) ? '1' : '',
             // Fuer Schreibzugriffe der App (persoenliche Einstellungen):
