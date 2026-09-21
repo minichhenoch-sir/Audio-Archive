@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.17.1)
+# Audio Archive – Nextcloud-App (0.17.2)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -908,3 +908,18 @@ Akzentfarbe war kaum zu lesen. Jetzt:
   bleiben dadurch lesbar.
 
 Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.17.2: Cover aus dem Ordner – jeder Dateiname
+
+- Hat eine MP3 kein eingebettetes Bild, nimmt die App **jedes Bild im
+  Ordner der Aufnahme** (JPG, PNG, WebP, GIF) – der Dateiname ist egal.
+- Gesucht wird **nur in diesem Ordner**, nicht mehr in übergeordneten.
+  Ohne Bild erscheint das App-Symbol.
+- Mehrere Bilder im Ordner: Ein Name wie `cover`, `folder`, `front`,
+  `album` oder `albumart` hat Vorrang, sonst das alphabetisch erste
+  (`Bild2` vor `Bild10`). Versteckte Dateien (Punkt am Anfang, etwa die
+  `._…`-Dateien von macOS) zählen nicht.
+
+PHP geändert → nach dem Einspielen den Container neu starten.

@@ -70,7 +70,7 @@ class ListController extends Controller {
 
         $dirs = [];
         $files = [];
-        // Ordnerbild (cover.jpg o. ae.) - erst suchen, wenn eine Aufnahme
+        // Ordnerbild (beliebiger Name, nur dieser Ordner) - erst suchen, wenn eine Aufnahme
         // kein eingebettetes Cover hat, und dann nur einmal je Ordner
         $folderCover = false;
 

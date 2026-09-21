@@ -7,22 +7,26 @@ use OCP\Files\File;
 use OCP\Files\Folder;
 
 /**
- * Findet das Cover einer Aufnahme (ab 0.14).
+ * Findet das Cover einer Aufnahme (ab 0.14, Suche geaendert in 0.17.2).
  *
  * Reihenfolge:
  *   1. das in der mp3 eingebettete Bild (ID3, siehe MetadataReader)
- *   2. ein Bild im Ordner der Aufnahme, etwa cover.jpg oder folder.jpg
- *   3. dasselbe in den uebergeordneten Ordnern, bis zur Wurzel der Quelle -
- *      so genuegt EIN Bild fuer eine ganze Reihe mit Unterordnern
+ *   2. ein Bild im Ordner der Aufnahme - mit BELIEBIGEM Dateinamen
+ *   3. sonst nichts: Die App zeigt dann das App-Symbol
  *
- * Nie oberhalb der Wurzel: Bei einer Freigabe darf kein Bild aus Ordnern
- * auftauchen, die gar nicht freigegeben sind.
+ * Vom Nutzer 2026-09-21 festgelegt: jeder Dateiname zaehlt, gesucht wird
+ * NUR im Ordner der Aufnahme. (Bis 0.17.1 nur cover/folder/front/album/
+ * albumart und zusaetzlich aufwaerts bis zur Wurzel der Quelle.)
+ *
+ * Liegen mehrere Bilder im Ordner, gewinnt ein ueblicher Cover-Name
+ * (cover, folder, front, album, albumart), sonst das alphabetisch erste
+ * ("natuerlich" sortiert, also bild2 vor bild10).
  */
 class CoverFinder {
 
-    /** Uebliche Namen, in dieser Rangfolge. */
+    /** Uebliche Namen - haben Vorrang, wenn mehrere Bilder im Ordner liegen. */
     private const NAMES = ['cover', 'folder', 'front', 'album', 'albumart'];
-    private const EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp'];
+    private const EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
     private const MAX_BYTES = 16 * 1024 * 1024;
 
     public function __construct(
@@ -32,66 +36,63 @@ class CoverFinder {
     }
 
     /**
-     * Bild in genau diesem Ordner, oder null. Gross-/Kleinschreibung egal
-     * ("Cover.JPG" zaehlt auch).
+     * Bild in genau diesem Ordner, oder null. Endung zaehlt, nicht der Name;
+     * Gross-/Kleinschreibung egal. Versteckte Dateien (Punkt am Anfang)
+     * zaehlen nicht - dazu gehoeren auch die "._name.jpg"-Begleitdateien,
+     * die macOS auf manchen Laufwerken anlegt und die gar keine Bilder sind.
      */
     public function imageIn(Folder $folder): ?File {
-        $candidates = [];
+        $preferred = [];
+        $others = [];
         try {
             foreach ($folder->getDirectoryListing() as $node) {
                 if (!$node instanceof File) {
                     continue;
                 }
-                $name = strtolower($node->getName());
-                $dot = strrpos($name, '.');
+                $name = $node->getName();
+                if (str_starts_with($name, '.')) {
+                    continue;
+                }
+                $lower = strtolower($name);
+                $dot = strrpos($lower, '.');
                 if ($dot === false) {
                     continue;
                 }
-                $base = substr($name, 0, $dot);
-                $ext = substr($name, $dot + 1);
-                $rank = array_search($base, self::NAMES, true);
-                if ($rank === false || !in_array($ext, self::EXTENSIONS, true)) {
+                $ext = substr($lower, $dot + 1);
+                if (!in_array($ext, self::EXTENSIONS, true)) {
                     continue;
                 }
                 if ($node->getSize() <= 0 || $node->getSize() > self::MAX_BYTES) {
                     continue;
                 }
-                $candidates[$rank] ??= $node;
+                $rank = array_search(substr($lower, 0, $dot), self::NAMES, true);
+                if ($rank !== false) {
+                    $preferred[$rank] ??= $node;
+                } else {
+                    $others[$name] = $node;
+                }
             }
         } catch (\Throwable $e) {
             return null;
         }
-        if ($candidates === []) {
+        if ($preferred !== []) {
+            ksort($preferred);
+            return reset($preferred);
+        }
+        if ($others === []) {
             return null;
         }
-        ksort($candidates);
-        return reset($candidates);
+        uksort($others, 'strnatcasecmp');
+        return reset($others);
     }
 
-    /** Bild in diesem Ordner oder einem uebergeordneten, hoechstens bis $root. */
+    /**
+     * Ordnerbild fuer die Aufnahmen in diesem Ordner - bewusst nur in ihm
+     * selbst, nicht in uebergeordneten Ordnern. $root bleibt als Parameter,
+     * damit die Aufrufer unveraendert bleiben.
+     */
     public function imageFor(Folder $folder, Folder $root): ?File {
-        $rootPath = rtrim($root->getPath(), '/');
-        $current = $folder;
-        for ($depth = 0; $depth < 32; $depth++) {
-            $image = $this->imageIn($current);
-            if ($image !== null) {
-                return $image;
-            }
-            if (rtrim($current->getPath(), '/') === $rootPath) {
-                return null;
-            }
-            try {
-                $parent = $current->getParent();
-            } catch (\Throwable $e) {
-                return null;
-            }
-            // Nicht aus der Wurzel hinaus
-            if (!str_starts_with(rtrim($parent->getPath(), '/') . '/', $rootPath . '/')) {
-                return null;
-            }
-            $current = $parent;
-        }
-        return null;
+        return $this->imageIn($folder);
     }
 
     /**
