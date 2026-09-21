@@ -798,3 +798,17 @@ Tablets und Desktop bleiben unverändert.
 Der immer sichtbare Knopf aus 0.15.4 ist wieder entfernt. Er erscheint wie
 zuvor nur, wenn der Browser die Installation selbst anbietet. Laufschrift
 und feststehende Kopfzeile aus 0.15.4 bleiben.
+
+---
+
+## 0.15.6: Benachrichtigung auf älteren Android-Geräten
+
+- **Blinkendes Symbol behoben:** Die App meldete dem System alle 5 Sekunden
+  die Wiedergabeposition. Android baut die Benachrichtigung dabei jedes Mal
+  samt Bild neu auf – auf älteren Geräten blinkte das Symbol. Jetzt wird
+  nur noch gemeldet, wenn die Position wirklich abweicht (Sprung, Pause,
+  Nachladen).
+- **Pause über Kopfhörer:** Reißt die Verbindung während einer Pause ab,
+  lädt die App die Aufnahme erst beim nächsten Abspielen neu. Vorher wurde
+  sofort neu geladen – dabei verschwand die Benachrichtigung, und die
+  Wiedergabe startete ungewollt von selbst weiter.

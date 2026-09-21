@@ -307,11 +307,25 @@ const Player = (() => {
     }
   }
 
-  // Zeitpunkt der letzten Positionsmeldung, fuer die Drosselung unten
-  let lastPositionReport = 0;
+  /*
+   * Zuletzt gemeldete Position (ab 0.15.6). Das System zaehlt nach einer
+   * Meldung selbst weiter (position + playbackRate). Neu gemeldet wird nur
+   * noch, wenn die tatsaechliche Position davon um mehr als 2 s abweicht -
+   * etwa nach einer Nachladepause. Vorher wurde alle 5 s gemeldet; jede
+   * Meldung laesst Android (sichtbar auf Android 9 / Chrome 114) die
+   * Benachrichtigung samt Titelbild neu aufbauen - das Symbol blinkte.
+   */
+  let reportedPosition = 0;
+  let reportedAt = 0;
+  let reportedRate = 1;
+
+  function positionDrifted() {
+    if (audio.paused || audio.seeking || !reportedAt) return false;
+    const expected = reportedPosition + ((Date.now() - reportedAt) / 1000) * reportedRate;
+    return Math.abs(expected - audio.currentTime) > 2;
+  }
 
   function updatePositionState() {
-    lastPositionReport = Date.now();
     if ('mediaSession' in navigator && 'setPositionState' in navigator.mediaSession) {
       if (isFinite(audio.duration) && audio.duration > 0) {
         /*
@@ -321,11 +335,16 @@ const Player = (() => {
          * zeigt die Benachrichtigung keinen Fortschritt und kein Spulen.
          */
         try {
+          const rate = audio.playbackRate > 0 ? audio.playbackRate : 1;
+          const position = Math.min(Math.max(0, audio.currentTime || 0), audio.duration);
           navigator.mediaSession.setPositionState({
             duration: audio.duration,
-            playbackRate: audio.playbackRate > 0 ? audio.playbackRate : 1,
-            position: Math.min(Math.max(0, audio.currentTime || 0), audio.duration),
+            playbackRate: rate,
+            position,
           });
+          reportedPosition = position;
+          reportedAt = Date.now();
+          reportedRate = rate;
         } catch (e) {
           // Nicht kritisch - dann ohne Fortschritt
         }
@@ -521,6 +540,7 @@ const Player = (() => {
     const track = playlist[index];
 
     mediaSessionNeedsRefresh = true;
+    pendingRecovery = null;
 
     audio.src = streamUrlFor(track);
     setMarqueeText(els.title, trackTitle(track));
@@ -580,7 +600,7 @@ const Player = (() => {
      * in der Benachrichtigung dagegen aus dem Ruder, sobald gesprungen oder
      * zwischen Titeln gewechselt wurde - deshalb dieser Mittelweg.
      */
-    if (Date.now() - lastPositionReport > 5000) {
+    if (positionDrifted()) {
       updatePositionState();
     }
 
@@ -896,6 +916,7 @@ const Player = (() => {
   let recoveryKey = '';
   let resumeAt = null;      // Position nach dem Neuladen
   let resumePlay = false;
+  let pendingRecovery = null; // im Pausenzustand aufgeschobenes Neuladen (ab 0.15.6)
   let lastGoodTime = 0;     // letzte sicher erreichte Position
   let intendedTime = null;  // Ziel eines laufenden Sprungs
 
@@ -915,12 +936,27 @@ const Player = (() => {
     if (track && (code === 2 || code === 3) && recoveries < 3) {
       recoveries++;
       resumeAt = intendedTime !== null ? intendedTime : lastGoodTime;
-      resumePlay = true;
       const base = streamUrlFor(track);
-      setTimeout(() => {
-        audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + recoveries;
+      const attempt = recoveries;
+      const reload = () => {
+        audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + attempt;
         audio.load();
-      }, recoveries === 1 ? 0 : 1000 * recoveries);
+      };
+      /*
+       * Ab 0.15.6: Reisst die Verbindung WAEHREND einer Pause ab, wird nicht
+       * sofort neu geladen. Ein Quellwechsel beendet die Medien-Sitzung -
+       * Android nimmt dann die Benachrichtigung weg, und Kopfhoerer-Tasten
+       * erreichen die Seite nicht mehr. Geladen wird erst beim naechsten
+       * Abspielen; bis dahin bleibt die Sitzung (pausiert) bestehen.
+       * Vorher wurde ausserdem immer weitergespielt, auch aus der Pause.
+       */
+      if (audio.paused) {
+        resumePlay = false;
+        pendingRecovery = reload;
+        return;
+      }
+      resumePlay = true;
+      setTimeout(reload, recoveries === 1 ? 0 : 1000 * recoveries);
       return;
     }
     setMarqueeText(els.title, 'Wiedergabe fehlgeschlagen');
@@ -1045,6 +1081,13 @@ const Player = (() => {
     },
 
     resume() {
+      if (pendingRecovery) {
+        const reload = pendingRecovery;
+        pendingRecovery = null;
+        resumePlay = true;
+        reload();
+        return;
+      }
       audio.play().catch(() => {});
     },
 
