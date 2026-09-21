@@ -835,3 +835,14 @@ Das Mikrofon ist weiß, auf hellen Farben (etwa Gelb oder Weiß) schwarz.
 - Die Symbole erzeugt der Server aus dem mitgelieferten Bild und hält sie
   im Zwischenspeicher. Dafür wird PHP-GD genutzt (bei Nextcloud ohnehin
   Pflicht); fehlt es, bleibt das blaue Symbol.
+
+---
+
+## 0.16.1: Keine Obergrenze für die Nextcloud-Version
+
+Bisher war in der App Nextcloud 34 als höchste Version eingetragen. Nach
+dem Update auf Nextcloud 35 hat Nextcloud die App deshalb abgeschaltet.
+Jetzt steht dort 99 – die App lässt sich damit auch nach künftigen
+Nextcloud-Updates weiter einschalten. (Ob sie mit einer neuen Version
+tatsächlich fehlerfrei läuft, ist damit nicht gesagt; bei Problemen nach
+einem Update bitte melden.)
