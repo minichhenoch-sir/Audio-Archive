@@ -185,7 +185,11 @@
   }
 
   function applySettingsFromDocument() {
-    applyTheme(AudioArchive.themeAccent, AudioArchive.themeBar, AudioArchive.themeBase);
+    if (AudioArchive.style) {
+      applyStyle(AudioArchive.style);
+    } else {
+      applyTheme(AudioArchive.themeAccent, AudioArchive.themeBar, AudioArchive.themeBase);
+    }
 
     const title = AudioArchive.headerTitle || 'Audio Archive';
     const subtitle = AudioArchive.headerSubtitle || '';
@@ -300,8 +304,54 @@
     applyBackgroundLayer();
   }
 
+  // ------------------------------------------------------------------
+  // Frei eingestellte Gestaltung anwenden (ab 0.17): "Vom Administrator
+  // bereitgestellt" und "Benutzerdefiniert". Die Werte rechnet
+  // style-tokens.js in CSS-Variablen um:
+  //   - auf <html> die Variablen aus :root (Farben, Glas, Rundung, Schrift)
+  //   - beim flachen Grundstil zusaetzlich auf #audioarchive Nextclouds
+  //     Variablen, auf denen der flache Aufbau steht. Eingebettet NUR dort,
+  //     sonst wuerde sich Nextclouds eigene Kopfleiste mit umfaerben.
+  // ------------------------------------------------------------------
+  const appRoot = document.getElementById('audioarchive');
+
+  function clearStyleVars() {
+    const doc = document.documentElement.style;
+    AAStyle.ALL_DOC_KEYS.forEach((k) => doc.removeProperty(k));
+    AAStyle.ALL_ROOT_KEYS.forEach((k) => {
+      appRoot.style.removeProperty(k);
+      if (!AudioArchive.isEmbedded()) doc.removeProperty(k);
+    });
+    imageOverlay = DEFAULT_IMAGE_OVERLAY;
+  }
+
+  function applyStyle(style) {
+    clearStyleVars();
+    const vars = AAStyle.appVars(style);
+    const doc = document.documentElement.style;
+    Object.entries(vars.doc).forEach(([k, v]) => doc.setProperty(k, v));
+    Object.entries(vars.root).forEach(([k, v]) => {
+      appRoot.style.setProperty(k, v);
+      if (!AudioArchive.isEmbedded()) doc.setProperty(k, v);
+    });
+
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', vars.computed.themeColor);
+
+    // Flach: Hintergrund macht der Nextcloud-Aufbau (siehe Look)
+    if (vars.computed.flat) return;
+    const c = vars.computed;
+    themeGradient = c.bgImage === 'none'
+      ? `linear-gradient(${c.bgColor}, ${c.bgColor})`
+      : c.bgImage;
+    imageOverlay = c.imageOverlay;
+    applyBackgroundLayer();
+  }
+
   // Merkt sich den aktuellen Stand, damit Verlauf und Hintergrundbild
   // unabhaengig voneinander gesetzt werden koennen.
+  const DEFAULT_IMAGE_OVERLAY = 'rgba(20,14,9,0.55)';
+  let imageOverlay = DEFAULT_IMAGE_OVERLAY;
   let themeGradient = '';
   // Vom Administrator gesetztes Hintergrundbild; leer bedeutet: Verlauf
   // aus dem Grundton.
@@ -313,7 +363,7 @@
 
     if (backgroundImageUrl) {
       layer.style.backgroundImage =
-        `linear-gradient(rgba(20,14,9,0.55), rgba(20,14,9,0.55)), url("${backgroundImageUrl}")`;
+        `linear-gradient(${imageOverlay}, ${imageOverlay}), url("${backgroundImageUrl}")`;
       document.body.classList.add('has-bg-image');
     } else {
       layer.style.backgroundImage = themeGradient;
@@ -334,6 +384,7 @@
     const rootEl = document.getElementById('audioarchive');
     const base = {
       design: AudioArchive.design,
+      style: AudioArchive.style,
       title: AudioArchive.headerTitle || 'Audio Archive',
       subtitle: AudioArchive.headerSubtitle || '',
       themeAccent: AudioArchive.themeAccent,
@@ -363,13 +414,22 @@
       });
     }
 
+    let activeLook = base;
+
     function apply(look, key) {
       if (key === activeKey) return;
       activeKey = key;
+      activeLook = look;
 
-      const nc = look.design === 'nextcloud';
-      AudioArchive.setDesign(look.design);
-      if (nc) ensureNextcloudStylesheets();
+      // Frei eingestellte Werte ('admin'/'defined', ab 0.17)
+      const style = look.style && look.design !== 'nextcloud' && look.design !== 'custom'
+        ? AAStyle.normalize(look.style) : null;
+      // Flacher Aufbau: "Klassisch" oder Grundstil flach
+      const nc = look.design === 'nextcloud' || (style !== null && style.base === 'classic');
+      AudioArchive.setDesign(nc ? 'nextcloud' : 'custom');
+      // Nextclouds Variablen braucht nur "Klassisch" - beim flachen
+      // Grundstil belegt applyStyle() sie selbst
+      if (look.design === 'nextcloud') ensureNextcloudStylesheets();
       rootEl.classList.toggle('aa-design-nextcloud', nc);
 
       // Bild fuer die Nextcloud-Gestaltung (CSS-Variable, siehe style.css)
@@ -389,12 +449,24 @@
         document.body.classList.remove('has-bg-image');
       } else {
         backgroundImageUrl = url;
-        applyTheme(look.themeAccent, look.themeBar, look.themeBase);
+      }
+      if (style) {
+        applyStyle(style);
+      } else {
+        clearStyleVars();
+        if (!nc) applyTheme(look.themeAccent, look.themeBar, look.themeBase);
       }
 
       renderTitles(look.title || base.title, look.subtitle || '');
-      updateAppIcon(nc ? AudioArchive.ncPrimary() : (look.themeBar || base.themeBar));
+      let iconColor = look.themeBar || base.themeBar;
+      if (look.design === 'nextcloud') iconColor = AudioArchive.ncPrimary();
+      else if (style) iconColor = AAStyle.compute(style).themeColor;
+      updateAppIcon(iconColor);
     }
+
+    // Vorschau beim Einstellen (Zahnrad): danach zurueck zum vorigen Stand
+    let beforePreview = null;
+    let previewCount = 0;
 
     /** App-Symbol (Browser-Tab, Player, Benachrichtigung) umfaerben, ab 0.16 */
     function updateAppIcon(color) {
@@ -412,6 +484,23 @@
       /** Aussehen eines geteilten Ordners anwenden. */
       show(look, key) {
         apply({ ...base, ...look }, key);
+      },
+      /** Die eigene Ansicht, wie sie gerade gilt (Ausgang fuer Vorschauen). */
+      base() {
+        return { ...base };
+      },
+      /** Voruebergehend ein Aussehen zeigen (ab 0.17, beim Einstellen). */
+      preview(look) {
+        if (beforePreview === null) beforePreview = { look: activeLook, key: activeKey };
+        apply({ ...base, ...look }, 'preview-' + (++previewCount));
+      },
+      /** Vorschau beenden und den Stand davor wiederherstellen. */
+      endPreview() {
+        if (beforePreview === null) return;
+        const { look, key } = beforePreview;
+        beforePreview = null;
+        activeKey = null;
+        apply(look, key);
       },
     };
   })();
@@ -2490,34 +2579,111 @@
       const subtitle = textInput(st.subtitle, '');
       look.appendChild(field('Zusatzzeile (optional)', subtitle));
 
-      const design = el('select', 'panel-input');
-      [['', isInternal ? 'Wie beim Empfänger' : 'Vorgabe des Administrators'], ['custom', 'Eigene Gestaltung'], ['nextcloud', 'Nextcloud (Hell/Dunkel automatisch)']]
-        .forEach(([value, text]) => {
-          const opt = el('option', '', text);
-          opt.value = value;
-          design.appendChild(opt);
-        });
-      design.value = st.design || '';
-      look.appendChild(field('Gestaltung', design));
+      /*
+       * Gestaltung der Freigabe (ab 0.17): dieselben vier wie persoenlich,
+       * dazu "Vorgabe" (Administrator bzw. beim Empfaenger dessen eigene).
+       * "Benutzerdefiniert" speichert die Werte in der Freigabe selbst.
+       */
+      let chosenDesign = st.design || '';
+      if (chosenDesign === 'admin' && !AudioArchive.adminStyleOffered) chosenDesign = '';
+      const classicThumb = AAStyle.classicThumb(AudioArchive.ncPrimary() ? '#' + AudioArchive.ncPrimary().replace('#', '') : '');
+      const cardOptions = [
+        { value: '', label: 'Vorgabe', desc: isInternal ? 'Wie beim Empfänger' : 'Wie vom Administrator eingestellt', style: AAStyle.DEFAULTS },
+        { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design, Hell/Dunkel automatisch', style: classicThumb },
+        { value: 'custom', label: 'Modern', desc: 'Rund mit Glaseffekt, Farben wählbar', style: AAStyle.DEFAULTS },
+      ];
+      if (AudioArchive.adminStyleOffered) {
+        cardOptions.push({ value: 'admin', label: 'Vom Administrator', desc: 'Gestaltung des Administrators', style: AAStyle.DEFAULTS });
+      }
+      cardOptions.push({ value: 'defined', label: 'Benutzerdefiniert', desc: 'Alles selbst einstellen', style: st.style || AAStyle.DEFAULTS });
 
-      const ownColors = checkbox('Eigene Farben (bei eigener Gestaltung)', !!(st.themeAccent || st.themeBar || st.themeBase));
-      look.appendChild(ownColors.wrap);
+      const modernBox = el('div', 'share-design-modern');
+      const definedBox = el('div', 'share-design-defined');
+      const syncDesign = () => {
+        modernBox.hidden = chosenDesign !== 'custom';
+        definedBox.hidden = chosenDesign !== 'defined';
+      };
+      const cards = AAStyle.createDesignCards({
+        name: 'share-design-' + (isNew ? 'new' : share.id),
+        options: cardOptions,
+        value: chosenDesign,
+        onChange(value) {
+          chosenDesign = value;
+          syncDesign();
+        },
+      });
+      look.appendChild(el('span', 'panel-field-label', 'Gestaltung'));
+      look.appendChild(cards.el);
+
+      // Vorschaubilder mit den echten Vorgaben des Administrators
+      fetch(AudioArchive.api('user/settings'), { credentials: 'same-origin' })
+        .then((res) => (res.ok ? res.json() : null))
+        .then((data) => {
+          if (!data) return;
+          const admin = data.admin || {};
+          const adminModern = AAStyle.modernThumb({ accent: admin.themeAccent, bar: admin.themeBar, base: admin.themeBase });
+          const adminStyle = data.adminStyle ? AAStyle.normalize(data.adminStyle) : null;
+          if (adminStyle) cards.setThumb('admin', adminStyle);
+          if (!isInternal) {
+            cards.setThumb('', data.adminDesign === 'nextcloud' ? classicThumb
+              : (data.adminDesign === 'admin' && adminStyle ? adminStyle : adminModern));
+          }
+          if (!ownColors.input.checked) cards.setThumb('custom', adminModern);
+        })
+        .catch(() => {});
+
+      // Modern: Farben mit Vorlagen
+      const ownColors = checkbox('Eigene Farben', !!(st.themeAccent || st.themeBar || st.themeBase));
+      modernBox.appendChild(ownColors.wrap);
+      const colorWrap = el('div', 'share-colors-wrap');
       const colorRow = el('div', 'panel-row share-colors');
       const colorInputs = {};
+      const syncModernThumb = () => {
+        if (!ownColors.input.checked) return;
+        cards.setThumb('custom', AAStyle.modernThumb({
+          accent: colorInputs.themeAccent.value, bar: colorInputs.themeBar.value, base: colorInputs.themeBase.value,
+        }));
+      };
+      const palettes = AAStyle.createPalettePicker((p) => {
+        ownColors.input.checked = true;
+        colorInputs.themeAccent.value = p.accent;
+        colorInputs.themeBar.value = p.bar;
+        colorInputs.themeBase.value = p.base;
+        syncColors();
+      }, st.themeAccent ? { accent: st.themeAccent, bar: st.themeBar, base: st.themeBase } : null);
+      colorWrap.appendChild(palettes.el);
       [['themeAccent', 'Akzent', AudioArchive.themeAccent], ['themeBar', 'Leisten', AudioArchive.themeBar], ['themeBase', 'Grundton', AudioArchive.themeBase]]
         .forEach(([keyName, label, fallback]) => {
           const input = el('input', 'panel-color');
           input.type = 'color';
           input.value = st[keyName] || fallback || '#888888';
+          input.addEventListener('input', () => {
+            palettes.mark({ accent: colorInputs.themeAccent.value, bar: colorInputs.themeBar.value, base: colorInputs.themeBase.value });
+            syncModernThumb();
+          });
           colorInputs[keyName] = input;
           const wrap = el('label', 'panel-color-field');
           wrap.append(input, el('span', 'panel-hint', label));
           colorRow.appendChild(wrap);
         });
-      const syncColors = () => { colorRow.hidden = !ownColors.input.checked; };
+      colorWrap.appendChild(colorRow);
+      modernBox.appendChild(colorWrap);
+      const syncColors = () => {
+        colorWrap.hidden = !ownColors.input.checked;
+        syncModernThumb();
+      };
       ownColors.input.addEventListener('change', syncColors);
       syncColors();
-      look.appendChild(colorRow);
+      look.appendChild(modernBox);
+
+      // Benutzerdefiniert: Editor
+      const editor = AAStyle.createEditor({
+        value: st.style || AAStyle.DEFAULTS,
+        onChange(style) { cards.setThumb('defined', style); },
+      });
+      definedBox.appendChild(editor.el);
+      look.appendChild(definedBox);
+      syncDesign();
 
       // Hintergrundbild - braucht eine gespeicherte Freigabe
       const bgState = el('p', 'panel-hint');
@@ -2543,7 +2709,7 @@
         const syncBg = () => {
           removeBg.hidden = !share.hasBackground;
           bgState.textContent = share.hasBackground
-            ? 'Eigenes Bild gesetzt – gilt in beiden Gestaltungen.'
+            ? 'Eigenes Bild gesetzt – gilt in allen Gestaltungen.'
             : 'Kein eigenes Bild – es gilt die Vorgabe.';
         };
         file.addEventListener('change', async () => {
@@ -2577,7 +2743,10 @@
         const settings = {
           title: title.value,
           subtitle: subtitle.value,
-          design: design.value,
+          design: chosenDesign,
+          // Werte fuer "Benutzerdefiniert": bei Wahl, und bereits vorhandene
+          // bleiben erhalten, wenn voruebergehend anders gewaehlt wird
+          style: (chosenDesign === 'defined' || st.style) ? editor.get() : null,
           themeAccent: ownColors.input.checked ? colorInputs.themeAccent.value : '',
           themeBar: ownColors.input.checked ? colorInputs.themeBar.value : '',
           themeBase: ownColors.input.checked ? colorInputs.themeBase.value : '',
@@ -2699,21 +2868,45 @@
     const usBackgroundState = document.getElementById('us-background-state');
     const usBackgroundFile = document.getElementById('us-background-file');
     const usBackgroundRemove = document.getElementById('us-background-remove');
-    const usDefaultLabel = document.getElementById('us-design-default-label');
     const usTitle = document.getElementById('us-title');
     const usSubtitle = document.getElementById('us-subtitle');
     const usOwnColors = document.getElementById('us-own-colors');
     const usColors = document.getElementById('us-colors');
+    const usModern = document.getElementById('us-modern');
+    const usDefined = document.getElementById('us-defined');
+    const usCardsMount = document.getElementById('us-design-cards');
+    const usDesignHint = document.getElementById('us-design-hint');
     const usColorInputs = {
       themeAccent: document.getElementById('us-accent'),
       themeBar: document.getElementById('us-bar'),
       themeBase: document.getElementById('us-base'),
     };
     let usChanged = false;
+    let usSaved = false;
 
-    usOwnColors.addEventListener('change', () => { usColors.hidden = !usOwnColors.checked; });
+    /*
+     * Zustand des Panels (ab 0.17). Vier Gestaltungen plus "Vorgabe":
+     *   ''          Vorgabe des Administrators
+     *   'nextcloud' Klassisch
+     *   'custom'    Modern (Farben waehlbar, mit Vorlagen)
+     *   'admin'     vom Administrator bereitgestellt (nur wenn angeboten)
+     *   'defined'   benutzerdefiniert (Editor)
+     * Jede Aenderung wird sofort als Vorschau auf der Seite gezeigt.
+     */
+    const us = {
+      loaded: null,     // Antwort von api/user/settings
+      design: '',
+      cards: null,
+      palettes: null,
+      editor: null,
+    };
 
-    const designName = (d) => (d === 'nextcloud' ? 'Nextcloud' : 'Eigene Gestaltung');
+    const DESIGN_NAMES = {
+      nextcloud: 'Klassisch',
+      custom: 'Modern',
+      admin: 'Vom Administrator',
+      defined: 'Benutzerdefiniert',
+    };
 
     function usShowError(message) {
       usError.textContent = message || '';
@@ -2723,7 +2916,7 @@
     function usShowBackground(has) {
       usBackgroundRemove.hidden = !has;
       usBackgroundState.textContent = has
-        ? 'Eigenes Bild gesetzt. Es gilt in beiden Gestaltungen.'
+        ? 'Eigenes Bild gesetzt. Es gilt in allen Gestaltungen.'
         : 'Kein eigenes Bild – es gilt die Vorgabe.';
     }
 
@@ -2743,18 +2936,162 @@
       return data;
     }
 
+    /** Farben fuer "Modern": eigene, sonst die des Administrators. */
+    function modernColors() {
+      const admin = (us.loaded && us.loaded.admin) || {};
+      if (usOwnColors.checked) {
+        return {
+          themeAccent: usColorInputs.themeAccent.value,
+          themeBar: usColorInputs.themeBar.value,
+          themeBase: usColorInputs.themeBase.value,
+        };
+      }
+      return {
+        themeAccent: admin.themeAccent || AudioArchive.themeAccent,
+        themeBar: admin.themeBar || AudioArchive.themeBar,
+        themeBase: admin.themeBase || AudioArchive.themeBase,
+      };
+    }
+
+    /** Aussehen, das eine Wahl ergibt - fuer die Vorschau auf der Seite. */
+    function lookFor(choice) {
+      const data = us.loaded || {};
+      let design = choice;
+      if (design === '' || (design === 'admin' && !data.adminStyleOffered)) {
+        design = data.adminDesign || 'custom';
+      }
+      const look = { design, style: null, ...modernColors() };
+      if (design === 'admin') look.style = data.adminStyle || AAStyle.DEFAULTS;
+      if (design === 'defined') look.style = us.editor ? us.editor.get() : (data.style || AAStyle.DEFAULTS);
+      return look;
+    }
+
+    function usPreview() {
+      Look.preview(lookFor(us.design));
+    }
+
+    function syncSections() {
+      usModern.hidden = us.design !== 'custom';
+      usDefined.hidden = us.design !== 'defined';
+      usColors.hidden = !usOwnColors.checked;
+      const data = us.loaded || {};
+      if (us.design === '') {
+        usDesignHint.textContent = 'Es gilt, was der Administrator vorgibt – derzeit „'
+          + (DESIGN_NAMES[data.adminDesign] || 'Modern') + '“.';
+        usDesignHint.hidden = false;
+      } else if (us.design === 'nextcloud') {
+        usDesignHint.textContent = 'Farben, Hintergrund und Schrift kommen von Nextcloud und wechseln mit Hell/Dunkel.';
+        usDesignHint.hidden = false;
+      } else if (us.design === 'admin') {
+        usDesignHint.textContent = 'Vom Administrator gestaltet – ändert er sie, siehst du das automatisch.';
+        usDesignHint.hidden = false;
+      } else {
+        usDesignHint.hidden = true;
+      }
+    }
+
+    function updateModernThumb() {
+      if (!us.cards) return;
+      const c = modernColors();
+      us.cards.setThumb('custom', AAStyle.modernThumb({ accent: c.themeAccent, bar: c.themeBar, base: c.themeBase }));
+    }
+
+    function buildDesignUi(data) {
+      usCardsMount.textContent = '';
+      const admin = data.admin || {};
+      const adminModern = AAStyle.modernThumb({ accent: admin.themeAccent, bar: admin.themeBar, base: admin.themeBase });
+      const classic = AAStyle.classicThumb(AudioArchive.ncPrimary() ? '#' + AudioArchive.ncPrimary().replace('#', '') : '');
+      const adminStyle = data.adminStyle ? AAStyle.normalize(data.adminStyle) : AAStyle.DEFAULTS;
+      const defaultThumb = data.adminDesign === 'nextcloud' ? classic
+        : (data.adminDesign === 'admin' ? adminStyle : adminModern);
+
+      const options = [
+        { value: '', label: 'Vorgabe', desc: 'Wie vom Administrator eingestellt', style: defaultThumb },
+        { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design, Hell/Dunkel automatisch', style: classic },
+        { value: 'custom', label: 'Modern', desc: 'Rund mit Glaseffekt, Farben wählbar', style: adminModern },
+      ];
+      if (data.adminStyleOffered) {
+        options.push({ value: 'admin', label: 'Vom Administrator', desc: 'Gestaltung des Administrators', style: adminStyle });
+      }
+      options.push({ value: 'defined', label: 'Benutzerdefiniert', desc: 'Alles selbst einstellen', style: data.style || AAStyle.DEFAULTS });
+
+      us.cards = AAStyle.createDesignCards({
+        name: 'us-design',
+        options,
+        value: us.design,
+        onChange(value) {
+          us.design = value;
+          syncSections();
+          usPreview();
+        },
+      });
+      usCardsMount.appendChild(us.cards.el);
+
+      // Farbvorlagen fuer Modern
+      const paletteMount = document.getElementById('us-palettes');
+      paletteMount.textContent = '';
+      us.palettes = AAStyle.createPalettePicker((p) => {
+        usOwnColors.checked = true;
+        usColorInputs.themeAccent.value = p.accent;
+        usColorInputs.themeBar.value = p.bar;
+        usColorInputs.themeBase.value = p.base;
+        syncSections();
+        updateModernThumb();
+        usPreview();
+      }, null);
+      paletteMount.appendChild(us.palettes.el);
+
+      // Editor fuer Benutzerdefiniert
+      const editorMount = document.getElementById('us-editor');
+      editorMount.textContent = '';
+      us.editor = AAStyle.createEditor({
+        value: data.style || AAStyle.DEFAULTS,
+        imageUrl: AudioArchive.backgroundUrl || '',
+        onChange(style) {
+          us.cards.setThumb('defined', style);
+          if (us.design === 'defined') usPreview();
+        },
+      });
+      editorMount.appendChild(us.editor.el);
+    }
+
+    function markPalette() {
+      if (!us.palettes) return;
+      us.palettes.mark(usOwnColors.checked ? {
+        accent: usColorInputs.themeAccent.value,
+        bar: usColorInputs.themeBar.value,
+        base: usColorInputs.themeBase.value,
+      } : null);
+    }
+
+    usOwnColors.addEventListener('change', () => {
+      syncSections();
+      markPalette();
+      updateModernThumb();
+      usPreview();
+    });
+    Object.values(usColorInputs).forEach((input) => {
+      input.addEventListener('input', () => {
+        markPalette();
+        updateModernThumb();
+        usPreview();
+      });
+    });
+
     async function openUserSettings() {
       usShowError('');
+      usSaved = false;
       userSettingsPanel.hidden = false;
       userSettingsPanel.scrollIntoView({ block: 'nearest' });
       try {
         const res = await fetch(AudioArchive.api('user/settings'), { credentials: 'same-origin' });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || '');
-        usDefaultLabel.textContent = 'Vorgabe des Administrators (' + designName(data.adminDesign) + ')';
-        userSettingsPanel.querySelectorAll('input[name="us-design"]').forEach((input) => {
-          input.checked = input.value === (data.design || '');
-        });
+        us.loaded = data;
+        us.design = data.design || '';
+        // "Vom Administrator" gewaehlt, aber nicht mehr angeboten: Vorgabe
+        if (us.design === 'admin' && !data.adminStyleOffered) us.design = '';
+
         const values = data.values || {};
         const admin = data.admin || {};
         usTitle.value = values.title || '';
@@ -2763,10 +3100,14 @@
         usSubtitle.placeholder = admin.subtitle || '';
         const ownColors = !!(values.themeAccent || values.themeBar || values.themeBase);
         usOwnColors.checked = ownColors;
-        usColors.hidden = !ownColors;
         Object.keys(usColorInputs).forEach((keyName) => {
           usColorInputs[keyName].value = values[keyName] || admin[keyName] || '#888888';
         });
+
+        buildDesignUi(data);
+        markPalette();
+        updateModernThumb();
+        syncSections();
         usShowBackground(data.hasBackground === true);
       } catch (err) {
         usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
@@ -2775,6 +3116,8 @@
 
     function closeUserSettings() {
       userSettingsPanel.hidden = true;
+      // Nicht uebernommene Vorschau zuruecknehmen
+      if (!usSaved) Look.endPreview();
       // Ein neues oder entferntes Bild zeigt sich erst nach dem Neuladen
       if (usChanged) location.reload();
     }
@@ -2785,21 +3128,25 @@
     document.getElementById('us-cancel').addEventListener('click', closeUserSettings);
 
     document.getElementById('us-save').addEventListener('click', async () => {
-      const chosen = userSettingsPanel.querySelector('input[name="us-design"]:checked');
       usShowError('');
+      const payload = {
+        design: us.design,
+        title: usTitle.value,
+        subtitle: usSubtitle.value,
+        themeAccent: usOwnColors.checked ? usColorInputs.themeAccent.value : '',
+        themeBar: usOwnColors.checked ? usColorInputs.themeBar.value : '',
+        themeBase: usOwnColors.checked ? usColorInputs.themeBase.value : '',
+      };
+      // Benutzerdefinierte Werte immer mitsichern - auch wenn gerade eine
+      // andere Gestaltung gewaehlt ist, bleiben sie so fuer spaeter erhalten
+      if (us.editor) payload.style = us.editor.get();
       try {
         await usRequest('user/settings', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            design: chosen ? chosen.value : '',
-            title: usTitle.value,
-            subtitle: usSubtitle.value,
-            themeAccent: usOwnColors.checked ? usColorInputs.themeAccent.value : '',
-            themeBar: usOwnColors.checked ? usColorInputs.themeBar.value : '',
-            themeBase: usOwnColors.checked ? usColorInputs.themeBase.value : '',
-          }),
+          body: JSON.stringify(payload),
         });
+        usSaved = true;
         location.reload();
       } catch (err) {
         usShowError(err.message);

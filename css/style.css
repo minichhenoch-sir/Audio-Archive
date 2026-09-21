@@ -95,8 +95,9 @@
  * kleiner. Eigenstaendig bleibt es bei 1rem, damit eine im Browser
  * vergroesserte Schrift weiterhin wirkt.
  */
-:root { --aa-rem: 1rem; }
-#audioarchive.aa-embedded { --aa-rem: 16px; }
+/* --aa-font-scale: Schriftgroesse einer frei eingestellten Gestaltung (ab 0.17) */
+:root { --aa-rem: calc(1rem * var(--aa-font-scale, 1)); }
+#audioarchive.aa-embedded { --aa-rem: calc(16px * var(--aa-font-scale, 1)); }
 
 /*
  * Das [hidden]-Attribut des Browsers hat die niedrigste Gewichtung und
@@ -154,8 +155,8 @@ html.aa-standalone, html.aa-standalone body {
    sonst vom Text ablenken bzw. die Lesbarkeit verschlechtern. */
 body.has-bg-image #audioarchive .player-bar,
 body.has-bg-image #audioarchive .explorer-row.active {
-  backdrop-filter: blur(30px) saturate(180%);
-  -webkit-backdrop-filter: blur(30px) saturate(180%);
+  backdrop-filter: blur(calc(var(--aa-blur, 20px) * 1.5)) saturate(180%);
+  -webkit-backdrop-filter: blur(calc(var(--aa-blur, 20px) * 1.5)) saturate(180%);
 }
 
 #audioarchive .screen {
@@ -224,7 +225,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   max-width: 380px;
   text-align: center;
   padding: 34px 28px;
-  border-radius: 28px;
+  border-radius: calc(28px * var(--aa-rf, 1));
   background: var(--glass-dark-bg);
   border: 1px solid var(--glass-dark-border);
   box-shadow: var(--glass-dark-shadow);
@@ -267,7 +268,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: 100%;
   padding: 14px 18px;
   font-size: calc(1 * var(--aa-rem));
-  border-radius: 16px;
+  border-radius: calc(16px * var(--aa-rf, 1));
   border: 1px solid rgba(255, 255, 255, 0.22);
   background: rgba(255, 255, 255, 0.10);
   color: var(--color-cream);
@@ -292,7 +293,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   font-size: calc(1 * var(--aa-rem));
   font-weight: 600;
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: linear-gradient(180deg, rgba(224, 158, 100, 0.95), var(--color-accent) 70%);
   color: #2a1a0e;
   cursor: pointer;
@@ -356,7 +357,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .topbar-titles {
   min-width: 0;
   padding: 8px 18px;
-  border-radius: 18px;
+  border-radius: calc(18px * var(--aa-rf, 1));
 }
 
 #audioarchive .topbar h1 {
@@ -384,7 +385,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: 42px;
   height: 42px;
   padding: 0;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -426,7 +427,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   min-height: 20px;
   font-size: calc(0.9 * var(--aa-rem));
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -442,7 +443,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   font-size: calc(0.88 * var(--aa-rem));
   padding: 2px 4px;
   margin: -2px -4px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--aa-rf, 1));
   cursor: pointer;
   transition: transform 0.08s ease, background 0.1s ease;
 }
@@ -480,14 +481,14 @@ body.has-bg-image #audioarchive .explorer-row.active {
   font-size: calc(0.85 * var(--aa-rem));
   font-weight: 600;
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   cursor: pointer;
   transition: background 0.12s ease, transform 0.08s ease, opacity 0.12s ease;
 }
 
 #audioarchive .offline-btn:active {
   transform: scale(0.96);
-  background: rgba(255, 250, 242, 0.95);
+  background: var(--aa-surface-press, rgba(255, 250, 242, 0.95));
 }
 
 #audioarchive .offline-btn:disabled {
@@ -513,7 +514,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .explorer-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: calc(8px * var(--aa-density, 1));
 }
 
 /* Sanfte Ein-Animation, wenn eine neue Ebene (Monat/Tag/Dateien) gerendert
@@ -541,8 +542,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
   align-items: center;
   gap: 12px;
   width: 100%;
-  padding: 14px 16px;
-  border-radius: 16px;
+  padding: calc(14px * var(--aa-density, 1)) 16px;
+  border-radius: calc(16px * var(--aa-rf, 1));
   border: 1px solid var(--glass-light-border);
   /* Bewusst OHNE backdrop-filter: Ein Blur pro Listenzeile bedeutet bei
      langen Listen Dutzende teure Blur-Ebenen gleichzeitig - das war die
@@ -564,7 +565,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 #audioarchive .explorer-row:active {
   transform: scale(0.97);
-  background: rgba(255, 250, 242, 0.95);
+  background: var(--aa-surface-press, rgba(255, 250, 242, 0.95));
 }
 
 /*
@@ -574,7 +575,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
  */
 #audioarchive .explorer-row.active {
   border-color: rgba(var(--color-accent-rgb, 185, 121, 63), 0.75);
-  background: rgba(255, 250, 242, 0.45);
+  background: var(--aa-surface-active, rgba(255, 250, 242, 0.45));
   backdrop-filter: var(--glass-blur);
   -webkit-backdrop-filter: var(--glass-blur);
   border-left: 4px solid var(--color-accent-deep);
@@ -656,7 +657,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   bottom: calc(12px + var(--safe-bottom));
   color: var(--color-cream);
   padding: 14px 20px 16px;
-  border-radius: 26px;
+  border-radius: calc(26px * var(--aa-rf, 1));
   background: var(--glass-dark-bg-strong);
   border: 1px solid var(--glass-dark-border);
   box-shadow: var(--glass-dark-shadow);
@@ -680,7 +681,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   height: 48px;
   padding: 0;
   border: none;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--aa-rf, 1));
   overflow: hidden;
   background: rgba(255, 255, 255, 0.08);
   cursor: pointer;
@@ -705,7 +706,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   height: 40px;
   padding: 0;
   border: none;
-  border-radius: 50%;
+  border-radius: calc(50% * var(--aa-rfc, 1));
   background: transparent;
   color: var(--color-cream);
   cursor: pointer;
@@ -776,7 +777,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   justify-content: center;
   width: 44px;
   height: 44px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   padding: 0;
   transition: background 0.12s ease, transform 0.08s ease;
 }
@@ -794,7 +795,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .control-btn--main {
   width: 58px;
   height: 58px;
-  border-radius: 50%;
+  border-radius: calc(50% * var(--aa-rfc, 1));
   background: linear-gradient(180deg, rgba(224, 158, 100, 0.95), var(--color-accent) 75%);
   color: #2a1a0e;
   border: 1px solid rgba(255, 255, 255, 0.35);
@@ -893,7 +894,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .player-bar.is-expanded .player-cover {
   width: min(84vw, 46vh, 420px);
   height: min(84vw, 46vh, 420px);
-  border-radius: 18px;
+  border-radius: calc(18px * var(--aa-rf, 1));
   cursor: default;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.45);
 }
@@ -998,7 +999,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .offline-banner {
   margin: 0 0 12px;
   padding: 10px 16px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -1019,7 +1020,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: 32px;
   height: 32px;
   margin: -6px -6px -6px 2px;
-  border-radius: 50%;
+  border-radius: calc(50% * var(--aa-rfc, 1));
   color: var(--color-accent-deep);
   text-decoration: none;
   transition: background 0.12s ease, transform 0.08s ease;
@@ -1035,7 +1036,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
-  border-radius: 16px;
+  border-radius: calc(16px * var(--aa-rf, 1));
   padding: 14px 16px;
   margin-bottom: 12px;
   color: var(--color-ink);
@@ -1047,9 +1048,9 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .offline-pin input[type="password"] {
   width: 100%;
   padding: 10px 14px;
-  border-radius: 12px;
+  border-radius: calc(12px * var(--aa-rf, 1));
   border: 1px solid rgba(0, 0, 0, 0.18);
-  background: rgba(255, 255, 255, 0.7);
+  background: var(--aa-surface-button, rgba(255, 255, 255, 0.7));
   color: var(--color-ink);
   font: inherit;
   margin-bottom: 10px;
@@ -1062,12 +1063,12 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 #audioarchive .offline-pin-actions button {
   border: 1px solid var(--glass-light-border);
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--aa-surface-button, rgba(255, 255, 255, 0.75));
   color: var(--color-accent-deep);
   font-weight: 600;
   font-size: calc(0.85 * var(--aa-rem));
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   cursor: pointer;
 }
 
@@ -1087,7 +1088,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   display: inline-block;
   margin-left: 8px;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: var(--color-accent);
   color: #2a1a0e;
   font-family: var(--font-body);
@@ -1102,7 +1103,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .beta-notice {
   margin: 0 0 12px;
   padding: 10px 16px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -1148,7 +1149,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .panel {
   margin: 0 0 14px;
   padding: 16px 18px;
-  border-radius: 18px;
+  border-radius: calc(18px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -1204,9 +1205,9 @@ body.has-bg-image #audioarchive .explorer-row.active {
   display: inline-flex;
   align-items: center;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   border: 1px solid var(--glass-light-border);
-  background: rgba(255, 255, 255, 0.75);
+  background: var(--aa-surface-button, rgba(255, 255, 255, 0.75));
   color: var(--color-accent-deep);
   font-size: calc(0.85 * var(--aa-rem));
   font-weight: 600;
@@ -1269,7 +1270,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   overscroll-behavior-y: contain;
   margin: 18px 0 calc(var(--player-bar-space, 0px) + 12px) 14px;
   padding: 8px;
-  border-radius: 18px;
+  border-radius: calc(18px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -1294,8 +1295,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
   display: flex;
   align-items: center;
   gap: 2px;
-  border-radius: 10px;
-  min-height: 36px;
+  border-radius: calc(10px * var(--aa-rf, 1));
+  min-height: calc(36px * var(--aa-density, 1));
 }
 
 #audioarchive .tree-item:hover { background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.10); }
@@ -1316,7 +1317,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   border: none;
   background: none;
   color: inherit;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--aa-rf, 1));
   cursor: pointer;
   padding: 0;
   transition: transform 0.15s ease;
@@ -1380,7 +1381,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
     width: min(320px, 86%);
     max-height: none;
     margin: 0;
-    border-radius: 0 18px 18px 0;
+    border-radius: 0 calc(18px * var(--aa-rf, 1)) calc(18px * var(--aa-rf, 1)) 0;
     padding: calc(14px + var(--safe-top)) 10px calc(14px + var(--safe-bottom));
     z-index: 30;
     transform: translateX(-105%);
@@ -1429,7 +1430,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   font-size: calc(0.85 * var(--aa-rem));
   font-weight: 600;
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   cursor: pointer;
 }
 
@@ -1483,7 +1484,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .panel-input,
 #audioarchive .share-link {
   padding: 8px 12px;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--aa-rf, 1));
   border: 1px solid rgba(0, 0, 0, 0.18);
   background: rgba(255, 255, 255, 0.8);
   color: var(--color-ink);
@@ -1506,7 +1507,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: 52px;
   height: 34px;
   padding: 2px;
-  border-radius: 8px;
+  border-radius: calc(8px * var(--aa-rf, 1));
   border: 1px solid rgba(0, 0, 0, 0.18);
   background: none;
   cursor: pointer;
@@ -1541,7 +1542,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   align-items: center;
   gap: 4px;
   padding: 4px 4px 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.16);
   color: var(--color-ink);
   font-size: calc(0.85 * var(--aa-rem));
@@ -1551,7 +1552,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   width: 24px;
   height: 24px;
   border: none;
-  border-radius: 50%;
+  border-radius: calc(50% * var(--aa-rfc, 1));
   background: transparent;
   color: inherit;
   font-size: calc(1.05 * var(--aa-rem));
@@ -1566,7 +1567,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   flex-direction: column;
   max-height: 220px;
   overflow-y: auto;
-  border-radius: 10px;
+  border-radius: calc(10px * var(--aa-rf, 1));
   border: 1px solid rgba(0, 0, 0, 0.12);
   background: rgba(255, 255, 255, 0.92);
 }
@@ -1593,7 +1594,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   gap: 8px 16px;
   margin-bottom: 12px;
   padding: 9px 16px;
-  border-radius: 14px;
+  border-radius: calc(14px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   color: var(--color-ink);
@@ -1868,7 +1869,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   border: none;
   box-shadow: none;
   border-radius: var(--aa-nc-radius);
-  padding: 11px 12px;
+  padding: calc(11px * var(--aa-density, 1)) 12px;
   color: var(--aa-nc-text);
 }
 #audioarchive.aa-design-nextcloud .explorer-row:hover { background: var(--aa-nc-hover); }
@@ -1920,7 +1921,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   background: transparent;
   border: none;
   color: var(--aa-nc-text);
-  border-radius: 50%;
+  border-radius: calc(50% * var(--aa-rfc, 1));
 }
 #audioarchive.aa-design-nextcloud .control-btn:hover { background: var(--aa-nc-hover); }
 #audioarchive.aa-design-nextcloud .control-btn:active { background: var(--aa-nc-dark); }
@@ -2172,7 +2173,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   min-width: 14px;
   height: 14px;
   padding: 0 3px;
-  border-radius: 7px;
+  border-radius: calc(7px * var(--aa-rf, 1));
   background: var(--color-accent);
   color: #fff;
   font-size: 9px;
@@ -2190,7 +2191,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   transform: translateX(-50%);
   margin: 0;
   padding: 7px 14px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: rgba(20, 14, 9, 0.88);
   color: #fff;
   font-size: calc(0.8 * var(--aa-rem));
@@ -2214,7 +2215,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   height: 38px;
   gap: 8px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: var(--aa-pill, 999px);
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.14);
 }
@@ -2252,7 +2253,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   max-width: 460px;
   margin: 18px 0 8px;
   padding: 14px 18px 6px;
-  border-radius: 16px;
+  border-radius: calc(16px * var(--aa-rf, 1));
   background: rgba(0, 0, 0, 0.22);
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
@@ -2426,7 +2427,7 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
     right: 8px;
     bottom: calc(8px + var(--safe-bottom));
     padding: 10px 12px;
-    border-radius: 20px;
+    border-radius: calc(20px * var(--aa-rf, 1));
   }
   #audioarchive .player-bar:not(.is-expanded) .player-main {
     gap: 10px;
@@ -2435,7 +2436,7 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
   #audioarchive .player-bar:not(.is-expanded) .player-cover {
     width: 42px;
     height: 42px;
-    border-radius: 9px;
+    border-radius: calc(9px * var(--aa-rf, 1));
   }
   #audioarchive .player-bar:not(.is-expanded) .player-actions .player-icon-btn {
     width: 36px;

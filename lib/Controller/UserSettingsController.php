@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\ShareService;
+use OCA\AudioArchive\Service\StyleTokens;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -55,18 +56,26 @@ class UserSettingsController extends Controller {
             'admin' => $this->appearance->adminValues(),
             'design' => $this->appearance->userDesignPreference($uid),
             'adminDesign' => $this->appearance->adminDesign(),
+            // Ab 0.17: eigene Werte fuer "Benutzerdefiniert" (null = noch
+            // keine) und die Gestaltung des Administrators, sofern angeboten
+            'style' => $this->appearance->userStyle($uid),
+            'adminStyleOffered' => $this->appearance->adminStyleOffered(),
+            'adminStyle' => $this->appearance->adminStyleOffered() || $this->appearance->adminDesign() === Application::DESIGN_ADMIN
+                ? $this->appearance->adminStyle() : null,
             'hasBackground' => $this->backgroundImage->exists(BackgroundImage::userKey($uid)),
         ]);
     }
 
     /**
-     * @param string $design '' (Vorgabe), 'custom' oder 'nextcloud'
+     * @param string $design '' (Vorgabe), 'nextcloud', 'custom', 'admin' oder 'defined'
+     * @param array|null $style Werte fuer "Benutzerdefiniert" (null = unveraendert)
      * @param string|null $title, $subtitle, $themeAccent, $themeBar, $themeBase
      *        null = unveraendert, '' = Vorgabe des Administrators
      */
     #[NoAdminRequired]
     public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
-        ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null): DataResponse {
+        ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null,
+        ?array $style = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
@@ -74,8 +83,11 @@ class UserSettingsController extends Controller {
         if (!$this->appearance->userCustomizationAllowed()) {
             return new DataResponse(['error' => 'Vom Administrator abgeschaltet.'], Http::STATUS_FORBIDDEN);
         }
-        if (!in_array($design, ['', Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD], true)) {
+        if ($design !== '' && !in_array($design, Application::DESIGNS, true)) {
             return new DataResponse(['error' => 'Unbekannte Gestaltung.'], Http::STATUS_BAD_REQUEST);
+        }
+        if ($design === Application::DESIGN_ADMIN && !$this->appearance->adminStyleOffered()) {
+            return new DataResponse(['error' => 'Diese Gestaltung bietet der Administrator derzeit nicht an.'], Http::STATUS_BAD_REQUEST);
         }
 
         $values = [];
@@ -98,6 +110,9 @@ class UserSettingsController extends Controller {
 
         $this->appearance->setUserDesignPreference($uid, $design);
         $this->appearance->setUserValues($uid, $values);
+        if ($style !== null) {
+            $this->appearance->setUserStyle($uid, StyleTokens::normalize($style));
+        }
         return new DataResponse(['design' => $design, 'values' => $this->appearance->userValues($uid)]);
     }
 

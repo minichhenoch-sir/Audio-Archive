@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v11';
+const SHELL_CACHE = 'audioarchive-shell-v12';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren

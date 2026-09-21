@@ -4,8 +4,10 @@ declare(strict_types=1);
 namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
+use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\ShareService;
+use OCA\AudioArchive\Service\StyleTokens;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\DataResponse;
@@ -39,6 +41,7 @@ class SettingsController extends Controller {
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
         private ShareService $shares,
+        private Appearance $appearance,
     ) {
         parent::__construct($appName, $request);
     }
@@ -69,6 +72,8 @@ class SettingsController extends Controller {
         ?string $themeBar = null,
         ?string $themeBase = null,
         ?string $design = null,
+        ?array $adminStyle = null,
+        ?bool $adminStyleEnabled = null,
         ?bool $backgroundNextcloud = null,
         ?bool $userCustomization = null,
         ?bool $userShares = null,
@@ -227,13 +232,26 @@ class SettingsController extends Controller {
 
         // ---------- Gestaltung ----------
         if ($design !== null) {
-            if (!in_array($design, [Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD], true)) {
+            // Als Vorgabe taugen Klassisch, Modern und die eigene
+            // Gestaltung - "benutzerdefiniert" gibt es nur fuer Nutzer
+            // und Freigaben
+            if (!in_array($design, [Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD, Application::DESIGN_ADMIN], true)) {
                 return new DataResponse(
                     ['error' => 'Unbekannte Gestaltung: ' . $design],
                     Http::STATUS_BAD_REQUEST
                 );
             }
             $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_DESIGN, $design);
+        }
+
+        // ---------- Vom Administrator bereitgestellte Gestaltung (ab 0.17) ----------
+        if ($adminStyle !== null) {
+            $this->appearance->setAdminStyle(StyleTokens::normalize($adminStyle));
+        }
+        if ($adminStyleEnabled !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_ADMIN_STYLE_ENABLED, $adminStyleEnabled
+            );
         }
 
         if ($backgroundNextcloud !== null) {

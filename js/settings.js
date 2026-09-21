@@ -45,9 +45,8 @@
   const betaText = el('aa-beta-text');
   const betaLinkUrl = el('aa-beta-link-url');
   const betaLinkLabel = el('aa-beta-link-label');
-  const designCustom = el('aa-design-custom');
-  const designNextcloud = el('aa-design-nextcloud');
   const customDesign = el('aa-custom-design');
+  const adminStyleEnabled = el('aa-admin-style-enabled');
   const backgroundNextcloud = el('aa-background-nextcloud');
   const userCustomization = el('aa-user-customization');
   const userShares = el('aa-user-shares');
@@ -68,22 +67,72 @@
   betaText.value = state.betaText || '';
   betaLinkUrl.value = state.betaLinkUrl || '';
   betaLinkLabel.value = state.betaLinkLabel || '';
-  if (state.design === 'nextcloud') {
-    designNextcloud.checked = true;
-  } else {
-    designCustom.checked = true;
-  }
+  /*
+   * Gestaltung (ab 0.17): Vorgabe als Karten mit Vorschau. "Vom
+   * Administrator" ist nur waehlbar, solange sie angeboten wird.
+   */
+  const AAStyle = window.AAStyle;
+  let design = ['nextcloud', 'custom', 'admin'].includes(state.design) ? state.design : 'custom';
+  adminStyleEnabled.checked = state.adminStyleEnabled === true;
+  if (design === 'admin' && !adminStyleEnabled.checked) design = 'custom';
+
+  const modernThumb = () => AAStyle.modernThumb({ accent: accent.value, bar: bar.value, base: base.value });
+  let ncPrimary = '';
+  try {
+    ncPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-element').trim();
+  } catch (e) { /* egal - dann Nextclouds Standardblau */ }
+
+  const adminEditor = AAStyle.createEditor({
+    value: state.adminStyle || AAStyle.DEFAULTS,
+    imageUrl: state.hasBackground ? OC.generateUrl('/apps/' + APP_ID + '/background') : '',
+    onChange(style) { cards.setThumb('admin', style); },
+  });
+  el('aa-admin-style').appendChild(adminEditor.el);
+
+  const cards = AAStyle.createDesignCards({
+    name: 'aa-design',
+    value: design,
+    options: [
+      { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design', style: AAStyle.classicThumb(ncPrimary) },
+      { value: 'custom', label: 'Modern', desc: 'Rund, Glas, Farben unten', style: modernThumb() },
+      { value: 'admin', label: 'Vom Administrator', desc: 'Frei eingestellt (unten)', style: adminEditor.get(), disabled: !adminStyleEnabled.checked },
+    ],
+    onChange(value) {
+      design = value;
+      updateDesignState();
+    },
+  });
+  el('aa-design-cards').appendChild(cards.el);
+
+  const palettes = AAStyle.createPalettePicker((p) => {
+    accent.value = p.accent;
+    bar.value = p.bar;
+    base.value = p.base;
+    cards.setThumb('custom', modernThumb());
+  }, { accent: accent.value, bar: bar.value, base: base.value });
+  el('aa-palettes').appendChild(palettes.el);
+  [accent, bar, base].forEach((input) => input.addEventListener('input', () => {
+    palettes.mark({ accent: accent.value, bar: bar.value, base: base.value });
+    cards.setThumb('custom', modernThumb());
+  }));
+
+  adminStyleEnabled.addEventListener('change', () => {
+    cards.setDisabled('admin', !adminStyleEnabled.checked);
+    if (!adminStyleEnabled.checked && design === 'admin') {
+      design = 'custom';
+      cards.set(design);
+    }
+    updateDesignState();
+  });
 
   /*
-   * Farben und Hintergrundbild wirken nur bei eigener Gestaltung. Sie
-   * bleiben trotzdem bedienbar - wer zurueckwechselt, findet seine Werte
-   * unveraendert vor.
+   * Farben fuer Modern wirken nur bei dieser Vorgabe (Nutzer koennen
+   * Modern aber auch selbst waehlen). Sie bleiben deshalb bedienbar -
+   * nur abgeblendet.
    */
   function updateDesignState() {
-    customDesign.classList.toggle('aa-inactive', designNextcloud.checked);
+    customDesign.classList.toggle('aa-inactive', design !== 'custom');
   }
-  designCustom.addEventListener('change', updateDesignState);
-  designNextcloud.addEventListener('change', updateDesignState);
   updateDesignState();
 
   backgroundNextcloud.checked = state.backgroundNextcloud === true;
@@ -209,7 +258,9 @@
       themeAccent: accent.value,
       themeBar: bar.value,
       themeBase: base.value,
-      design: designNextcloud.checked ? 'nextcloud' : 'custom',
+      design,
+      adminStyle: adminEditor.get(),
+      adminStyleEnabled: adminStyleEnabled.checked,
       backgroundNextcloud: backgroundNextcloud.checked,
       userCustomization: userCustomization.checked,
       userShares: userShares.checked,

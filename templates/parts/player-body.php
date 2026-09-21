@@ -13,7 +13,7 @@
 ?>
 <?php
 $rootClasses = [$_['embedded'] === '1' ? 'aa-embedded' : 'aa-standalone'];
-if ($_['design'] === 'nextcloud') {
+if (($_['flat'] ?? '') === '1') {
     $rootClasses[] = 'aa-design-nextcloud';
 }
 // Angemeldet: Ordnerbaum in der Seitenleiste
@@ -41,6 +41,8 @@ if ($_['backgroundUrl'] !== '') {
 <div id="app-config"
      data-public-token="<?php echo $escape($_['publicToken']); ?>"
      data-design="<?php echo $escape($_['design']); ?>"
+     data-style="<?php echo $escape($_['styleJson'] ?? ''); ?>"
+     data-admin-style-offered="<?php echo $escape($_['adminStyleOffered'] ?? ''); ?>"
      data-user-settings="<?php echo $escape($_['userSettings']); ?>"
      data-logged-in="<?php echo $escape($_['loggedIn']); ?>"
      data-has-shared="<?php echo $escape($_['hasShared']); ?>"
@@ -157,9 +159,28 @@ if ($_['backgroundUrl'] !== '') {
 
       <fieldset class="panel-group">
         <legend>Gestaltung</legend>
-        <label class="panel-choice"><input type="radio" name="us-design" value=""> <span id="us-design-default-label">Vorgabe</span></label>
-        <label class="panel-choice"><input type="radio" name="us-design" value="custom"> Eigene Gestaltung</label>
-        <label class="panel-choice"><input type="radio" name="us-design" value="nextcloud"> Nextcloud (Hell/Dunkel automatisch)</label>
+        <!-- Karten mit Vorschau, aufgebaut von app.js (AAStyle.createDesignCards) -->
+        <div id="us-design-cards"></div>
+        <p class="panel-hint" id="us-design-hint" hidden></p>
+      </fieldset>
+
+      <fieldset class="panel-group" id="us-modern" hidden>
+        <legend>Farben für „Modern“</legend>
+        <label class="panel-choice"><input type="checkbox" id="us-own-colors"> Eigene Farben</label>
+        <div id="us-colors" hidden>
+          <div id="us-palettes"></div>
+          <div class="panel-row share-colors">
+            <label class="panel-color-field"><input type="color" id="us-accent" class="panel-color"><span class="panel-hint">Akzent</span></label>
+            <label class="panel-color-field"><input type="color" id="us-bar" class="panel-color"><span class="panel-hint">Leisten</span></label>
+            <label class="panel-color-field"><input type="color" id="us-base" class="panel-color"><span class="panel-hint">Grundton</span></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="panel-group" id="us-defined" hidden>
+        <legend>Benutzerdefiniert</legend>
+        <p class="panel-hint">Farben, Ecken, Glas, Schrift und Hintergrund frei einstellen. Die Seite zeigt Änderungen sofort, gespeichert wird mit „Übernehmen“.</p>
+        <div id="us-editor"></div>
       </fieldset>
 
       <fieldset class="panel-group">
@@ -173,16 +194,6 @@ if ($_['backgroundUrl'] !== '') {
           <input type="text" id="us-subtitle" class="panel-input" maxlength="500">
           <span class="panel-hint">Leere Felder übernehmen die Vorgabe des Administrators.</span>
         </label>
-      </fieldset>
-
-      <fieldset class="panel-group">
-        <legend>Farben</legend>
-        <label class="panel-choice"><input type="checkbox" id="us-own-colors"> Eigene Farben (bei eigener Gestaltung)</label>
-        <div class="panel-row share-colors" id="us-colors" hidden>
-          <label class="panel-color-field"><input type="color" id="us-accent" class="panel-color"><span class="panel-hint">Akzent</span></label>
-          <label class="panel-color-field"><input type="color" id="us-bar" class="panel-color"><span class="panel-hint">Leisten</span></label>
-          <label class="panel-color-field"><input type="color" id="us-base" class="panel-color"><span class="panel-hint">Grundton</span></label>
-        </div>
       </fieldset>
 
       <fieldset class="panel-group">
@@ -335,6 +346,7 @@ if ($_['backgroundUrl'] !== '') {
 <audio id="audio-element" preload="auto" playsinline></audio>
 
 <?php $nonce = $escape($_['cspNonce'] ?? ''); ?>
+<script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/style-tokens.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/config.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/player.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/app.js'); ?>"></script>

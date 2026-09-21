@@ -110,6 +110,8 @@ class PlayerPage {
 
         $look = $share !== null ? $this->appearance->resolveShare($share) : $this->appearance->resolve($uid);
         $design = $look['design'];
+        // Vollstaendige Werte bei 'admin'/'defined' (ab 0.17), sonst null
+        $style = $look['style'];
         $shareSettings = $share['settings'] ?? null;
 
         /*
@@ -137,31 +139,37 @@ class PlayerPage {
         // Nextcloud-Gestaltung sofort, angemeldet zusaetzlich zum Nachladen,
         // falls ein mit dem Nutzer geteilter Ordner diese Gestaltung hat
         $themeStylesheets = !$embedded ? $this->themeStylesheets() : [];
+        $barColor = $this->appearance->barColor($design, $values['themeBar'], $style);
 
         $params = [
             'publicToken' => $publicToken,
             'embedded' => $embedded ? '1' : '',
             'design' => $design,
+            // Flacher Aufbau wie Nextcloud: "Klassisch" oder Grundstil flach
+            'flat' => Appearance::isFlat($design, $style) ? '1' : '',
+            'styleJson' => $style !== null ? StyleTokens::toJson($style) : '',
             // Nur eigenstaendig noetig, siehe themeStylesheets()
             'themeStylesheets' => $design === Application::DESIGN_NEXTCLOUD ? $themeStylesheets : [],
             'themeStylesheetsJson' => ($uid !== null && $design !== Application::DESIGN_NEXTCLOUD)
                 ? (string)json_encode($themeStylesheets, JSON_UNESCAPED_SLASHES)
                 : '[]',
-            'themeColor' => $this->appearance->barColor($design, $values['themeBar']),
+            'themeColor' => $barColor,
             // App-Symbol in der Leistenfarbe (ab 0.16): Farbe fuer die
             // Skripte, dazu Browser-Tab und Apple-Startbildschirm
-            'iconColor' => (string)AppIcon::normalizeColor($this->appearance->barColor($design, $values['themeBar'])),
+            'iconColor' => (string)AppIcon::normalizeColor($barColor),
             'ncPrimary' => (string)AppIcon::normalizeColor($this->appearance->barColor(Application::DESIGN_NEXTCLOUD)),
             'faviconUrl' => $this->appIcon->url(
-                $this->appearance->barColor($design, $values['themeBar']), 'any-192', false,
+                $barColor, 'any-192', false,
                 (string)$this->appManager->getAppVersion(Application::APP_ID)
             ),
             'appleIconUrl' => $this->appIcon->url(
-                $this->appearance->barColor($design, $values['themeBar']), 'apple-180', false,
+                $barColor, 'apple-180', false,
                 (string)$this->appManager->getAppVersion(Application::APP_ID)
             ),
             // Darf der Nutzer in der App seine Darstellung selbst waehlen?
             'userSettings' => ($uid !== null && $this->appearance->userCustomizationAllowed()) ? '1' : '',
+            // "Vom Administrator bereitgestellt" waehlbar? (ab 0.17)
+            'adminStyleOffered' => $this->appearance->adminStyleOffered() ? '1' : '',
             // Fuer Schreibzugriffe der App (persoenliche Einstellungen):
             // Nextcloud verlangt dafuer das Anfrage-Token. Die eigenstaendige
             // Seite hat kein OC.requestToken, deshalb steht es im Dokument.
@@ -285,7 +293,9 @@ class PlayerPage {
 
         $files = [
             '/../../css/style.css',
+            '/../../css/style-editor.css',
             '/../../js/config.js',
+            '/../../js/style-tokens.js',
             '/../../js/player.js',
             '/../../js/app.js',
         ];

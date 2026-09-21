@@ -19,5 +19,6 @@ $escape = static fn (?string $value): string => htmlspecialchars((string)$value,
 $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . '?v=' . $escape($_['assetVersion']);
 ?>
 <link rel="stylesheet" href="<?php echo $asset('css/style.css'); ?>">
+<link rel="stylesheet" href="<?php echo $asset('css/style-editor.css'); ?>">
 
 <?php include __DIR__ . '/parts/player-body.php'; ?>

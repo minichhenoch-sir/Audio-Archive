@@ -60,6 +60,7 @@ class ShareService {
         'themeAccent' => '',       // '' = Farben der Vorgabe
         'themeBar' => '',
         'themeBase' => '',
+        'style' => null,           // Werte fuer 'defined' (ab 0.17), sonst null
         'featureOffline' => true,
         'featureDownload' => false,
     ];
@@ -561,15 +562,21 @@ class ShareService {
                 continue;
             }
             $value = $input[$key];
-            if (is_bool($default)) {
+            if ($key === 'style') {
+                $out[$key] = is_array($value) ? StyleTokens::normalize($value) : null;
+            } elseif (is_bool($default)) {
                 $out[$key] = (bool)$value;
             } else {
                 $out[$key] = trim((string)$value);
             }
         }
 
-        if (!in_array($out['design'], ['', Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD], true)) {
+        if ($out['design'] !== '' && !in_array($out['design'], Application::DESIGNS, true)) {
             $out['design'] = '';
+        }
+        // Benutzerdefiniert ohne Werte: mit der Vorgabe beginnen
+        if ($out['design'] === Application::DESIGN_DEFINED && $out['style'] === null) {
+            $out['style'] = StyleTokens::normalize([]);
         }
         foreach (['themeAccent', 'themeBar', 'themeBase'] as $color) {
             $out[$color] = self::normalizeColor($out[$color]);

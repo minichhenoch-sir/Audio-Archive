@@ -83,28 +83,26 @@
         <input type="text" id="aa-subtitle">
     </div>
     <div class="aa-field">
-        <label>Gestaltung</label>
-        <p>
-            <input type="radio" name="aa-design" id="aa-design-custom" value="custom" class="radio">
-            <label for="aa-design-custom">Eigene Gestaltung</label>
-        </p>
+        <label>Gestaltung (Vorgabe für alle)</label>
+        <!-- Karten mit Vorschau, aufgebaut von js/settings.js -->
+        <div id="aa-design-cards"></div>
         <p class="settings-hint">
-            Eigene Farben und eigenes Hintergrundbild (unten).
-        </p>
-        <p>
-            <input type="radio" name="aa-design" id="aa-design-nextcloud" value="nextcloud" class="radio">
-            <label for="aa-design-nextcloud">Nextcloud-Gestaltung</label>
-        </p>
-        <p class="settings-hint">
-            Übernimmt Farben, Hintergrund und Schrift von Nextcloud
-            (Einstellungen → Verwaltung → Design) und wechselt mit dem
-            Hell-/Dunkelmodus. Gilt auch für den öffentlichen Link, dort
-            ohne Nextcloud-Kopfleiste.
+            <strong>Klassisch</strong> übernimmt Farben, Hintergrund und Schrift
+            von Nextcloud (Einstellungen → Verwaltung → Design) und wechselt mit
+            dem Hell-/Dunkelmodus. <strong>Modern</strong> ist rund mit
+            Glaseffekt in wählbaren Farben. <strong>Vom Administrator</strong>
+            ist die frei einstellbare Gestaltung weiter unten – wählbar, sobald
+            sie angeboten wird. Gilt auch für den öffentlichen Link, dort ohne
+            Nextcloud-Kopfleiste. Nutzer können im Player über das Zahnrad eine
+            andere Gestaltung wählen (sofern unten erlaubt), auch
+            „Benutzerdefiniert“.
         </p>
     </div>
 
-    <!-- Farben nur fuer die eigene Gestaltung; bei Nextcloud-Gestaltung abgeblendet -->
+    <!-- Farben fuer "Modern"; bei anderer Vorgabe abgeblendet -->
     <div id="aa-custom-design">
+    <h4>Farben für „Modern“</h4>
+    <div id="aa-palettes"></div>
     <div class="aa-colors">
         <div class="aa-field">
             <label for="aa-accent">Akzentfarbe</label>
@@ -120,6 +118,19 @@
         </div>
     </div>
     </div>
+
+    <h4>Vom Administrator bereitgestellte Gestaltung</h4>
+    <p>
+        <input type="checkbox" id="aa-admin-style-enabled" class="checkbox">
+        <label for="aa-admin-style-enabled">Anbieten – als Vorgabe und zur Auswahl für alle Nutzer und Freigaben</label>
+    </p>
+    <p class="settings-hint">
+        Farben, Ecken, Glaseffekt, Schrift und Hintergrund frei festlegen.
+        Wer sie gewählt hat, sieht Änderungen hier nach dem Speichern
+        automatisch. Wird sie nicht mehr angeboten, gilt dort wieder die
+        Vorgabe.
+    </p>
+    <div id="aa-admin-style"></div>
 
     <div class="aa-field">
         <label>Hintergrundbild</label>

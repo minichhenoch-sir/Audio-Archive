@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (Schritt 4: Offline-Betrieb)
+# Audio Archive – Nextcloud-App (0.17.0: Vier Gestaltungen)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -846,3 +846,48 @@ Jetzt steht dort 99 – die App lässt sich damit auch nach künftigen
 Nextcloud-Updates weiter einschalten. (Ob sie mit einer neuen Version
 tatsächlich fehlerfrei läuft, ist damit nicht gesagt; bei Problemen nach
 einem Update bitte melden.)
+
+---
+
+## 0.17.0: Vier Gestaltungen
+
+Jeder angemeldete Nutzer wählt über das Zahnrad eine von vier Gestaltungen
+(oder „Vorgabe“ = wie vom Administrator eingestellt). Die Auswahl zeigt
+kleine Vorschaubilder, und die Seite übernimmt jede Änderung sofort als
+Vorschau; gespeichert wird mit „Übernehmen“, „Schließen“ nimmt die
+Vorschau zurück.
+
+- **Klassisch** – Nextcloud-Design (bisher „Nextcloud“): Farben,
+  Hintergrund und Schrift von Nextcloud, Hell/Dunkel automatisch.
+- **Modern** – der runde Glas-Look (bisher „Eigene Gestaltung“). Farben
+  frei wählbar, dazu zehn fertige Farbvorlagen.
+- **Vom Administrator** – eine vom Administrator frei gestaltete Fassung.
+  Nur wählbar, wenn er sie unter Einstellungen → Verwaltung → Audio Archive
+  anbietet. Ändert er sie, sehen alle, die sie gewählt haben, die Änderung
+  automatisch. Nimmt er das Angebot zurück, gilt dort wieder die Vorgabe.
+- **Benutzerdefiniert** – alles selbst einstellen:
+  - Farben: Akzent, Leisten, Listen & Karten, Hintergrund; Schriftfarben
+    automatisch (nach Kontrast) oder selbst gewählt
+  - Form & Glas: Grundstil (Modern mit Glas oder flach wie Nextcloud),
+    Ecken von eckig bis sehr rund, Unschärfe (Blur), Deckkraft von Leisten
+    und Listen, Schatten
+  - Schrift & Abstände: Schrift für Überschriften und Text (5 Arten),
+    Schriftgröße, Abstände (kompakt/normal/großzügig)
+  - Hintergrund: Farbverlauf oder einfarbig, Abdunkeln eines Bildes
+  - Sieben Vorlagen als Ausgangspunkt (Modern, Flach & klar, Eckig,
+    Weich & rund, Dunkel, Papier, Kompakt) und die Farbvorlagen
+
+**Freigaben** (Links und interne) haben dieselben vier Gestaltungen samt
+Editor, „Vorgabe“ bedeutet dort wie bisher: Administrator bzw. beim
+Empfänger dessen eigene Ansicht.
+
+**Verwaltung:** Die Vorgabe für alle ist jetzt Klassisch, Modern oder
+„Vom Administrator“ (auch für den Administrator-Link). Darunter die
+Farbvorlagen für Modern und der Editor für die eigene Gestaltung mit
+Schalter „Anbieten“.
+
+**Bestehende Einstellungen bleiben gültig:** „Eigene Gestaltung“ ist jetzt
+„Modern“, „Nextcloud“ ist „Klassisch“ – mit denselben Farben und Bildern.
+
+**Einspielen:** PHP-Dateien geändert → Container neu starten. Keine
+Datenbankänderung.

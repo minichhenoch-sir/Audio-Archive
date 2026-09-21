@@ -1,0 +1,554 @@
+/*
+ * Editor fuer frei einstellbare Gestaltungen (ab 0.17) - im Player
+ * (Zahnrad, Freigaben) und in der Verwaltung.
+ *
+ * Alle Regeln beginnen mit :is(#audioarchive, #audioarchive-settings).
+ * :is() nimmt die Gewichtung einer ID an. Das ist noetig, weil der Player
+ * eingebettet alles innerhalb von #audioarchive auf die Browser-Vorgaben
+ * zuruecksetzt (Regel mit ID-Gewicht, siehe Anfang von style.css) - ohne
+ * ID wuerden die Regeln hier dagegen verlieren.
+ *
+ * Farben kommen aus der Umgebung (currentColor), damit der Editor im
+ * Player-Panel und in Nextclouds Verwaltung gleichermassen passt.
+ */
+
+:is(#audioarchive, #audioarchive-settings) :is(.aa-style-editor, .aa-design-cards, .aa-se-palettes) [hidden] {
+  display: none !important;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-style-editor {
+  display: block;
+  margin: 8px 0 4px;
+  color: inherit;
+  font: inherit;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-layout {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-side {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  position: sticky;
+  top: 8px;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-form {
+  flex: 1 1 280px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-note {
+  margin: 0;
+  font-size: 0.8em;
+  opacity: 0.7;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-section {
+  display: block;
+  border: 1px solid color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 12px;
+  padding: 0;
+  margin: 0;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-summary {
+  display: list-item;
+  cursor: pointer;
+  padding: 8px 12px;
+  font-weight: 600;
+  list-style: revert;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 2px 12px 12px;
+}
+
+:is(#audioarchive, #audioarchive-settings) label.aa-se-row {
+  opacity: 1;
+  font-size: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  cursor: default;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-label {
+  font-size: 0.88em;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-hint {
+  display: block;
+  font-size: 0.8em;
+  opacity: 0.72;
+  margin: 0;
+}
+
+/* ---------- Farbfelder ---------- */
+:is(#audioarchive, #audioarchive-settings) .aa-se-colors {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+:is(#audioarchive, #audioarchive-settings) label.aa-se-color-field {
+  opacity: 1;
+  font-size: inherit;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 76px;
+  text-align: center;
+  cursor: pointer;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-color {
+  width: 44px;
+  height: 44px;
+  min-height: 0;
+  padding: 0;
+  margin: 0;
+  border: 2px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 50%;
+  background: none;
+  cursor: pointer;
+  overflow: hidden;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-color::-webkit-color-swatch-wrapper { padding: 0; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-color::-webkit-color-swatch { border: none; border-radius: 50%; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-color::-moz-color-swatch { border: none; border-radius: 50%; }
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: 0.9em;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-check input { margin: 0; }
+
+/* ---------- Schieberegler ---------- */
+:is(#audioarchive, #audioarchive-settings) .aa-se-range {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-range input[type="range"] {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  height: 24px;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--color-accent, var(--color-primary-element, #00679e));
+  background: transparent;
+  border: none;
+  box-shadow: none;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-out {
+  flex: 0 0 auto;
+  min-width: 52px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-select {
+  width: 100%;
+  max-width: 280px;
+  min-height: 34px;
+  padding: 4px 8px;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 6%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 22%, transparent);
+  border-radius: 8px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-select option { color: #222; background: #fff; }
+
+/* ---------- Umschalter (Grundstil, Abstaende ...) ---------- */
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 3px;
+  border-radius: 10px;
+  background: color-mix(in srgb, currentColor 7%, transparent);
+  align-self: flex-start;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg-item {
+  position: relative;
+  display: inline-flex;
+  cursor: pointer;
+  margin: 0;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg-item input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg-item span {
+  display: inline-block;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-size: 0.86em;
+  line-height: 1.3;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg-item input:checked + span {
+  background: var(--color-accent, var(--color-primary-element, #00679e));
+  color: var(--color-primary-element-text, #fff);
+  font-weight: 600;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-seg-item input:focus-visible + span {
+  outline: 2px solid currentColor;
+  outline-offset: 1px;
+}
+
+/* ---------- Vorlagen ---------- */
+:is(#audioarchive, #audioarchive-settings) .aa-se-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-chip,
+:is(#audioarchive, #audioarchive-settings) .aa-se-reset {
+  display: inline-flex;
+  align-items: center;
+  min-height: 0;
+  margin: 0;
+  padding: 6px 12px;
+  font: inherit;
+  font-size: 0.86em;
+  font-weight: 600;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 8%, transparent);
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 999px;
+  cursor: pointer;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-chip:hover,
+:is(#audioarchive, #audioarchive-settings) .aa-se-reset:hover {
+  background: color-mix(in srgb, currentColor 14%, transparent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-reset { align-self: flex-start; margin-top: 4px; }
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-palettes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 0;
+  margin: 0;
+  padding: 4px 10px 4px 4px;
+  font: inherit;
+  font-size: 0.82em;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 5%, transparent);
+  border: 2px solid transparent;
+  border-radius: 999px;
+  cursor: pointer;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-swatch:hover {
+  background: color-mix(in srgb, currentColor 11%, transparent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-swatch.is-selected {
+  border-color: currentColor;
+  font-weight: 600;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-swatch-dots {
+  width: 26px;
+  height: 26px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: conic-gradient(var(--sw-b) 0 33%, var(--sw-c) 0 66%, var(--sw-a) 0);
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+/* ---------- Vorschau ----------
+ * Kleine Nachbildung des Players, eingefaerbt ueber --se-* (gesetzt von
+ * AAStyle.createPreview). Feste Masse, damit sie ueberall gleich aussieht. */
+:is(#audioarchive, #audioarchive-settings) .aa-se-preview {
+  position: relative;
+  width: 220px;
+  height: 300px;
+  overflow: hidden;
+  border-radius: 18px;
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.22), 0 0 0 1px rgba(0, 0, 0, 0.08);
+  font-family: var(--se-font);
+  font-size: calc(11px * var(--se-scale, 1));
+  line-height: 1.3;
+  color: var(--se-row-text);
+  isolation: isolate;
+  text-align: left;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-preview * { box-sizing: border-box; }
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background: var(--se-bg);
+  background-size: cover;
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 10px 10px 6px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-title,
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-btn {
+  background: var(--se-bar-bg);
+  color: var(--se-bar-text);
+  border: 1px solid var(--se-bar-border);
+  box-shadow: var(--se-dark-shadow);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-title {
+  padding: 5px 11px;
+  border-radius: calc(12px * var(--se-r));
+  font-family: var(--se-title-font);
+  font-size: 1.25em;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-btn {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--se-pill);
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-list {
+  display: flex;
+  flex-direction: column;
+  gap: calc(5px * var(--se-density));
+  padding: 4px 10px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: calc(8px * var(--se-density)) 9px;
+  border-radius: calc(11px * var(--se-r));
+  background: var(--se-row-bg);
+  border: 1px solid var(--se-row-border);
+  box-shadow: var(--se-shadow);
+  color: var(--se-row-text);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-row.is-active {
+  background: var(--se-row-active);
+  backdrop-filter: var(--se-blur);
+  -webkit-backdrop-filter: var(--se-blur);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-ico {
+  width: 16px;
+  height: 13px;
+  flex: 0 0 auto;
+  border-radius: calc(3px * var(--se-r));
+  background: var(--se-accent);
+  opacity: 0.85;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-eq {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  width: 16px;
+  height: 13px;
+  flex: 0 0 auto;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-eq i {
+  flex: 1;
+  background: var(--se-accent);
+  border-radius: 1px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-eq i:nth-child(1) { height: 45%; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-eq i:nth-child(2) { height: 100%; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-eq i:nth-child(3) { height: 65%; }
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex: 1;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-text b {
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-text i {
+  font-style: normal;
+  font-size: 0.88em;
+  color: var(--se-row-soft);
+}
+
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-player {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  border-radius: calc(16px * var(--se-r));
+  background: var(--se-bar-bg);
+  color: var(--se-bar-text);
+  border: 1px solid var(--se-bar-border);
+  box-shadow: var(--se-dark-shadow);
+  backdrop-filter: var(--se-blur);
+  -webkit-backdrop-filter: var(--se-blur);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-player .aa-se-pv-text i { color: inherit; opacity: 0.72; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-cover {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: calc(7px * var(--se-r));
+  background: var(--se-accent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-progress {
+  display: block;
+  height: 3px;
+  margin-top: 4px;
+  border-radius: 3px;
+  background: color-mix(in srgb, currentColor 25%, transparent);
+  overflow: hidden;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-progress span {
+  display: block;
+  width: 40%;
+  height: 100%;
+  background: var(--se-accent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-play {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  border-radius: var(--se-pill);
+  background: var(--se-accent);
+  position: relative;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-pv-play::after {
+  content: "";
+  position: absolute;
+  left: 11px;
+  top: 9px;
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent var(--se-accent-text);
+}
+
+/* Flacher Grundstil: Zeilen ohne eigene Flaeche wie in Nextclouds Navigation */
+:is(#audioarchive, #audioarchive-settings) .aa-se-preview.is-flat .aa-se-pv-top {
+  background: var(--se-bar-bg);
+  border-bottom: 1px solid var(--se-bar-border);
+  padding-bottom: 8px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-se-preview.is-flat .aa-se-pv-btn { box-shadow: none; }
+:is(#audioarchive, #audioarchive-settings) .aa-se-preview.is-flat .aa-se-pv-title {
+  background: none;
+  border: none;
+  box-shadow: none;
+  padding-left: 2px;
+}
+
+/* ---------- Auswahl der vier Gestaltungen (Karten) ---------- */
+:is(#audioarchive, #audioarchive-settings) .aa-design-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 6px 0;
+}
+:is(#audioarchive, #audioarchive-settings) label.aa-design-card {
+  position: relative;
+  display: flex;
+  opacity: 1;
+  font-size: inherit;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+  padding: 8px;
+  border: 2px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-radius: 14px;
+  cursor: pointer;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card:has(input:checked) {
+  border-color: var(--color-accent, var(--color-primary-element, #00679e));
+  background: color-mix(in srgb, var(--color-accent, var(--color-primary-element, #00679e)) 10%, transparent);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card:has(input:disabled) {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card:has(input:focus-visible) {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card-name {
+  display: block;
+  font-weight: 600;
+  font-size: 0.92em;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card-desc {
+  display: block;
+  font-size: 0.78em;
+  opacity: 0.75;
+  line-height: 1.3;
+}
+/* Die Vorschau in einer Karte: dieselbe Nachbildung, verkleinert */
+:is(#audioarchive, #audioarchive-settings) .aa-design-card-thumb {
+  display: block;
+  height: 96px;
+  overflow: hidden;
+  border-radius: 10px;
+  position: relative;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-design-card-thumb .aa-se-preview {
+  transform: scale(0.44);
+  transform-origin: top left;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  width: calc(100% / 0.44);
+  box-shadow: none;
+  border-radius: 0;
+}
+
+@media (max-width: 560px) {
+  :is(#audioarchive, #audioarchive-settings) .aa-se-side { position: static; width: 100%; }
+}

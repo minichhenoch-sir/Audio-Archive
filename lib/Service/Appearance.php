@@ -18,6 +18,11 @@ use OCP\IURLGenerator;
  *      erlaubt
  *   3. Freigabe - fuer den geteilten Link (ab 0.12)
  *
+ * Gestaltungen (ab 0.17): Klassisch ('nextcloud'), Modern ('custom'),
+ * vom Administrator bereitgestellt ('admin', nur wenn angeboten) und
+ * benutzerdefiniert ('defined'). Die beiden letzten bringen eine
+ * vollstaendige Wertemenge mit (siehe StyleTokens) - im Ergebnis als 'style'.
+ *
  * Hintergrundbild:
  *   - Ein Bild auf Nutzer- oder Freigabe-Ebene gilt in JEDER Gestaltung -
  *     wer es ausdruecklich waehlt, will es auch sehen.
@@ -36,13 +41,89 @@ class Appearance {
     ) {
     }
 
+    /**
+     * Vorgabe des Administrators: 'nextcloud' (Klassisch), 'custom' (Modern)
+     * oder 'admin' (seine bereitgestellte Gestaltung). 'admin' gilt nur,
+     * solange sie angeboten wird - sonst Modern.
+     */
     public function adminDesign(): string {
         $design = $this->appConfig->getValueString(
             Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
         );
-        return $design === Application::DESIGN_NEXTCLOUD
-            ? Application::DESIGN_NEXTCLOUD
-            : Application::DESIGN_CUSTOM;
+        if ($design === Application::DESIGN_NEXTCLOUD) {
+            return Application::DESIGN_NEXTCLOUD;
+        }
+        if ($design === Application::DESIGN_ADMIN && $this->adminStyleOffered()) {
+            return Application::DESIGN_ADMIN;
+        }
+        return Application::DESIGN_CUSTOM;
+    }
+
+    /** Wird die Gestaltung des Administrators angeboten? (Vorgabe: nein) */
+    public function adminStyleOffered(): bool {
+        return $this->appConfig->getValueBool(
+            Application::APP_ID, Application::SETTING_ADMIN_STYLE_ENABLED, false
+        );
+    }
+
+    /** Die vom Administrator bereitgestellte Gestaltung (vollstaendig). */
+    public function adminStyle(): array {
+        $style = StyleTokens::fromJson($this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_ADMIN_STYLE, ''
+        ));
+        return $style ?? StyleTokens::normalize([]);
+    }
+
+    public function setAdminStyle(array $style): void {
+        $this->appConfig->setValueString(
+            Application::APP_ID, Application::SETTING_ADMIN_STYLE, StyleTokens::toJson($style)
+        );
+    }
+
+    /**
+     * Setzt eine Wahl in Gestaltung und Werte um.
+     *
+     * @param string $choice '' (Vorgabe), 'nextcloud', 'custom', 'admin', 'defined'
+     * @param array|null $ownStyle Werte fuer 'defined' auf dieser Ebene
+     * @param array|null $fallback Ergebnis fuer '' (sonst Vorgabe des Administrators)
+     * @return array{design: string, style: array|null}
+     */
+    public function resolveChoice(string $choice, ?array $ownStyle, ?array $fallback = null): array {
+        switch ($choice) {
+            case Application::DESIGN_NEXTCLOUD:
+            case Application::DESIGN_CUSTOM:
+                return ['design' => $choice, 'style' => null];
+            case Application::DESIGN_DEFINED:
+                return ['design' => $choice, 'style' => $ownStyle ?? StyleTokens::normalize([])];
+            case Application::DESIGN_ADMIN:
+                if ($this->adminStyleOffered()) {
+                    return ['design' => $choice, 'style' => $this->adminStyle()];
+                }
+                break;
+        }
+        if ($fallback !== null) {
+            return $fallback;
+        }
+        $admin = $this->adminDesign();
+        return [
+            'design' => $admin,
+            'style' => $admin === Application::DESIGN_ADMIN ? $this->adminStyle() : null,
+        ];
+    }
+
+    /** Persoenliche benutzerdefinierte Werte (null = noch keine). */
+    public function userStyle(string $uid): ?array {
+        return StyleTokens::fromJson(
+            $this->config->getUserValue($uid, Application::APP_ID, Application::USER_STYLE, '')
+        );
+    }
+
+    public function setUserStyle(string $uid, ?array $style): void {
+        if ($style === null) {
+            $this->config->deleteUserValue($uid, Application::APP_ID, Application::USER_STYLE);
+            return;
+        }
+        $this->config->setUserValue($uid, Application::APP_ID, Application::USER_STYLE, StyleTokens::toJson($style));
     }
 
     public function userCustomizationAllowed(): bool {
@@ -57,12 +138,10 @@ class Appearance {
         );
     }
 
-    /** Persoenliche Wahl des Nutzers: '' (Vorgabe), 'custom' oder 'nextcloud'. */
+    /** Persoenliche Wahl des Nutzers: '' (Vorgabe) oder eine der vier Gestaltungen. */
     public function userDesignPreference(string $uid): string {
         $value = $this->config->getUserValue($uid, Application::APP_ID, Application::USER_DESIGN, '');
-        return in_array($value, [Application::DESIGN_CUSTOM, Application::DESIGN_NEXTCLOUD], true)
-            ? $value
-            : '';
+        return in_array($value, Application::DESIGNS, true) ? $value : '';
     }
 
     public function setUserDesignPreference(string $uid, string $design): void {
@@ -140,7 +219,7 @@ class Appearance {
      * Werte, wo gesetzt, sonst die des Administrators. Ohne Nutzer (null)
      * nur die Werte des Administrators.
      *
-     * @return array{design: string, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
+     * @return array{design: string, style: array|null, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
      */
     public function effectiveLook(?string $uid): array {
         $look = $this->adminValues();
@@ -149,7 +228,10 @@ class Appearance {
                 $look[$key] = $value;
             }
         }
-        $look['backgroundUrl'] = $this->resolve($uid)['backgroundUrl'];
+        $resolved = $this->resolve($uid);
+        $look['design'] = $resolved['design'];
+        $look['style'] = $resolved['style'];
+        $look['backgroundUrl'] = $resolved['backgroundUrl'];
         return $look;
     }
 
@@ -159,17 +241,25 @@ class Appearance {
      * Empfaengers - nicht die des Administrators. So wirkt eine Freigabe,
      * die nur die Farben aendert, beim Empfaenger nicht fremder als noetig.
      *
-     * @return array{design: string, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
+     * @return array{design: string, style: array|null, title: string, subtitle: string, themeAccent: string, themeBar: string, themeBase: string, backgroundUrl: string}
      */
     public function incomingLook(array $share, string $uid): array {
         $own = $this->effectiveLook($uid);
         $settings = $share['settings'];
         $look = $own;
-        foreach (['design', 'title', 'subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
+        foreach (['title', 'subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
             if (($settings[$key] ?? '') !== '') {
                 $look[$key] = $settings[$key];
             }
         }
+        // Gestaltung der Freigabe; ohne Wahl die eigene des Empfaengers
+        $resolved = $this->resolveChoice(
+            (string)($settings['design'] ?? ''),
+            $settings['style'] ?? null,
+            ['design' => $own['design'], 'style' => $own['style']]
+        );
+        $look['design'] = $resolved['design'];
+        $look['style'] = $resolved['style'];
 
         $key = BackgroundImage::shareKey($share['id']);
         if ($this->backgroundImage->exists($key)) {
@@ -197,19 +287,20 @@ class Appearance {
      * Aussehen fuer einen angemeldeten Nutzer (uid) bzw. ohne Nutzer (null,
      * etwa der Administrator-Link).
      *
-     * @return array{design: string, backgroundUrl: string}
+     * @return array{design: string, style: array|null, backgroundUrl: string}
      */
     public function resolve(?string $uid): array {
-        $design = $this->adminDesign();
+        $resolved = $this->resolveChoice('', null);
         $userImage = false;
 
         if ($uid !== null && $this->userCustomizationAllowed()) {
             $preference = $this->userDesignPreference($uid);
             if ($preference !== '') {
-                $design = $preference;
+                $resolved = $this->resolveChoice($preference, $this->userStyle($uid));
             }
             $userImage = $this->backgroundImage->exists(BackgroundImage::userKey($uid));
         }
+        $design = $resolved['design'];
 
         if ($userImage) {
             $url = $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.userBackground')
@@ -218,17 +309,21 @@ class Appearance {
             $url = $this->adminBackgroundUrl($design);
         }
 
-        return ['design' => $design, 'backgroundUrl' => $url];
+        return ['design' => $design, 'style' => $resolved['style'], 'backgroundUrl' => $url];
     }
 
     /**
      * Aussehen einer Freigabe: ihre eigene Wahl, sonst die Vorgabe des
      * Administrators. Ein Bild der Freigabe gilt in beiden Gestaltungen.
      *
-     * @return array{design: string, backgroundUrl: string}
+     * @return array{design: string, style: array|null, backgroundUrl: string}
      */
     public function resolveShare(array $share): array {
-        $design = $share['settings']['design'] !== '' ? $share['settings']['design'] : $this->adminDesign();
+        $resolved = $this->resolveChoice(
+            (string)$share['settings']['design'],
+            $share['settings']['style'] ?? null
+        );
+        $design = $resolved['design'];
         $key = BackgroundImage::shareKey($share['id']);
 
         if ($this->backgroundImage->exists($key)) {
@@ -239,7 +334,7 @@ class Appearance {
             $url = $this->adminBackgroundUrl($design);
         }
 
-        return ['design' => $design, 'backgroundUrl' => $url];
+        return ['design' => $design, 'style' => $resolved['style'], 'backgroundUrl' => $url];
     }
 
     /** Adresse des Administrator-Bildes, sofern es in dieser Gestaltung gilt. */
@@ -258,7 +353,10 @@ class Appearance {
      * Farbe fuer Statusleiste und Manifest: bei Nextcloud-Gestaltung
      * Nextclouds Hauptfarbe, sonst die eigene Leistenfarbe.
      */
-    public function barColor(string $design, string $customBar = ''): string {
+    public function barColor(string $design, string $customBar = '', ?array $style = null): string {
+        if ($style !== null && $design !== Application::DESIGN_NEXTCLOUD && $design !== Application::DESIGN_CUSTOM) {
+            return StyleTokens::barColor($style);
+        }
         if ($design === Application::DESIGN_NEXTCLOUD) {
             $primary = $this->defaults->getColorPrimary();
             if (preg_match('/^#[0-9a-fA-F]{3,8}$/', $primary)) {
@@ -271,5 +369,13 @@ class Appearance {
         return $this->appConfig->getValueString(
             Application::APP_ID, Application::SETTING_THEME_BAR, '#291c12'
         );
+    }
+
+    /**
+     * Wird die Seite im flachen Nextcloud-Aufbau gezeigt? Bei "Klassisch"
+     * immer, bei frei eingestellten Gestaltungen mit Grundstil "flach".
+     */
+    public static function isFlat(string $design, ?array $style): bool {
+        return $design === Application::DESIGN_NEXTCLOUD || StyleTokens::isClassic($style);
     }
 }

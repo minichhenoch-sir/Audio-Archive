@@ -31,8 +31,23 @@ class Application extends App implements IBootstrap {
      * Gilt fuer alle Zugaenge, auch den geteilten Link.
      */
     public const SETTING_DESIGN = 'design';
+    /**
+     * Die vier Gestaltungen (ab 0.17). Die gespeicherten Werte der beiden
+     * alten bleiben, damit bestehende Einstellungen gueltig sind:
+     *   'nextcloud' = Klassisch (Nextclouds Farben, Hell/Dunkel automatisch)
+     *   'custom'    = Modern (rund, Glas; Farben waehlbar, mit Vorlagen)
+     *   'admin'     = vom Administrator bereitgestellt (nur wenn aktiviert)
+     *   'defined'   = benutzerdefiniert (alles einstellbar, siehe StyleTokens)
+     */
     public const DESIGN_CUSTOM = 'custom';
     public const DESIGN_NEXTCLOUD = 'nextcloud';
+    public const DESIGN_ADMIN = 'admin';
+    public const DESIGN_DEFINED = 'defined';
+    public const DESIGNS = [self::DESIGN_NEXTCLOUD, self::DESIGN_CUSTOM, self::DESIGN_ADMIN, self::DESIGN_DEFINED];
+
+    /** Gestaltung des Administrators (JSON, siehe StyleTokens) und ob sie angeboten wird. */
+    public const SETTING_ADMIN_STYLE = 'admin_style';
+    public const SETTING_ADMIN_STYLE_ENABLED = 'admin_style_enabled';
 
     /** Administrator-Bild auch bei Nextcloud-Gestaltung zeigen (Vorgabe: nein). */
     public const SETTING_BACKGROUND_NEXTCLOUD = 'background_nextcloud';
@@ -45,6 +60,8 @@ class Application extends App implements IBootstrap {
 
     /** Schluessel der persoenlichen Einstellungen je Nutzer (IConfig-Nutzerwerte). */
     public const USER_DESIGN = 'design';
+    /** Benutzerdefinierte Gestaltung (JSON, siehe StyleTokens), ab 0.17 */
+    public const USER_STYLE = 'style';
     // Ab 0.13: alle Oberflaechen-Einstellungen auch persoenlich ('' = Vorgabe)
     public const USER_TITLE = 'header_title';
     public const USER_SUBTITLE = 'header_subtitle';

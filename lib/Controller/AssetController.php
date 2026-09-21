@@ -256,16 +256,18 @@ class AssetController extends Controller {
             $title = $share['settings']['title'] !== ''
                 ? $share['settings']['title']
                 : ($folder !== null ? $folder->getName() : $title);
+            $resolved = $this->appearance->resolveShare($share);
             $barColor = $this->appearance->barColor(
-                $this->appearance->resolveShare($share)['design'],
-                $share['settings']['themeBar']
+                $resolved['design'],
+                $share['settings']['themeBar'],
+                $resolved['style']
             );
         } else {
             // Angemeldet: persoenlicher Titel und persoenliche Leistenfarbe
             $uid = $s === '' ? $this->userSession->getUser()?->getUID() : null;
             $look = $this->appearance->effectiveLook($uid);
             $title = $look['title'] !== '' ? $look['title'] : $title;
-            $barColor = $this->appearance->barColor($look['design'], $look['themeBar']);
+            $barColor = $this->appearance->barColor($look['design'], $look['themeBar'], $look['style']);
         }
 
         /*

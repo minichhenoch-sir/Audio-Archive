@@ -9,6 +9,7 @@ use OCP\App\IAppManager;
 use OCP\AppFramework\Services\IInitialState;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
+use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\Settings\ISettings;
 use OCP\Util;
@@ -21,6 +22,7 @@ class Admin implements ISettings {
         private IURLGenerator $urlGenerator,
         private BackgroundImage $backgroundImage,
         private IAppManager $appManager,
+        private Appearance $appearance,
     ) {
     }
 
@@ -79,6 +81,9 @@ class Admin implements ISettings {
             'design' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_DESIGN, Application::DESIGN_CUSTOM
             ),
+            // Ab 0.17: eigene Gestaltung des Administrators
+            'adminStyle' => $this->appearance->adminStyle(),
+            'adminStyleEnabled' => $this->appearance->adminStyleOffered(),
             'backgroundNextcloud' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, false
             ),
@@ -99,8 +104,11 @@ class Admin implements ISettings {
         // Ueber addScript/addStyle eingebunden, nicht als eigenes <script>-Tag:
         // Auf dieser Seite laeuft Nextclouds normales Seitengeruest, und dabei
         // vergibt Nextcloud das CSP-Nonce von sich aus.
+        // style-tokens zuerst: settings.js nutzt dessen Editor (window.AAStyle)
+        Util::addScript(Application::APP_ID, 'style-tokens');
         Util::addScript(Application::APP_ID, 'settings');
         Util::addStyle(Application::APP_ID, 'settings');
+        Util::addStyle(Application::APP_ID, 'style-editor');
 
         return new TemplateResponse(Application::APP_ID, 'settings-admin', [
             'version' => $this->appManager->getAppVersion(Application::APP_ID),

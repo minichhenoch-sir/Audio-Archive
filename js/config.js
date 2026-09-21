@@ -16,6 +16,9 @@ const AudioArchive = (() => {
     publicToken: el.dataset.publicToken || '',
     embedded: el.dataset.embedded === '1',
     design: el.dataset.design || 'custom',
+    // Vollstaendige Werte bei 'admin'/'defined' (ab 0.17), sonst null
+    style: (window.AAStyle && el.dataset.style) ? window.AAStyle.parse(el.dataset.style) : null,
+    adminStyleOffered: el.dataset.adminStyleOffered === '1',
     userSettings: el.dataset.userSettings === '1',
     loggedIn: el.dataset.loggedIn === '1',
     hasShared: el.dataset.hasShared === '1',
@@ -53,7 +56,11 @@ const AudioArchive = (() => {
 
   // Aktuelle Gestaltung. Veraenderlich, weil ein mit dem Nutzer geteilter
   // Ordner sein eigenes Aussehen mitbringen kann (siehe app.js, Look).
-  let currentDesign = data.design;
+  // Gemeint ist hier der AUFBAU: 'nextcloud' (flach, Nextclouds
+  // Variablen) oder 'custom' (Glas). Flach sind "Klassisch" und frei
+  // eingestellte Gestaltungen mit Grundstil "flach" (ab 0.17).
+  const rootEl = document.getElementById('audioarchive');
+  let currentDesign = rootEl && rootEl.classList.contains('aa-design-nextcloud') ? 'nextcloud' : 'custom';
   // Farbe des App-Symbols (6 Hexziffern) - folgt der Leistenfarbe (ab 0.16)
   let iconColor = /^[0-9a-f]{6}$/.test(el.dataset.iconColor || '') ? el.dataset.iconColor : '';
   const ncPrimary = el.dataset.ncPrimary || '';
@@ -178,15 +185,17 @@ const AudioArchive = (() => {
     },
 
     /**
-     * Nextcloud-Gestaltung? Dann kommen Farben und Hintergrund aus
+     * Flacher Nextcloud-Aufbau? Dann kommen Farben und Hintergrund aus
      * Nextclouds CSS-Variablen (siehe style.css, .aa-design-nextcloud),
-     * und die eigenen Farben werden nicht gesetzt.
+     * und die eigenen Farben werden nicht gesetzt. (Bei einer frei
+     * eingestellten flachen Gestaltung belegt app.js diese Variablen fuer
+     * den Player mit den eigenen Farben.)
      */
     isNextcloudDesign() {
       return currentDesign === 'nextcloud';
     },
 
-    /** Gestaltung wechseln - nur ueber Look in app.js aufrufen. */
+    /** Aufbau wechseln ('nextcloud' = flach) - nur ueber Look in app.js aufrufen. */
     setDesign(design) {
       currentDesign = design === 'nextcloud' ? 'nextcloud' : 'custom';
     },
