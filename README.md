@@ -790,3 +790,11 @@ Tablets und Desktop bleiben unverändert.
   von sich aus an – etwa weil sie schon einmal abgelehnt wurde oder die App
   schon installiert ist, in Firefox und Safari grundsätzlich –, erklärt der
   Knopf, wo die Installation im Browsermenü zu finden ist.
+
+---
+
+## 0.15.5: Knopf „App installieren" wieder wie in 0.15.3
+
+Der immer sichtbare Knopf aus 0.15.4 ist wieder entfernt. Er erscheint wie
+zuvor nur, wenn der Browser die Installation selbst anbietet. Laufschrift
+und feststehende Kopfzeile aus 0.15.4 bleiben.

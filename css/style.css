@@ -2472,7 +2472,7 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
 }
 
 /* =====================================================================
- * 0.15.4: Laufschrift in der Player-Leiste, Hinweis "App installieren"
+ * 0.15.4: Laufschrift in der Player-Leiste
  * ===================================================================== */
 
 /* Titel und Zusatzzeile: zu lange Texte wandern langsam hin und her
@@ -2492,9 +2492,4 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
 @keyframes aa-marquee {
   0%, 15% { transform: translateX(0); }
   85%, 100% { transform: translateX(var(--aa-marquee-shift, 0px)); }
-}
-
-#audioarchive .install-hint-text {
-  margin: 0 0 8px;
-  line-height: 1.45;
 }

@@ -67,16 +67,6 @@
       installBtn.href = AudioArchive.standaloneUrl;
       installBtn.hidden = false;
     } else if (!runsAsInstalledApp) {
-      /*
-       * Ab 0.15.4 immer sichtbar (ausser in der installierten App selbst).
-       * Vorher erschien der Knopf nur nach "beforeinstallprompt" - das
-       * feuert Chrome aber nicht zuverlaessig (z. B. wenn die App auf dem
-       * Geraet schon installiert ist, nach einem abgelehnten Angebot, in
-       * Firefox und Safari nie). Ohne Angebot des Browsers erklaert der
-       * Knopf, wo die Installation im Browsermenue steht.
-       */
-      installBtn.hidden = false;
-
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         installPrompt = event;
@@ -85,12 +75,10 @@
 
       installBtn.addEventListener('click', async (event) => {
         event.preventDefault();
-        if (!installPrompt) {
-          showInstallHint();
-          return;
-        }
+        if (!installPrompt) return;
         const prompt = installPrompt;
         installPrompt = null;
+        installBtn.hidden = true;
         prompt.prompt();
         try {
           await prompt.userChoice;
@@ -102,55 +90,7 @@
       window.addEventListener('appinstalled', () => {
         installPrompt = null;
         installBtn.hidden = true;
-        const hint = document.getElementById('install-hint');
-        if (hint) hint.hidden = true;
       });
-    }
-  }
-
-  /** Anleitung, wenn der Browser selbst keine Installation anbietet */
-  function showInstallHint() {
-    let hint = document.getElementById('install-hint');
-    if (!hint) {
-      const ua = navigator.userAgent;
-      const ios = /iPhone|iPad|iPod/.test(ua)
-        || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-      const text = ios
-        ? 'Tippe in Safari unten auf „Teilen“ (Quadrat mit Pfeil nach oben) und dann auf „Zum Home-Bildschirm“.'
-        : /Android/.test(ua)
-          ? 'Öffne das Browsermenü (⋮ oben rechts) und wähle „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.'
-          : 'Klicke in der Adressleiste auf das Installieren-Symbol oder wähle im Browsermenü „App installieren“.';
-
-      hint = document.createElement('section');
-      hint.id = 'install-hint';
-      hint.className = 'panel install-hint';
-      const title = document.createElement('h2');
-      title.className = 'panel-title';
-      title.textContent = 'App installieren';
-      const body = document.createElement('p');
-      body.className = 'install-hint-text';
-      body.textContent = text;
-      const note = document.createElement('p');
-      note.className = 'panel-hint';
-      note.textContent = 'Ist die App auf diesem Gerät schon installiert, öffne sie einfach über ihr Symbol auf dem Startbildschirm.';
-      const actions = document.createElement('div');
-      actions.className = 'panel-row panel-actions';
-      const close = document.createElement('button');
-      close.type = 'button';
-      close.className = 'panel-button';
-      close.textContent = 'Schließen';
-      close.addEventListener('click', () => { hint.hidden = true; });
-      actions.append(close);
-      hint.append(title, body, note, actions);
-      document.getElementById('library').prepend(hint);
-    } else {
-      hint.hidden = !hint.hidden;
-    }
-    // Die Anleitung steht ganz oben in der Liste - dorthin scrollen (nicht
-    // scrollIntoView: das legt sie unter die feststehende Kopfzeile)
-    if (!hint.hidden) {
-      [document.getElementById('main-screen'), document.querySelector('#audioarchive .library-scroll')]
-        .forEach((el) => { if (el) el.scrollTo({ top: 0, behavior: 'smooth' }); });
     }
   }
 
