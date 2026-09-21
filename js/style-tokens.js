@@ -177,6 +177,25 @@ window.AAStyle = (() => {
     return 0.2126 * f(r) + 0.7152 * f(g) + 0.0722 * f(b);
   }
   const isLight = (c) => luminance(c) > 0.4;
+  const contrast = (a, b) => {
+    const la = luminance(a); const lb = luminance(b);
+    return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+  };
+
+  /**
+   * Akzentfarbe als Schrift auf einer Flaeche (ab 0.17.1): so weit
+   * abgedunkelt bzw. aufgehellt, bis sie mindestens 4,5:1 Kontrast hat
+   * (WCAG AA fuer normalen Text). Der Farbton bleibt erkennbar.
+   */
+  function readableOn(fgHex, bgHex, min = 4.5) {
+    const bg = rgb(bgHex);
+    let fg = rgb(fgHex);
+    const toDark = isLight(bg);
+    for (let i = 0; i < 20 && contrast(fg, bg) < min; i++) {
+      fg = toDark ? darken(fg, 0.12) : lighten(fg, 0.12);
+    }
+    return toHex(fg);
+  }
 
   /**
    * Schriftfarbe fuer eine Flaeche: dunkel auf hell, hell auf dunkel.
@@ -241,7 +260,9 @@ window.AAStyle = (() => {
       lightBgStrong: rgba(surface, Math.min(1, so * 0.88)),
       lightBorder: surfaceLight ? 'rgba(255, 255, 255, 0.65)' : 'rgba(255, 255, 255, 0.12)',
       pressBg: rgba(surfaceLight ? lighten(surface, 0.3) : lighten(surface, 0.08), 0.95),
-      activeBg: rgba(surface, so * 0.55),
+      // Laufende Zeile fast deckend - sonst wird sie ueber dunklen Bildern
+      // grau und der Titel unlesbar (0.17.1)
+      activeBg: rgba(surface, Math.max(0.9, so)),
       buttonBg: surfaceLight ? 'rgba(255, 255, 255, 0.75)' : rgba(lighten(surface, 0.1), 0.9),
       lightShadow: sh === 0 ? 'none'
         : `0 10px 30px ${rgba(shadowTint, 0.16 * sh)}, inset 0 1px 0 rgba(255, 255, 255, ${Math.min(0.7, 0.7 * sh)})`,
@@ -263,6 +284,7 @@ window.AAStyle = (() => {
   }
 
   const soft = (c, a) => rgba(c, a);
+  const s0 = (c) => toHex(c);
 
   /**
    * CSS-Variablen fuer die App.
@@ -296,6 +318,7 @@ window.AAStyle = (() => {
       '--aa-surface-press': c.pressBg,
       '--aa-surface-active': c.activeBg,
       '--aa-surface-button': c.buttonBg,
+      '--aa-accent-on-surface': readableOn(s0(c.accent), s0(c.surface)),
       '--aa-rf': String(c.rf),
       '--aa-rfc': String(c.rfc),
       '--aa-pill': c.pill,
@@ -770,6 +793,7 @@ window.AAStyle = (() => {
     createEditor,
     createPreview,
     createPalettePicker,
+    readableOn,
     parse(json) {
       if (!json) return null;
       try {

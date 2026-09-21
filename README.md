@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.17.0: Vier Gestaltungen)
+# Audio Archive – Nextcloud-App (0.17.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -891,3 +891,20 @@ Schalter „Anbieten“.
 
 **Einspielen:** PHP-Dateien geändert → Container neu starten. Keine
 Datenbankänderung.
+
+---
+
+## 0.17.1: Lesbare laufende Zeile
+
+Die Zeile des gerade laufenden Titels war zu 55 % durchsichtig. Über
+einem dunklen Hintergrundbild wurde sie grau, und der Titel in der
+Akzentfarbe war kaum zu lesen. Jetzt:
+
+- Die Zeile ist fast deckend und nur leicht in der Akzentfarbe getönt.
+- Der Titel steht fett in der normalen Schriftfarbe.
+- Wo die Akzentfarbe als Schrift erscheint („Läuft gerade“, Pfad,
+  Knöpfe), wird sie so weit abgedunkelt (auf dunklen Flächen aufgehellt),
+  dass sie mindestens 4,5:1 Kontrast hat. Helle Akzente wie Rosé oder Sonne
+  bleiben dadurch lesbar.
+
+Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.

@@ -284,6 +284,9 @@
       root.setProperty('--color-accent', `rgb(${r}, ${g}, ${b})`);
       root.setProperty('--color-accent-deep', darken(accent, 0.3));
       root.setProperty('--color-accent-rgb', `${r}, ${g}, ${b}`);
+      // Akzent als Schrift auf den hellen Listen: auf Kontrast gerechnet
+      // (0.17.1), sonst sind helle Akzente wie Rosé oder Sonne kaum lesbar
+      root.setProperty('--aa-accent-on-surface', AAStyle.readableOn(accentHex, '#fffaf2'));
     }
 
     const bar = hexToRgb(barHex);
