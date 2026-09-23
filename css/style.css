@@ -785,6 +785,13 @@ body.has-bg-image #audioarchive .explorer-row.active {
   display: flex;
   align-items: center;
   justify-content: center;
+  /*
+   * WICHTIG (0.17.4): nicht schrumpfen lassen. Als Flex-Kinder wurden die
+   * Knoepfe auf schmalen Telefonen in der BREITE gestaucht, die Hoehe
+   * blieb - aus den Kreisen wurden Ovale. Statt zu schrumpfen werden sie
+   * unten je nach Bildschirmbreite kleiner gesetzt.
+   */
+  flex: none;
   width: 44px;
   height: 44px;
   border-radius: var(--aa-pill, 999px);
@@ -937,10 +944,23 @@ body.has-bg-image #audioarchive .explorer-row.active {
 }
 
 #audioarchive .player-bar.is-expanded .player-progress { margin-bottom: 14px; }
-#audioarchive .player-bar.is-expanded .player-controls { gap: 18px; }
 
-#audioarchive .player-bar.is-expanded .control-btn { width: 52px; height: 52px; }
-#audioarchive .player-bar.is-expanded .control-btn--main { width: 72px; height: 72px; }
+/*
+ * Groesse und Abstaende der Steuerung wachsen mit der Bildschirmbreite
+ * (0.17.4). Feste 52/72 Punkte plus 18er Abstaende brauchen rund 390
+ * Punkte - auf einem 360er Telefon passte das nicht, und die Knoepfe
+ * wurden vorher gestaucht.
+ */
+#audioarchive .player-bar.is-expanded .player-controls { gap: clamp(6px, 3vw, 18px); }
+
+#audioarchive .player-bar.is-expanded .control-btn {
+  width: clamp(44px, 13vw, 52px);
+  height: clamp(44px, 13vw, 52px);
+}
+#audioarchive .player-bar.is-expanded .control-btn--main {
+  width: clamp(58px, 18vw, 72px);
+  height: clamp(58px, 18vw, 72px);
+}
 
 /* Flache Bildschirme (Telefon quer): Cover links, Rest rechts */
 @media (max-height: 520px) and (orientation: landscape) {
@@ -2342,21 +2362,35 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   background: linear-gradient(180deg, var(--aa-nc-bg) 55%, transparent);
 }
 
-/* ---------- 0.15.1: Vollbild auch auf kleinen Telefonen und im Querformat ----------
- * Das Cover richtet sich nach der verfuegbaren HOEHE: Unter dem Cover
- * brauchen Titel, Knoepfe, Fortschritt und Steuerung rund 420px. Vorher war
- * es auf kleinen Telefonen (320x568) zu gross - es schob sich unter die
- * Kopfzeile, und die Steuerung rutschte aus dem Bild. */
+/* ---------- Vollbild auf kleinen Telefonen (0.15.1, neu gefasst in 0.17.4) ----------
+ * Bis 0.17.3 rechnete das Cover mit einem festen Abzug: "Hoehe minus
+ * 420px". Der Abzug war grosszuegig geschaetzt - auf Telefonen mit knapp
+ * 600 Punkten Hoehe blieb das Cover deshalb klein (220 statt moeglicher
+ * 300 Punkte), waehrend unter der Steuerung Platz frei blieb. Es sah
+ * zusammengequetscht aus.
+ *
+ * Jetzt ohne Schaetzwert: Das Cover ist so gross, wie die Breite erlaubt,
+ * darf aber schrumpfen (flex-shrink), wenn der Platz nicht reicht. Die
+ * Breite folgt ueber aspect-ratio der Hoehe, es bleibt also quadratisch.
+ * So fuellt der Player die Hoehe immer aus, ohne dass etwas abgeschnitten
+ * wird. */
+#audioarchive .player-bar.is-expanded .player-main { min-height: 0; }
+
 #audioarchive .player-bar.is-expanded .player-cover {
-  width: max(120px, min(84vw, calc(100vh - 420px), 420px));
-  height: max(120px, min(84vw, calc(100vh - 420px), 420px));
+  flex: 0 1 auto;
+  aspect-ratio: 1 / 1;
+  height: min(84vw, 420px);
+  width: auto;
+  max-width: min(84vw, 420px);
+  /* Kleiner wird es nicht - sonst verschwindet das Bild ganz */
+  min-height: 116px;
 }
 @supports (height: 100dvh) {
   #audioarchive .player-bar.is-expanded .player-cover {
-    width: max(120px, min(84vw, calc(100dvh - 420px), 420px));
-    height: max(120px, min(84vw, calc(100dvh - 420px), 420px));
+    height: min(84vw, 420px, calc(100dvh - 300px));
   }
 }
+
 /* "safe": passt es doch nicht, beginnt der Inhalt oben statt oben
    abgeschnitten zu werden */
 #audioarchive .player-bar.is-expanded { justify-content: safe center; overflow-y: auto; }
@@ -2381,6 +2415,9 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   #audioarchive .player-bar.is-expanded.show-details .player-cover {
     grid-column: 1;
     grid-row: 1 / span 4;
+    flex: none;
+    max-width: none;
+    min-height: 0;
     width: min(calc(100vh - 110px), 32vw, 320px);
     height: min(calc(100vh - 110px), 32vw, 320px);
   }
@@ -2402,6 +2439,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   #audioarchive .player-bar.is-expanded .player-controls { gap: clamp(6px, 2.4vw, 18px); }
   #audioarchive .player-bar.is-expanded .control-btn { width: 46px; height: 46px; }
   #audioarchive .player-bar.is-expanded .control-btn--main { width: 60px; height: 60px; }
+  /* Im Querformat ist die Breite nie das Problem - dort gelten feste Masse */
 
   /* "Angaben" und "Wiederholen": duerfen umbrechen statt sich zu quetschen */
   #audioarchive .player-bar.is-expanded .player-actions {

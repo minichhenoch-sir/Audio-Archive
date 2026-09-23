@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.17.3)
+# Audio Archive – Nextcloud-App (0.17.4)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -941,5 +941,28 @@ wenig Platz: Knöpfe und Fortschritt klebten am Rand.
 - „Angaben“ und „Wiederholen“ dürfen umbrechen; unter 720 Punkten Breite
   bleiben nur ihre Symbole.
 - Titel und Zusatzzeile etwas kleiner, damit alles ohne Scrollen passt.
+
+Nur CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.17.4: Vollbild im Hochformat – runde Knöpfe, größeres Cover
+
+Zwei Fehler auf schmalen Telefonen im Hochformat:
+
+- **Aus den runden Knöpfen wurden Ovale.** Die fünf Steuerknöpfe brauchen
+  mit festen Maßen rund 390 Punkte Breite. Auf einem 360er Telefon wurden
+  sie als Flex-Kinder in der Breite gestaucht, die Höhe blieb. Jetzt
+  schrumpfen sie nicht mehr (`flex: none`); Größe und Abstände wachsen
+  stattdessen mit der Bildschirmbreite mit.
+- **Das Cover war zu klein.** Seine Größe wurde aus „Höhe minus 420
+  Punkte“ geschätzt. Unter der Steuerung blieb dadurch Platz frei,
+  während das Bild klein blieb (220 statt 276 Punkte auf einem 360×640er
+  Telefon). Jetzt ist es so groß, wie die Breite erlaubt, und schrumpft
+  nur so weit, wie es die Höhe verlangt.
+
+Geprüft bei 320×568, 360×640, 360×740, 390×844, 412×915 und im Querformat
+bei 667×375, 740×420, 780×360, 844×390: alle Knöpfe rund, nichts läuft
+über den Rand, nichts wird abgeschnitten.
 
 Nur CSS geändert – kein Neustart des Containers nötig.
