@@ -2391,6 +2391,16 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   }
 }
 
+/* ---------- Nach unten wischen schliesst (ab 0.18) ----------
+ * Waehrend der Geste folgt die Leiste dem Finger (transform setzt
+ * player.js). Keine Uebergaenge, sonst haengt sie hinterher; die
+ * Einblend-Animation des Vollbilds darf dabei nicht laufen. */
+#audioarchive .player-bar.is-expanded.is-dragging {
+  transition: none;
+  animation: none;
+  will-change: transform, opacity;
+}
+
 /* "safe": passt es doch nicht, beginnt der Inhalt oben statt oben
    abgeschnitten zu werden */
 #audioarchive .player-bar.is-expanded { justify-content: safe center; overflow-y: auto; }

@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.17.4)
+# Audio Archive – Nextcloud-App (0.18.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -966,3 +966,23 @@ bei 667×375, 740×420, 780×360, 844×390: alle Knöpfe rund, nichts läuft
 über den Rand, nichts wird abgeschnitten.
 
 Nur CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.18.0: Vollbild nach unten wegwischen
+
+Der Vollbild-Player lässt sich jetzt schließen, indem man ihn nach unten
+wischt – wie in üblichen Musik-Apps. Die Leiste folgt dabei dem Finger und
+rutscht unten aus dem Bild.
+
+- Ein kurzes Stück reicht bei einem schnellen Schubs; langsam gezogen
+  schließt es ab etwa 120 Punkten, sonst federt es zurück.
+- Sind die Angaben aufgeklappt, scrollt zuerst der Inhalt. Die Geste
+  beginnt erst, wenn oben nichts mehr zu scrollen ist.
+- Auf Schiebereglern und Knöpfen startet die Geste nicht – der
+  Fortschritt lässt sich also weiterhin ziehen.
+- Am Rechner schließt auch das Mausrad nach unten (nur ohne aufgeklappte
+  Angaben).
+- Die bisherigen Wege bleiben: Pfeil oben links, Zurück-Geste, Escape.
+
+Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.

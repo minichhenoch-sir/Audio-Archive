@@ -1021,6 +1021,11 @@ const Player = (() => {
   let expandedByHistory = false;
 
   function setExpanded(open) {
+    // Reste einer Wisch-Geste entfernen (ab 0.18)
+    els.bar.style.transform = '';
+    els.bar.style.opacity = '';
+    els.bar.style.transition = '';
+    els.bar.classList.remove('is-dragging');
     els.bar.classList.toggle('is-expanded', open);
     document.getElementById('audioarchive').classList.toggle('aa-player-expanded', open);
     els.btnExpand.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1061,6 +1066,133 @@ const Player = (() => {
     expand();
   });
   els.btnCollapse.addEventListener('click', collapse);
+
+  /*
+   * Nach unten wischen schliesst den Vollbild-Player (ab 0.18).
+   *
+   * Vom Nutzer gewuenscht: "wenn runtergescrollt wird, soll das aus dem
+   * Fenster verschwinden". Die Leiste folgt dabei dem Finger und rutscht
+   * nach unten aus dem Bild; wird zu wenig gezogen, federt sie zurueck.
+   *
+   * Nur wenn oben nichts mehr zu scrollen ist: Bei aufgeklappten Angaben
+   * scrollt die Seite zuerst, erst ganz oben beginnt die Geste. Auf
+   * Schiebereglern und Knoepfen startet sie gar nicht, sonst liesse sich
+   * der Fortschritt nicht mehr ziehen.
+   */
+  const CLOSE_DISTANCE = 120;      // ab hier schliesst es
+  const CLOSE_VELOCITY = 0.55;     // px/ms - schneller Schubs genuegt auch kurz
+  let dragStartY = null;
+  let dragStartTime = 0;
+  let dragDelta = 0;
+  let dragging = false;
+
+  function isExpanded() {
+    return els.bar.classList.contains('is-expanded');
+  }
+
+  function setDragOffset(px) {
+    if (px <= 0) {
+      els.bar.style.transform = '';
+      els.bar.style.opacity = '';
+      return;
+    }
+    els.bar.style.transform = 'translateY(' + px + 'px)';
+    // Leicht ausblenden - macht sichtbar, dass es sich schliesst
+    els.bar.style.opacity = String(Math.max(0.4, 1 - px / (els.bar.clientHeight || 600)));
+  }
+
+  function endDrag(close) {
+    els.bar.classList.remove('is-dragging');
+    dragStartY = null;
+    dragging = false;
+
+    if (!close) {
+      setDragOffset(0);
+      return;
+    }
+
+    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (reduced) {
+      setDragOffset(0);
+      collapse();
+      return;
+    }
+
+    // Nach unten hinausschieben, danach erst wirklich schliessen
+    els.bar.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
+    els.bar.style.transform = 'translateY(100%)';
+    els.bar.style.opacity = '0';
+    window.setTimeout(() => {
+      els.bar.style.transition = '';
+      setDragOffset(0);
+      collapse();
+    }, 180);
+  }
+
+  els.bar.addEventListener('touchstart', (event) => {
+    if (!isExpanded() || event.touches.length !== 1) return;
+    if (event.target.closest('input, button, a')) return;
+    // Erst ganz oben: sonst scrollen die Angaben
+    if (els.bar.scrollTop > 0) return;
+    dragStartY = event.touches[0].clientY;
+    dragStartTime = Date.now();
+    dragDelta = 0;
+    dragging = false;
+  }, { passive: true });
+
+  els.bar.addEventListener('touchmove', (event) => {
+    if (dragStartY === null || event.touches.length !== 1) return;
+    const delta = event.touches[0].clientY - dragStartY;
+
+    if (!dragging) {
+      // Nach oben gewischt: normales Scrollen, Geste verwerfen
+      if (delta < -4) {
+        dragStartY = null;
+        return;
+      }
+      if (delta < 10) return;
+      dragging = true;
+      els.bar.classList.add('is-dragging');
+    }
+
+    dragDelta = Math.max(0, delta);
+    // Ohne preventDefault wuerde der Browser gleichzeitig scrollen
+    if (event.cancelable) event.preventDefault();
+    setDragOffset(dragDelta);
+  }, { passive: false });
+
+  function finishTouch() {
+    if (dragStartY === null) return;
+    if (!dragging) {
+      dragStartY = null;
+      return;
+    }
+    const speed = dragDelta / Math.max(1, Date.now() - dragStartTime);
+    endDrag(dragDelta > CLOSE_DISTANCE || speed > CLOSE_VELOCITY);
+  }
+
+  els.bar.addEventListener('touchend', finishTouch);
+  els.bar.addEventListener('touchcancel', () => endDrag(false));
+
+  /*
+   * Am Rechner dasselbe mit dem Mausrad: nach unten scrollen schliesst,
+   * aber nur, wenn es nichts zu scrollen gibt (also ohne aufgeklappte
+   * Angaben) - sonst wuerde das Lesen der Angaben den Player schliessen.
+   */
+  let wheelSum = 0;
+  let wheelAt = 0;
+  els.bar.addEventListener('wheel', (event) => {
+    if (!isExpanded() || event.deltaY <= 0) return;
+    if (els.bar.scrollHeight > els.bar.clientHeight + 1) return;
+    const now = Date.now();
+    if (now - wheelAt > 600) wheelSum = 0;
+    wheelAt = now;
+    wheelSum += event.deltaY;
+    if (wheelSum > 140) {
+      wheelSum = 0;
+      collapse();
+    }
+  }, { passive: true });
 
   document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape' && els.bar.classList.contains('is-expanded')) collapse();
