@@ -2368,21 +2368,70 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   #audioarchive .player-bar.is-expanded .player-progress,
   #audioarchive .player-bar.is-expanded .player-controls,
   #audioarchive .player-bar.is-expanded .player-details { grid-column: 2; }
+  /*
+   * Breite (0.17.3): Das Cover nahm 40 % der Breite, daneben stand eine
+   * feste 460er-Spalte plus 32px Abstand. Auf Telefonen im Querformat
+   * (rund 660 bis 840 Punkte breit) blieb fuer die rechte Spalte zu wenig
+   * uebrig - Knoepfe und Fortschritt klebten am Rand und wirkten
+   * zusammengequetscht. Jetzt richtet sich das Cover nach der HOEHE und
+   * hoert bei 30 % der Breite auf, der Abstand waechst erst mit der
+   * Breite mit.
+   */
   #audioarchive .player-bar.is-expanded .player-cover,
   #audioarchive .player-bar.is-expanded.show-details .player-cover {
     grid-column: 1;
     grid-row: 1 / span 4;
-    width: min(calc(100vh - 110px), 40vw);
-    height: min(calc(100vh - 110px), 40vw);
+    width: min(calc(100vh - 110px), 32vw, 320px);
+    height: min(calc(100vh - 110px), 32vw, 320px);
   }
   #audioarchive .player-bar.is-expanded {
+    grid-template-columns: auto minmax(0, 460px);
+    column-gap: clamp(14px, 3vw, 32px);
     grid-template-rows: repeat(4, auto);
     row-gap: 10px;
     padding-top: calc(var(--safe-top) + 52px);
     padding-bottom: calc(var(--safe-bottom) + 16px);
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   #audioarchive .player-bar.is-expanded .player-info { margin-bottom: 0; }
   #audioarchive .player-bar.is-expanded .player-progress { margin-bottom: 0; }
+
+  /* Steuerung etwas kleiner und mit mitwachsenden Abstaenden, damit die
+     fuenf Knoepfe auch auf schmalen Geraeten nebeneinander Platz haben */
+  #audioarchive .player-bar.is-expanded .player-controls { gap: clamp(6px, 2.4vw, 18px); }
+  #audioarchive .player-bar.is-expanded .control-btn { width: 46px; height: 46px; }
+  #audioarchive .player-bar.is-expanded .control-btn--main { width: 60px; height: 60px; }
+
+  /* "Angaben" und "Wiederholen": duerfen umbrechen statt sich zu quetschen */
+  #audioarchive .player-bar.is-expanded .player-actions {
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #audioarchive .player-bar.is-expanded .player-actions .player-icon-btn {
+    height: 34px;
+    padding: 0 12px;
+  }
+
+  /* Titel darf zweizeilig werden, aber nicht die Hoehe sprengen */
+  #audioarchive .player-bar.is-expanded .player-track-title {
+    font-size: calc(1.25 * var(--aa-rem));
+    line-height: 1.2;
+  }
+  #audioarchive .player-bar.is-expanded .player-track-context {
+    font-size: calc(0.85 * var(--aa-rem));
+  }
+}
+
+/* Sehr schmal und flach (kleine Telefone quer): Beschriftungen der
+   Zusatzknoepfe weglassen - die Symbole bleiben, der Platz reicht dann
+   auch fuer den Fortschritt. */
+@media (max-height: 520px) and (orientation: landscape) and (max-width: 720px) {
+  #audioarchive .player-bar.is-expanded .player-action-label { display: none; }
+  #audioarchive .player-bar.is-expanded .player-actions .player-icon-btn {
+    width: 38px;
+    padding: 0;
+  }
 }
 
 /* ---------- Versionsanzeige (ab 0.15.2) ----------

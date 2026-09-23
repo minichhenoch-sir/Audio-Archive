@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.17.2)
+# Audio Archive – Nextcloud-App (0.17.3)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -923,3 +923,23 @@ Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.
   `._…`-Dateien von macOS) zählen nicht.
 
 PHP geändert → nach dem Einspielen den Container neu starten.
+
+---
+
+## 0.17.3: Vollbild im Querformat nicht mehr gequetscht
+
+Auf Telefonen im Querformat nahm das Cover 40 % der Breite, daneben stand
+eine feste 460 Punkte breite Spalte. Auf schmalen Geräten blieb dafür zu
+wenig Platz: Knöpfe und Fortschritt klebten am Rand.
+
+- Das Cover richtet sich jetzt nach der Höhe und hört bei 32 % der Breite
+  (höchstens 320 Punkte) auf.
+- Der Abstand zwischen Cover und Bedienung wächst mit der Breite mit,
+  links und rechts bleibt immer Rand.
+- Die fünf Steuerknöpfe sind im Querformat etwas kleiner, ihre Abstände
+  wachsen mit der Breite.
+- „Angaben“ und „Wiederholen“ dürfen umbrechen; unter 720 Punkten Breite
+  bleiben nur ihre Symbole.
+- Titel und Zusatzzeile etwas kleiner, damit alles ohne Scrollen passt.
+
+Nur CSS geändert – kein Neustart des Containers nötig.
