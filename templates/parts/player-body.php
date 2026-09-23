@@ -264,10 +264,16 @@ if ($_['backgroundUrl'] !== '') {
     wird DIESELBE Leiste zum Vollbild-Player (Klasse is-expanded) - so gibt
     es die Bedienelemente nur einmal, und nichts muss abgeglichen werden.
   -->
+  <!-- Abgedunkelte Flaeche hinter dem Vollbild-Player (ab 0.18.1): Die
+       Liste bleibt dahinter sichtbar, der Player wirkt darueber gelegt. -->
+  <div id="player-scrim" class="player-scrim" hidden aria-hidden="true"></div>
+
   <footer id="player-bar" class="player-bar" hidden aria-label="Player">
     <div class="player-expanded-head">
-      <button type="button" id="btn-collapse" class="player-icon-btn" aria-label="Player verkleinern" title="Verkleinern">
-        <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+      <button type="button" id="btn-collapse" class="player-icon-btn player-grabber" aria-label="Player schließen" title="Schließen">
+        <!-- Glas-Gestaltung: ein Pfeil im Griff; flache Gestaltung: doppelter Pfeil -->
+        <svg class="collapse-icon collapse-icon--single" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+        <svg class="collapse-icon collapse-icon--double" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 6 12 12 18 6"/><polyline points="6 13 12 19 18 13"/></svg>
       </button>
       <span class="player-expanded-label">Wiedergabe</span>
     </div>

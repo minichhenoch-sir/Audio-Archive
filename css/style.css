@@ -826,38 +826,89 @@ body.has-bg-image #audioarchive .explorer-row.active {
  * Nextcloud auf den Inhaltsbereich, siehe .aa-embedded). Oben das grosse
  * Cover, darunter Titel, Fortschritt und Steuerung. Hinter allem liegt
  * das Cover noch einmal, stark unscharf - wie bei ueblichen Musik-Apps. */
+/* ---------- Als Karte ueber der Liste (ab 0.18.1) ----------
+ * Der Vollbild-Player faehrt von unten herein und laesst oben einen
+ * Streifen frei. Dort bleibt die Liste sichtbar - abgedunkelt und
+ * unscharf (siehe .player-scrim) -, damit klar ist: Das liegt DARUEBER,
+ * es ist keine neue Seite. Oben runde Ecken, Schatten und ein Griff mit
+ * Pfeil zum Schliessen.
+ *
+ * Der Griff oben haengt als "sticky" an der Karte, der unscharfe
+ * Cover-Grund als "fixed" - beide bleiben dadurch stehen, wenn die
+ * Angaben gescrollt werden. (Kein dauerhaftes transform auf der Karte:
+ * darin wuerden fixed-Kinder mitscrollen.) */
 #audioarchive .player-bar.is-expanded {
-  top: 0;
+  /* Breite des freien Streifens ueber der Karte - waechst mit der
+     Bildschirmhoehe, damit man auf grossen Geraeten mehr von der Liste
+     dahinter sieht */
+  --aa-sheet-top: clamp(34px, 7vh, 88px);
+  top: calc(var(--safe-top) + var(--aa-sheet-top));
   left: 0;
   right: 0;
   bottom: 0;
   max-width: none;
   margin: 0;
-  border-radius: 0;
-  border: none;
+  border-radius: calc(28px * var(--aa-rf, 1)) calc(28px * var(--aa-rf, 1)) 0 0;
+  border: 1px solid var(--glass-dark-border);
+  border-bottom: none;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: calc(var(--safe-top) + 64px) 24px calc(var(--safe-bottom) + 32px);
-  /* Deckend: Die Liste dahinter soll nicht durchscheinen. Die Leistenfarbe
-     liegt auf fast Schwarz - so bleibt der Farbton der Gestaltung erhalten. */
+  padding: 8px 24px calc(var(--safe-bottom) + 32px);
+  /* Deckend: Die Liste scheint nicht DURCH die Karte, sie liegt daneben
+     im freien Streifen. Die Leistenfarbe liegt auf fast Schwarz - so
+     bleibt der Farbton der Gestaltung erhalten. */
   background: linear-gradient(var(--glass-dark-bg-strong), var(--glass-dark-bg-strong)), #0e0b08;
+  box-shadow: 0 -16px 48px rgba(0, 0, 0, 0.45);
   backdrop-filter: none;
   -webkit-backdrop-filter: none;
   overflow: hidden;
   z-index: 50;
-  animation: aa-player-in 0.22s ease-out;
+  animation: aa-player-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 
 @keyframes aa-player-in {
-  from { transform: translateY(24px); opacity: 0; }
-  to { transform: none; opacity: 1; }
+  from { transform: translate3d(0, 100%, 0); }
+  to { transform: translate3d(0, 0, 0); }
 }
 
+/* Abgedunkelte, leicht unscharfe Flaeche hinter der Karte */
+#audioarchive .player-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 49;
+  background: rgba(8, 6, 4, 0.45);
+  backdrop-filter: blur(3px) saturate(120%);
+  -webkit-backdrop-filter: blur(3px) saturate(120%);
+  animation: aa-scrim-in 0.26s ease-out;
+}
+
+@keyframes aa-scrim-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Der Griff mit Pfeil - mittig oben auf der Karte */
+#audioarchive .player-bar.is-expanded .player-grabber {
+  width: auto;
+  height: 30px;
+  padding: 0 20px;
+  border-radius: var(--aa-pill, 999px);
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+}
+#audioarchive .player-bar.is-expanded .player-grabber:active {
+  background: rgba(255, 255, 255, 0.24);
+  transform: scale(0.96);
+}
+/* Nur die Glas-Gestaltung zeigt den einfachen Pfeil im Griff */
+#audioarchive .collapse-icon--double { display: none; }
+
 @media (prefers-reduced-motion: reduce) {
-  #audioarchive .player-bar.is-expanded { animation: none; }
+  #audioarchive .player-bar.is-expanded,
+  #audioarchive .player-scrim { animation: none; }
 }
 
 /* Unscharfes Cover als Hintergrund, abgedunkelt fuer lesbare Schrift */
@@ -883,12 +934,20 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .player-bar.is-expanded .player-expanded-head {
   display: flex;
   align-items: center;
+  justify-content: center;
   gap: 8px;
-  position: absolute;
-  top: calc(var(--safe-top) + 12px);
-  left: 12px;
-  right: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  flex: none;
+  width: 100%;
+  margin: 0 0 6px;
+  padding: 10px 12px 8px;
 }
+
+/* Im Vollbild steht nur der Griff oben - die Beschriftung waere doppelt,
+   der Titel steht ohnehin gross darunter */
+#audioarchive .player-bar.is-expanded .player-expanded-label { display: none; }
 
 #audioarchive .player-expanded-label {
   font-size: calc(0.8 * var(--aa-rem));
@@ -2350,16 +2409,34 @@ html.aa-standalone:has(.aa-design-nextcloud) {
    Kopfzeile sollen dabei stehen bleiben, nicht mitwandern. */
 #audioarchive .player-bar.is-expanded.has-cover::before,
 #audioarchive .player-bar.is-expanded.has-cover::after { position: fixed; }
-#audioarchive .player-bar.is-expanded .player-expanded-head { position: fixed; z-index: 2; }
+/* Beim Scrollen bleibt der Griff oben stehen. Damit der Titel nicht
+   dahinter durchscheint, liegt darunter die Farbe der Karte selbst -
+   nach unten weich auslaufend (mask statt Farbverlauf, so stimmt der
+   Farbton in jeder Gestaltung). */
 #audioarchive .player-bar.is-expanded.show-details .player-expanded-head {
-  top: 0;
-  left: 0;
-  right: 0;
-  padding: calc(var(--safe-top) + 12px) 12px 18px;
-  background: linear-gradient(180deg, rgba(14, 11, 8, 0.9) 55%, transparent);
+  padding: 10px 12px 20px;
+  background: linear-gradient(var(--glass-dark-bg-strong), var(--glass-dark-bg-strong)), #0e0b08;
+  -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
+  mask-image: linear-gradient(180deg, #000 68%, transparent);
 }
 #audioarchive.aa-design-nextcloud .player-bar.is-expanded.show-details .player-expanded-head {
-  background: linear-gradient(180deg, var(--aa-nc-bg) 55%, transparent);
+  background: var(--aa-nc-bg);
+}
+
+/* Flache Gestaltung: doppelter Pfeil nach unten statt des Glas-Griffs */
+#audioarchive.aa-design-nextcloud .collapse-icon--single { display: none; }
+#audioarchive.aa-design-nextcloud .collapse-icon--double { display: block; }
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded .player-grabber {
+  background: var(--aa-nc-hover);
+  border: 1px solid var(--aa-nc-border);
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded {
+  box-shadow: 0 -12px 40px var(--color-box-shadow, rgba(0, 0, 0, 0.35));
+  border-color: var(--aa-nc-border);
+}
+#audioarchive.aa-design-nextcloud .player-scrim {
+  background: rgba(0, 0, 0, 0.3);
 }
 
 /* ---------- Vollbild auf kleinen Telefonen (0.15.1, neu gefasst in 0.17.4) ----------
@@ -2374,12 +2451,18 @@ html.aa-standalone:has(.aa-design-nextcloud) {
  * Breite folgt ueber aspect-ratio der Hoehe, es bleibt also quadratisch.
  * So fuellt der Player die Hoehe immer aus, ohne dass etwas abgeschnitten
  * wird. */
-#audioarchive .player-bar.is-expanded .player-main { min-height: 0; }
+/* Cover, Titel und die beiden Knoepfe bilden einen Block, der NICHT
+   schrumpfen darf: Sonst rutschen "Angaben"/"Wiederholen" ueber den
+   Fortschritt (gefunden 0.18.1). Kleiner wird nur das Cover selbst, und
+   zwar ueber seine Hoehenbegrenzung unten. */
+#audioarchive .player-bar.is-expanded .player-main { flex-shrink: 0; }
 
 #audioarchive .player-bar.is-expanded .player-cover {
   flex: 0 1 auto;
   aspect-ratio: 1 / 1;
-  height: min(84vw, 420px);
+  /* Unter dem Cover brauchen Titel, Knoepfe, Fortschritt und Steuerung
+     rund 350 Punkte, dazu der Griff oben und die Luft ueber der Karte. */
+  height: min(84vw, 420px, calc(100vh - 366px - var(--aa-sheet-top, 38px)));
   width: auto;
   max-width: min(84vw, 420px);
   /* Kleiner wird es nicht - sonst verschwindet das Bild ganz */
@@ -2387,7 +2470,7 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 }
 @supports (height: 100dvh) {
   #audioarchive .player-bar.is-expanded .player-cover {
-    height: min(84vw, 420px, calc(100dvh - 300px));
+    height: min(84vw, 420px, calc(100dvh - 366px - var(--aa-sheet-top, 38px)));
   }
 }
 
@@ -2432,17 +2515,29 @@ html.aa-standalone:has(.aa-design-nextcloud) {
     height: min(calc(100vh - 110px), 32vw, 320px);
   }
   #audioarchive .player-bar.is-expanded {
+    /* Quer ist die Hoehe knapp: weniger Luft ueber der Karte */
+    --aa-sheet-top: 18px;
     grid-template-columns: auto minmax(0, 460px);
     column-gap: clamp(14px, 3vw, 32px);
     grid-template-rows: repeat(4, auto);
     row-gap: 10px;
-    padding-top: calc(var(--safe-top) + 52px);
+    padding-top: 46px;
     padding-bottom: calc(var(--safe-bottom) + 16px);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
   }
   #audioarchive .player-bar.is-expanded .player-info { margin-bottom: 0; }
   #audioarchive .player-bar.is-expanded .player-progress { margin-bottom: 0; }
+  /* Im Raster wuerde der Griff eine eigene Zelle belegen - deshalb quer
+     wieder ueber dem Inhalt schwebend */
+  #audioarchive .player-bar.is-expanded .player-expanded-head {
+    position: absolute;
+    top: 8px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    margin: 0;
+  }
 
   /* Steuerung etwas kleiner und mit mitwachsenden Abstaenden, damit die
      fuenf Knoepfe auch auf schmalen Geraeten nebeneinander Platz haben */

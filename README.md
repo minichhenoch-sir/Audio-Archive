@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.18.0)
+# Audio Archive – Nextcloud-App (0.18.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -986,3 +986,26 @@ rutscht unten aus dem Bild.
 - Die bisherigen Wege bleiben: Pfeil oben links, Zurück-Geste, Escape.
 
 Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.18.1: Vollbild liegt sichtbar über der Liste
+
+Der Vollbild-Player sieht jetzt aus wie eine Karte, die über die Liste
+gelegt ist – nicht mehr wie eine neue Seite.
+
+- Er fährt von unten herein und lässt oben einen Streifen frei. Dort
+  bleibt die Liste sichtbar, abgedunkelt und leicht unscharf.
+- Oben runde Ecken, Schatten und ein Griff mit Pfeil zum Schließen. In der
+  flachen Gestaltung („Klassisch“) ein doppelter Pfeil nach unten.
+- Beim Wegwischen rutscht die Karte nach unten, und der abgedunkelte
+  Hintergrund wird dabei wieder hell – die Liste kommt sichtbar zurück.
+- Der Griff bleibt beim Lesen der Angaben oben stehen.
+
+Nebenbei behoben: Bei aufgeklappten Angaben rutschten „Angaben“ und
+„Wiederholen“ über den Fortschritt. Und das Cover richtet sich jetzt auch
+nach dem Streifen oben, damit im Vollbild nichts mehr gescrollt werden
+muss.
+
+Nur CSS, JavaScript und eine Vorlage geändert – kein Neustart des
+Containers nötig.

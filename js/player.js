@@ -36,6 +36,7 @@ const Player = (() => {
     cover: document.getElementById('player-cover'),
     coverBtn: document.getElementById('player-cover-btn'),
     btnExpand: document.getElementById('btn-expand'),
+    scrim: document.getElementById('player-scrim'),
     btnCollapse: document.getElementById('btn-collapse'),
     btnRepeat: document.getElementById('btn-repeat'),
     repeatLabel: document.getElementById('repeat-label'),
@@ -1026,6 +1027,11 @@ const Player = (() => {
     els.bar.style.opacity = '';
     els.bar.style.transition = '';
     els.bar.classList.remove('is-dragging');
+    if (els.scrim) {
+      els.scrim.style.transition = '';
+      els.scrim.style.opacity = '';
+      els.scrim.hidden = !open;
+    }
     els.bar.classList.toggle('is-expanded', open);
     document.getElementById('audioarchive').classList.toggle('aa-player-expanded', open);
     els.btnExpand.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1094,11 +1100,15 @@ const Player = (() => {
     if (px <= 0) {
       els.bar.style.transform = '';
       els.bar.style.opacity = '';
+      if (els.scrim) els.scrim.style.opacity = '';
       return;
     }
-    els.bar.style.transform = 'translateY(' + px + 'px)';
-    // Leicht ausblenden - macht sichtbar, dass es sich schliesst
-    els.bar.style.opacity = String(Math.max(0.4, 1 - px / (els.bar.clientHeight || 600)));
+    // Die Karte folgt dem Finger, die abgedunkelte Flaeche dahinter wird
+    // dabei heller - so sieht man, dass die Liste zurueckkommt
+    els.bar.style.transform = 'translate3d(0, ' + px + 'px, 0)';
+    const share = Math.min(1, px / (els.bar.clientHeight || 600));
+    els.bar.style.opacity = String(Math.max(0.5, 1 - share * 0.5));
+    if (els.scrim) els.scrim.style.opacity = String(Math.max(0, 1 - share * 1.2));
   }
 
   function endDrag(close) {
@@ -1119,14 +1129,18 @@ const Player = (() => {
     }
 
     // Nach unten hinausschieben, danach erst wirklich schliessen
-    els.bar.style.transition = 'transform 0.18s ease-out, opacity 0.18s ease-out';
-    els.bar.style.transform = 'translateY(100%)';
-    els.bar.style.opacity = '0';
+    els.bar.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
+    els.bar.style.transform = 'translate3d(0, 100%, 0)';
+    els.bar.style.opacity = '';
+    if (els.scrim) {
+      els.scrim.style.transition = 'opacity 0.2s ease-out';
+      els.scrim.style.opacity = '0';
+    }
     window.setTimeout(() => {
       els.bar.style.transition = '';
       setDragOffset(0);
       collapse();
-    }, 180);
+    }, 200);
   }
 
   els.bar.addEventListener('touchstart', (event) => {
@@ -1183,12 +1197,15 @@ const Player = (() => {
   let wheelAt = 0;
   els.bar.addEventListener('wheel', (event) => {
     if (!isExpanded() || event.deltaY <= 0) return;
-    if (els.bar.scrollHeight > els.bar.clientHeight + 1) return;
+    // Nur (fast) ganz oben: mit aufgeklappten Angaben scrollt erst der
+    // Inhalt. Die 4 Punkte Spielraum fangen Rundungen ab, die sonst schon
+    // beim ersten Rad-Schritt greifen.
+    if (els.bar.scrollTop > 4) return;
     const now = Date.now();
     if (now - wheelAt > 600) wheelSum = 0;
     wheelAt = now;
     wheelSum += event.deltaY;
-    if (wheelSum > 140) {
+    if (wheelSum > 120) {
       wheelSum = 0;
       collapse();
     }
