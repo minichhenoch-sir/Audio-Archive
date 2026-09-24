@@ -1358,7 +1358,9 @@ const Player = (() => {
        */
       if (!reducedMotion()) {
         els.bar.classList.add('is-entering');
-        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-entering'), 400);
+        // Laenger als die Karte selbst: Cover, Titel und Steuerung folgen
+        // versetzt (ab 0.19.1) und sollen fertig einblenden
+        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-entering'), 850);
       }
       els.btnCollapse.focus({ preventScroll: true });
     } else {
@@ -1367,14 +1369,13 @@ const Player = (() => {
       updatePlayerBarSpace();
       if (wasOpen && !reducedMotion()) {
         els.bar.classList.add('is-docking');
-        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-docking'), 400);
+        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-docking'), 450);
       }
     }
   }
 
   els.bar.addEventListener('animationend', (event) => {
     if (event.target !== els.bar) return;
-    if (event.animationName === 'aa-player-in') els.bar.classList.remove('is-entering');
     if (event.animationName === 'aa-bar-dock') els.bar.classList.remove('is-docking');
   });
 
@@ -1404,11 +1405,16 @@ const Player = (() => {
 
     const height = els.bar.getBoundingClientRect().height || window.innerHeight;
     const rest = Math.max(0, height - fromOffset);
-    let duration = 260;
+    // Ohne Schwung (Griff, Zurueck-Geste) etwas gemaechlicher als frueher
+    // (ab 0.19.1: 340 statt 260 ms), passend zum sanfteren Erscheinen
+    let duration = 340;
     if (velocity > 0.2) duration = Math.round(rest / Math.max(velocity, 1.1));
-    duration = Math.min(300, Math.max(140, duration));
+    duration = Math.min(360, Math.max(160, duration));
 
-    els.bar.style.transition = 'transform ' + duration + 'ms cubic-bezier(0.3, 0.6, 0.4, 1)';
+    // Mit Schwung vom Finger: sofort schnell weiter; sonst weich an- und
+    // auslaufen
+    const curve = velocity > 0.2 ? 'cubic-bezier(0.3, 0.6, 0.4, 1)' : 'cubic-bezier(0.4, 0, 0.2, 1)';
+    els.bar.style.transition = 'transform ' + duration + 'ms ' + curve;
     els.bar.style.transform = 'translate3d(0, ' + Math.ceil(height + 8) + 'px, 0)';
     if (els.scrim) {
       els.scrim.style.transition = 'opacity ' + duration + 'ms ease-out';

@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.19.0)
+# Audio Archive – Nextcloud-App (0.19.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1082,5 +1082,20 @@ Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
   „2026-09-21 Gottesdienst Sonntag“ wird „Gottesdienst Sonntag,
   21. September 2026“. Das gilt für Liste, Pfad, Ordnerbaum und die Angabe im
   Player.
+
+Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.19.1: Vollbild-Karte erscheint sanfter
+
+- Die Karte fährt langsamer und weicher herein (0,5 statt 0,26 Sekunden,
+  schnell los und lang auslaufend – wie bei den Karten auf dem iPhone).
+- Der Inhalt folgt leicht versetzt: erst wächst das Cover heraus, dann
+  blenden Titel, Knöpfe, Fortschritt und Steuerung nacheinander von unten ein.
+- Die abgedunkelte Fläche dahinter blendet gemächlicher ein.
+- Schließen über Griff oder Zurück-Geste läuft ebenfalls etwas ruhiger;
+  nach dem Wegwischen bleibt der Schwung des Fingers erhalten.
+- Mit „Bewegung reduzieren“ im System erscheint alles ohne Animation.
 
 Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.

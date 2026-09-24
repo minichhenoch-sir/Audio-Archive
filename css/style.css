@@ -909,14 +909,58 @@ body.has-bg-image #audioarchive .explorer-row.active {
 /* Einfahren nur direkt nach dem Oeffnen (0.18.2). Vorher hing die
    Animation an .is-expanded und startete neu, sobald die Wisch-Geste
    .is-dragging wieder abnahm - die Karte blitzte beim Schliessen auf. */
+/*
+ * Sanfteres Erscheinen (ab 0.19.1, Wunsch des Nutzers: "Die Karte soll
+ * angenehmer erscheinen"):
+ *   - laenger (0,5 s statt 0,26 s) und mit der Kurve, die iOS fuer seine
+ *     Karten verwendet: schnell los, lang und weich auslaufend
+ *   - der Inhalt folgt leicht versetzt: erst das Cover (waechst aus 92 %),
+ *     dann Titel, Knoepfe, Fortschritt und Steuerung (blenden von unten ein)
+ *   - die abgedunkelte Flaeche dahinter blendet gemaechlicher ein
+ * Die Klasse bleibt ~0,8 s (player.js), damit die versetzten Teile fertig
+ * werden.
+ */
+#audioarchive {
+  --aa-sheet-ease: cubic-bezier(0.32, 0.72, 0, 1);
+}
 #audioarchive .player-bar.is-expanded.is-entering {
-  animation: aa-player-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+  animation: aa-player-in 0.5s var(--aa-sheet-ease) both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-expanded-head {
+  animation: aa-sheet-fade 0.4s ease-out 0.18s both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-cover {
+  animation: aa-sheet-cover 0.55s var(--aa-sheet-ease) 0.06s both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-info {
+  animation: aa-sheet-rise 0.5s var(--aa-sheet-ease) 0.12s both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-actions {
+  animation: aa-sheet-rise 0.5s var(--aa-sheet-ease) 0.16s both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-progress {
+  animation: aa-sheet-rise 0.5s var(--aa-sheet-ease) 0.2s both;
+}
+#audioarchive .player-bar.is-expanded.is-entering .player-controls {
+  animation: aa-sheet-rise 0.5s var(--aa-sheet-ease) 0.24s both;
+}
+@keyframes aa-sheet-cover {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aa-sheet-rise {
+  from { opacity: 0; transform: translate3d(0, 16px, 0); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes aa-sheet-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
 }
 
 /* Nach dem Schliessen gleitet die kleine Leiste sanft herein, statt
    schlagartig zu erscheinen */
 #audioarchive .player-bar.is-docking {
-  animation: aa-bar-dock 0.22s ease-out;
+  animation: aa-bar-dock 0.32s var(--aa-sheet-ease, ease-out);
 }
 @keyframes aa-bar-dock {
   from { opacity: 0; transform: translate3d(0, 14px, 0); }
@@ -936,7 +980,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   background: rgba(8, 6, 4, 0.45);
   backdrop-filter: blur(3px) saturate(120%);
   -webkit-backdrop-filter: blur(3px) saturate(120%);
-  animation: aa-scrim-in 0.26s ease-out;
+  animation: aa-scrim-in 0.45s ease-out;
   /* Auch hier laesst sich die Karte nach unten wegwischen (player.js) */
   touch-action: none;
 }
@@ -964,6 +1008,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 @media (prefers-reduced-motion: reduce) {
   #audioarchive .player-bar.is-expanded.is-entering,
+  #audioarchive .player-bar.is-expanded.is-entering *,
   #audioarchive .player-bar.is-docking,
   #audioarchive .player-scrim { animation: none; }
 }
