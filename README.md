@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.18.3)
+# Audio Archive – Nextcloud-App (0.19.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1066,5 +1066,21 @@ Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.
 - Das Verzeichnis der gespeicherten Aufnahmen wird jetzt nach jeder Datei
   fortgeschrieben, die Ordnerliste zuerst abgelegt. Bricht das Speichern
   ab, sind die fertigen Aufnahmen trotzdem offline da.
+
+Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.19.0: Ordneranzeige leichter verständlich
+
+- Links neben dem Pfad steht jetzt ein runder Pfeil „Zurück“. Er führt eine
+  Ebene nach oben und nennt beim Darauf-Zeigen, wohin („Zurück zu 2026“).
+- Der Pfad selbst bleibt klein, ist aber besser lesbar: etwas größere Schrift,
+  „›“ statt „/“, und der aktuelle Ordner steht kräftig statt blass.
+- Ordnernamen werden lesbarer angezeigt (nur die Anzeige, die Ordner bleiben
+  unverändert): Unterstriche werden Leerzeichen, „2026_08“ wird „August 2026“,
+  „2026-09-21 Gottesdienst Sonntag“ wird „Gottesdienst Sonntag,
+  21. September 2026“. Das gilt für Liste, Pfad, Ordnerbaum und die Angabe im
+  Player.
 
 Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.

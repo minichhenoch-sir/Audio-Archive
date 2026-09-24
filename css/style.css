@@ -418,16 +418,46 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 /* ===================== BREADCRUMB (Explorer-Pfad) ===================== */
 
+/* Zeile aus Zurueck-Pfeil und Pfad (ab 0.19.0) */
+#audioarchive .breadcrumb-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+#audioarchive .crumb-back {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border-radius: 50%;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.1s ease;
+}
+#audioarchive .crumb-back[hidden] { display: none; }
+#audioarchive .crumb-back:active { transform: scale(0.92); }
+#audioarchive .crumb-back svg { margin-left: -2px; }
+
 #audioarchive .breadcrumb {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 14px;
-  min-height: 20px;
-  font-size: calc(0.9 * var(--aa-rem));
+  gap: 4px 8px;
+  margin-bottom: 0;
+  min-height: 26px;
+  font-size: var(--aa-rem);
   padding: 8px 14px;
-  border-radius: var(--aa-pill, 999px);
+  /* Kein Pillen-Radius mehr: Bei langen, umbrechenden Namen (ab 0.19.0
+     ausgeschriebene Daten) wurde die Flaeche sonst zum Oval */
+  border-radius: calc(21px * var(--aa-rf, 1));
   background: var(--glass-row-bg);
   border: 1px solid var(--glass-light-border);
   box-shadow: var(--glass-light-shadow);
@@ -440,9 +470,10 @@ body.has-bg-image #audioarchive .explorer-row.active {
   border: none;
   color: var(--aa-accent-on-surface, var(--color-accent-deep));
   font-weight: 600;
-  font-size: calc(0.88 * var(--aa-rem));
-  padding: 2px 4px;
-  margin: -2px -4px;
+  /* etwas groesser als bis 0.18 (0.88) - besser lesbar */
+  font-size: calc(0.95 * var(--aa-rem));
+  padding: 4px 6px;
+  margin: -4px -6px;
   border-radius: calc(8px * var(--aa-rf, 1));
   cursor: pointer;
   transition: transform 0.08s ease, background 0.1s ease;
@@ -453,14 +484,18 @@ body.has-bg-image #audioarchive .explorer-row.active {
   background: rgba(185, 121, 63, 0.16);
 }
 
+/* Wo man gerade ist: dunkel und kraeftig, nicht blass */
 #audioarchive .crumb--current {
-  color: var(--color-ink-soft);
-  font-weight: 400;
+  color: var(--color-ink);
+  font-weight: 700;
+  font-size: calc(0.95 * var(--aa-rem));
 }
 
 #audioarchive .crumb-sep {
   color: var(--color-ink-soft);
-  opacity: 0.5;
+  opacity: 0.6;
+  font-size: calc(1.15 * var(--aa-rem));
+  line-height: 1;
 }
 
 /* ===================== OFFLINE-LEISTE ===================== */
@@ -1910,12 +1945,20 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   color: var(--aa-nc-text);
   border-radius: var(--aa-nc-radius);
 }
-#audioarchive.aa-design-nextcloud .crumb:hover { background: var(--aa-nc-hover); }
-#audioarchive.aa-design-nextcloud .crumb:active { background: var(--aa-nc-dark); }
+#audioarchive.aa-design-nextcloud button.crumb:hover { background: var(--aa-nc-hover); }
+#audioarchive.aa-design-nextcloud button.crumb:active { background: var(--aa-nc-dark); }
 #audioarchive.aa-design-nextcloud .crumb--current {
-  color: var(--aa-nc-text-soft);
-  font-weight: 400;
+  color: var(--aa-nc-text);
+  font-weight: 700;
 }
+#audioarchive.aa-design-nextcloud .crumb-back {
+  background: var(--aa-nc-bg, transparent);
+  border: 1px solid var(--aa-nc-border);
+  box-shadow: none;
+  color: var(--aa-nc-text);
+  border-radius: 50%;
+}
+#audioarchive.aa-design-nextcloud .crumb-back:hover { background: var(--aa-nc-hover); }
 
 #audioarchive.aa-design-nextcloud .status-text,
 #audioarchive.aa-design-nextcloud .offline-info {

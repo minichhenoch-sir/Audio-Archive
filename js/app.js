@@ -557,6 +557,55 @@
     return AudioArchive.hasShared ? 'shared' : 'home';
   }
 
+  /*
+   * Lesbare Ordnernamen (ab 0.19.0) - NUR fuer die Anzeige, die Ordner und
+   * Pfade bleiben unveraendert. Vom Nutzer gewuenscht, damit auch aeltere
+   * Hoerer die Ordner leicht verstehen:
+   *   - Unterstriche werden Leerzeichen:  "09_September"   -> "09 September"
+   *   - Jahr und Monat allein:            "2026_08"        -> "August 2026"
+   *   - Datum am Anfang ausgeschrieben:   "2026-09-21 Gottesdienst Sonntag"
+   *                                       -> "Gottesdienst Sonntag, 21. September 2026"
+   *   - Datum mitten im Namen ebenso ausgeschrieben
+   * Sortiert wird weiter nach dem echten Namen.
+   */
+  const MONTH_NAMES = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli',
+    'August', 'September', 'Oktober', 'November', 'Dezember'];
+
+  function longDate(year, month, day) {
+    const y = parseInt(year, 10);
+    const m = parseInt(month, 10);
+    const d = parseInt(day, 10);
+    if (m < 1 || m > 12 || d < 1 || d > 31) return null;
+    return d + '. ' + MONTH_NAMES[m - 1] + ' ' + y;
+  }
+
+  function prettyFolderName(raw) {
+    const name = String(raw || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
+    if (name === '') return String(raw || '');
+
+    // Jahr und Monat allein ("2026 08", "2026-08")
+    let m = name.match(/^(\d{4})[-. ](\d{1,2})$/);
+    if (m && +m[2] >= 1 && +m[2] <= 12) return MONTH_NAMES[+m[2] - 1] + ' ' + m[1];
+
+    // Datum am Anfang, danach wahlweise ein Text
+    m = name.match(/^(\d{4})[-. ](\d{1,2})[-. ](\d{1,2})(?:\s*[-–·,]?\s*(.+))?$/);
+    if (m) {
+      const date = longDate(m[1], m[2], m[3]);
+      if (date) return m[4] ? m[4] + ', ' + date : date;
+    }
+
+    // Datum irgendwo im Namen
+    return name.replace(/(^|\D)(\d{4})-(\d{2})-(\d{2})(?!\d)/g, (all, pre, y, mo, d) => {
+      const date = longDate(y, mo, d);
+      return date ? pre + date : all;
+    });
+  }
+
+  /** Weg zu einem Ordner zum Vorlesen im Player: "August 2026 · Sonntag" */
+  function prettyPath(path) {
+    return path.split('/').map(prettyFolderName).join(' \u00b7 ');
+  }
+
   /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
   function sourceLabel(source) {
     if (AudioArchive.isIncoming(source)) return Incoming.label(source);
@@ -1346,14 +1395,14 @@
 
     // Nur die Audiodateien dieses Ordners bilden die Abspielliste
     const folderFiles = currentEntries.filter((e) => e.type === 'file');
-    const folderLabel = view.path === '' ? sourceLabel(view.source) : view.path.split('/').join(' \u00b7 ');
+    const folderLabel = view.path === '' ? sourceLabel(view.source) : prettyPath(view.path);
 
     currentEntries.forEach((entry) => {
       if (entry.type === 'dir') {
         const count = entry.count || 0; // null bei den eigenen Dateien (nicht gezaehlt)
         listContainer.appendChild(makeRow({
           icon: folderIcon(),
-          label: entry.name,
+          label: prettyFolderName(entry.name),
           meta: count > 0 ? count + (count === 1 ? ' Aufnahme' : ' Aufnahmen') : '',
           onClick: () => navigate(entry.path),
         }));
@@ -1394,10 +1443,43 @@
     });
   }
 
+  /*
+   * Pfeil "Zurueck" links neben dem Pfad (ab 0.19.0). Vom Nutzer
+   * gewuenscht: Die Anzeige bleibt klein wie bisher, bekommt aber einen
+   * klaren Weg eine Ebene nach oben - auch fuer aeltere Hoerer, die den
+   * Pfad selbst nicht als Bedienelement erkennen.
+   */
+  const crumbRow = document.createElement('div');
+  crumbRow.className = 'breadcrumb-row';
+  breadcrumbEl.parentNode.insertBefore(crumbRow, breadcrumbEl);
+  const crumbBack = document.createElement('button');
+  crumbBack.type = 'button';
+  crumbBack.className = 'crumb-back';
+  crumbBack.hidden = true;
+  crumbBack.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" '
+    + 'stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M15 5l-7 7 7 7"/></svg>';
+  crumbBack.addEventListener('click', () => {
+    if (view.path === '') return;
+    const parts = view.path.split('/');
+    parts.pop();
+    navigate(parts.join('/'));
+  });
+  crumbRow.append(crumbBack, breadcrumbEl);
+
   function renderBreadcrumb() {
     breadcrumbEl.innerHTML = '';
 
     const segments = view.path === '' ? [] : view.path.split('/');
+
+    crumbBack.hidden = segments.length === 0;
+    if (segments.length > 0) {
+      const parentName = segments.length === 1
+        ? sourceLabel(view.source)
+        : prettyFolderName(segments[segments.length - 2]);
+      crumbBack.setAttribute('aria-label', 'Zurück zu ' + parentName);
+      crumbBack.title = 'Zurück zu ' + parentName;
+    }
 
     // Wurzel ("Aufnahmen") ist anklickbar, sobald man tiefer steht
     const rootIsCurrent = segments.length === 0;
@@ -1418,7 +1500,7 @@
       const isLast = i === segments.length - 1;
       const targetPath = segments.slice(0, i + 1).join('/');
       const el = document.createElement(isLast ? 'span' : 'button');
-      el.textContent = segment;
+      el.textContent = prettyFolderName(segment);
 
       if (isLast) {
         el.className = 'crumb crumb--current';
@@ -1434,7 +1516,10 @@
   function crumbSeparator() {
     const s = document.createElement('span');
     s.className = 'crumb-sep';
-    s.textContent = '/';
+    s.setAttribute('aria-hidden', 'true');
+    // Pfeil statt Schraegstrich: liest sich als "darin", nicht wie ein
+    // Dateipfad
+    s.textContent = '\u203a';
     return s;
   }
 
@@ -1871,7 +1956,7 @@
       if (tracks.length > 0) {
         return {
           tracks,
-          label: next === '' ? sourceLabel(source) : next.split('/').join(' \u00b7 '),
+          label: next === '' ? sourceLabel(source) : prettyPath(next),
           /*
            * Erst beim tatsaechlichen Wechsel aufgerufen - gesucht wird schon
            * waehrend des letzten Titels. Die Liste wandert nur mit, wenn sie
@@ -2029,7 +2114,7 @@
         const dirs = await fetchChildren(node.source, node.path);
         node.children.innerHTML = '';
         dirs.forEach((dir) => {
-          const child = createNode(node.source, dir.path, dir.name, dir.hasChildren, folderSvg, false);
+          const child = createNode(node.source, dir.path, prettyFolderName(dir.name), dir.hasChildren, folderSvg, false);
           node.children.appendChild(child.li);
         });
         node.loaded = true;
@@ -2258,7 +2343,7 @@
     let current = []; // Freigaben des geoeffneten Ordners
 
     function folderName() {
-      return view.path === '' ? sourceLabel(view.source) : view.path.split('/').pop();
+      return view.path === '' ? sourceLabel(view.source) : prettyFolderName(view.path.split('/').pop());
     }
 
     async function request(url, options = {}) {
