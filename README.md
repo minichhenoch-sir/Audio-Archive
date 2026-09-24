@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.18.2)
+# Audio Archive – Nextcloud-App (0.18.3)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1035,3 +1035,36 @@ Die Wisch-Geste zum Schließen des Vollbild-Players ist überarbeitet.
   zwei Schritte im Verlauf zurück.
 
 Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.18.3: Wiedergabe hält Aussetzer aus, Offline mit Lücken
+
+**Nachladen und Aussetzer**
+
+- Reißt die Verbindung ab oder schafft das Gerät das Nachladen nicht,
+  versucht der Player jetzt bis zu sechsmal mit wachsendem Abstand (zusammen
+  etwa eine halbe Minute), an derselben Stelle weiterzuspielen. Ohne
+  Verbindung wartet er, bis sie zurückkommt.
+- Der Zähler gilt nicht mehr für den ganzen Titel: Nach zehn Sekunden
+  sauberer Wiedergabe beginnt er von vorn.
+- Hängt die Verbindung still (kein Fehler, aber keine Daten), lädt der
+  Player nach 20 Sekunden selbst neu. Vorher blieb er für immer stehen.
+- Scheitert es endgültig, steht „Wiedergabe fehlgeschlagen – Zum erneuten
+  Versuch auf Play tippen“. Play lädt dann neu, an derselben Stelle.
+  Vorher half Play nicht.
+- Wer schnell zwischen Titeln wechselt, bekommt keinen alten Titel mehr
+  zurück: Geplante Wiederholungen des vorherigen Titels werden verworfen.
+
+**Offline mit teilweise gespeicherten Ordnern**
+
+- Ohne Verbindung sind nicht gespeicherte Titel abgeblendet und mit „Nicht
+  offline gespeichert“ beschriftet. Der Player überspringt sie.
+- Wichtigster Fund: Aufnahmen mit Leerzeichen im Namen kamen nie aus dem
+  Offline-Speicher – die Adresse wurde beim Nachschlagen umgeschrieben
+  (%20 → +). Behoben; das betraf auch das Vorausladen.
+- Das Verzeichnis der gespeicherten Aufnahmen wird jetzt nach jeder Datei
+  fortgeschrieben, die Ordnerliste zuerst abgelegt. Bricht das Speichern
+  ab, sind die fertigen Aufnahmen trotzdem offline da.
+
+Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.

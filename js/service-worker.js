@@ -61,9 +61,18 @@ self.addEventListener('activate', (event) => {
  * Adresse ohne diesen Zusatz.
  */
 function cacheKeyFor(rawUrl) {
-  const url = new URL(rawUrl);
-  url.searchParams.delete('retry');
-  return url.href;
+  /*
+   * Bewusst per Textersetzung, NICHT ueber url.searchParams.delete() (ab
+   * 0.18.3): searchParams schreibt beim Loeschen die ganze Abfrage neu und
+   * macht dabei aus %20 ein "+" (ebenso bei ( ) ! ' *). Die Adresse passte
+   * dann nicht mehr zum gespeicherten Eintrag - jede Aufnahme mit
+   * Leerzeichen im Namen ("Predigt 1.mp3") kam nie aus dem Offline-Speicher,
+   * weder offline noch aus dem Vorausladen.
+   */
+  if (!/[?&]retry=/.test(rawUrl)) return rawUrl;
+  return rawUrl
+    .replace(/([?&])retry=[^&#]*(&)?/, (match, sep, amp) => (amp ? sep : ''))
+    .replace(/[?&]$/, '');
 }
 
 async function serveAudioFromCache(request) {

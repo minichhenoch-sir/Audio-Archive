@@ -829,6 +829,51 @@
     lsSet(LS_INDEX, index);
   }
 
+  /** Nur die Dateien, die wirklich im Offline-Speicher liegen (ab 0.18.3). */
+  async function cachedFiles(files) {
+    if (!('caches' in window) || files.length === 0) return [];
+    try {
+      const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
+      const hits = await Promise.all(
+        files.map((f) => cache.match(AudioArchive.streamUrl(f.path, f.source)).then((r) => !!r))
+      );
+      return files.filter((f, i) => hits[i]);
+    } catch (err) {
+      return [];
+    }
+  }
+
+  /**
+   * Verzeichnis eines gespeicherten Ordners mit frischen Angaben
+   * auffrischen - aber nur mit den Dateien, die wirklich gespeichert sind.
+   * Vorher landete hier die ganze Ordnerliste, und ein nur teilweise
+   * gespeicherter Ordner zaehlte offline auch die fehlenden Titel mit.
+   */
+  async function refreshOfflineFolder(source, path, files) {
+    const stored = await cachedFiles(files);
+    if (stored.length > 0) setOfflineFolder(source, path, stored);
+  }
+
+  /**
+   * Ohne Verbindung: nicht gespeicherte Titel in der Liste abgeblendet
+   * zeigen (ab 0.18.3). Die Liste kann sie enthalten, wenn ein Ordner nur
+   * teilweise gespeichert wurde - die gespeicherte Ordnerliste ist die
+   * vollstaendige des Servers.
+   */
+  async function markUnavailableRows() {
+    if (!offlineMode) return;
+    const files = currentEntries.filter((e) => e.type === 'file');
+    const stored = new Set((await cachedFiles(files)).map((f) => f.key));
+    listContainer.querySelectorAll('.explorer-row[data-key]').forEach((row) => {
+      const missing = !stored.has(row.dataset.key);
+      row.classList.toggle('is-unavailable', missing);
+      if (missing) {
+        const meta = row.querySelector('.explorer-row-meta');
+        if (meta) meta.textContent = 'Nicht offline gespeichert';
+      }
+    });
+  }
+
   /** Quellen, fuer die offline etwas gespeichert ist */
   function offlineSources() {
     const sources = new Set();
@@ -1200,11 +1245,12 @@
       const index = offlineIndex();
       if (index[indexKey(source, view.path)]) {
         const files = currentEntries.filter((e) => e.type === 'file');
-        if (files.length > 0) setOfflineFolder(source, view.path, files);
+        if (files.length > 0) refreshOfflineFolder(source, view.path, files);
       }
 
       libraryStatus.hidden = true;
       renderEntries();
+      markUnavailableRows();
       refreshOfflineBar();
       return;
     }
@@ -1263,7 +1309,7 @@
       const index = offlineIndex();
       if (index[indexKey(source, view.path)]) {
         const files = currentEntries.filter((e) => e.type === 'file');
-        if (files.length > 0) setOfflineFolder(source, view.path, files);
+        if (files.length > 0) refreshOfflineFolder(source, view.path, files);
       }
 
       libraryStatus.hidden = true;
@@ -1543,15 +1589,29 @@
     }
   }
 
-  async function downloadFolderOffline(files) {
+  async function downloadFolderOffline(files, source, path) {
     const cache = await caches.open(OFFLINE_AUDIO_CACHE);
     let done = 0;
     let failed = 0;
+    const saved = [];
+
+    /*
+     * Ab 0.18.3: Ordnerliste ZUERST ablegen und das Verzeichnis nach JEDER
+     * gespeicherten Datei fortschreiben. Vorher geschah beides erst nach
+     * der letzten Datei - brach das Speichern ab (App geschlossen,
+     * Verbindung weg), fehlte der Ordner offline ganz, obwohl schon
+     * Aufnahmen auf dem Geraet lagen.
+     */
+    await storeFolderListing(path, source);
 
     for (const file of files) {
       const url = streamUrlFor(file.path, file.source);
       try {
-        if (await cache.match(url)) { done++; continue; }
+        if (await cache.match(url)) {
+          done++;
+          saved.push(file);
+          continue;
+        }
 
         // Bewusst ohne Range-Header anfordern, damit die VOLLSTAENDIGE Datei
         // als 200-Antwort im Cache landet (Teilantworten mit 206 lassen sich
@@ -1561,11 +1621,14 @@
         if (!res.ok) { failed++; continue; }
         await cache.put(url, res);
         done++;
+        saved.push(file);
+        setOfflineFolder(source, path, saved.slice());
       } catch (err) {
         failed++;
       }
       offlineInfo.textContent = `Speichere … ${done + failed} von ${files.length}`;
     }
+    if (saved.length > 0) setOfflineFolder(source, path, saved.slice());
 
     // Cover mitspeichern (ab 0.14) - mehrere Titel teilen sich oft eines
     // (cover.jpg im Ordner), deshalb jede Adresse nur einmal. Fehlt eines,
@@ -1673,7 +1736,7 @@
         offlineInfo.textContent = 'Offline-Aufnahmen entfernt.';
       } else {
         offlineInfo.textContent = `Speichere … 0 von ${files.length}`;
-        const { done, failed } = await downloadFolderOffline(files);
+        const { done, failed } = await downloadFolderOffline(files, view.source, view.path);
 
         /*
          * Entscheidend: Die Dateiliste MIT allen Angaben ins Verzeichnis
@@ -1684,6 +1747,9 @@
          */
         if (done > 0) {
           /*
+           * Ab 0.18.3 schreibt downloadFolderOffline() beides schon
+           * unterwegs; hier nur noch die frische Ordnerliste.
+           *
            * Zwei Ablagen mit Absicht:
            *   - die Antwort des Servers im Offline-Speicher (vollstaendig,
            *     ueberlebt das Loeschen der Browserdaten nicht, wohl aber
@@ -1694,7 +1760,6 @@
            * Audiodateien selbst liefern sie der App nicht.
            */
           await storeFolderListing(view.path, view.source);
-          setOfflineFolder(view.source, view.path, files);
         }
 
         offlineInfo.textContent = failed === 0
@@ -1706,6 +1771,7 @@
     } finally {
       offlineBusy = false;
       offlineBtn.disabled = false;
+      Player.refreshOffline();
       // Beschriftung/Zaehler frisch bestimmen, Statustext dabei kurz stehen lassen
       const message = offlineInfo.textContent;
       await refreshOfflineBar();

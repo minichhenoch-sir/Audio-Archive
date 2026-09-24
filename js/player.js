@@ -549,7 +549,12 @@ const Player = (() => {
     const track = playlist[index];
 
     mediaSessionNeedsRefresh = true;
-    pendingRecovery = null;
+    // Geplante Wiederholungen des vorherigen Titels verwerfen (ab 0.18.3)
+    resetRecovery();
+    shouldPlay = autoplay;
+    // Der Quellwechsel kann ein pause-Ereignis ausloesen - das ist keine
+    // Pause des Nutzers
+    reloading = autoplay;
 
     audio.src = streamUrlFor(track);
     setMarqueeText(els.title, trackTitle(track));
@@ -587,6 +592,9 @@ const Player = (() => {
   });
 
   audio.addEventListener('pause', () => {
+    // Vom System angehalten (Kopfhoerer ab, Anruf, ...): nicht weiterversuchen.
+    // Das Neuladen selbst und das Titelende zaehlen nicht als Pause.
+    if (!reloading && !audio.ended && !audio.error) shouldPlay = false;
     updatePlayPauseIcon();
     setMediaSessionPlaybackState('paused');
     updatePositionState();
@@ -647,7 +655,9 @@ const Player = (() => {
 
   // Kritisch: Beim Ende automatisch den nächsten Titel im selben Ordner starten
   audio.addEventListener('ended', () => {
-    if (currentIndex + 1 < playlist.length) {
+    // Ohne Verbindung nicht gespeicherte Titel ueberspringen (ab 0.18.3)
+    const nextIndex = playableIndex(currentIndex + 1, 1);
+    if (nextIndex !== -1) {
       /*
        * Zustand bewusst auf 'playing' belassen: Beim Wechsel zum naechsten
        * Titel entsteht eine kurze Luecke, in der keine Quelle geladen ist.
@@ -655,7 +665,7 @@ const Player = (() => {
        * Medien-Benachrichtigung in dieser Luecke weg - der Ton laeuft dann
        * zwar weiter, aber ohne Steuerung am Sperrbildschirm.
        */
-      loadTrack(currentIndex + 1, true);
+      loadTrack(nextIndex, true);
       return;
     }
     // Ende des Ordners: je nach Wiederholen-Stufe
@@ -668,8 +678,11 @@ const Player = (() => {
    */
   async function finishQueue(automatic) {
     if (repeatMode === 'folder' && playlist.length > 0) {
-      loadTrack(0, true);
-      return;
+      const first = playableIndex(0, 1);
+      if (first !== -1) {
+        loadTrack(first, true);
+        return;
+      }
     }
     if (repeatMode === 'next' && typeof onQueueEnd === 'function' && playlist.length > 0) {
       let next = null;
@@ -688,6 +701,7 @@ const Player = (() => {
       }
       showToast('Kein weiterer Ordner – Wiedergabe beendet');
     }
+    shouldPlay = false;
     if (automatic) setMediaSessionPlaybackState('paused');
   }
 
@@ -908,79 +922,351 @@ const Player = (() => {
   els.btnInfo.addEventListener('click', () => setDetailsOpen(els.details.hidden));
 
   // ------------------------------------------------------------------
-  // Wiederaufnahme nach Abbruechen (ab 0.15.1)
+  // Wiederaufnahme nach Abbruechen (ab 0.15.1, ueberarbeitet in 0.18.3)
   //
-  // Bricht die Datenquelle ab - Funkloch, Wechsel WLAN/Mobilfunk, oder beim
-  // Spulen in einer vom Service Worker gelieferten Aufnahme (in Chromium
-  // reproduzierbar: "PIPELINE_ERROR_READ") -, bleibt ein <audio>-Element
-  // sonst einfach stehen. Gerade auf dem Sperrbildschirm faellt das nicht
-  // auf. Deshalb: Quelle neu setzen, an dieselbe Stelle springen und
-  // weiterspielen - hoechstens dreimal je Titel.
+  // Bricht die Datenquelle ab - Funkloch, Wechsel WLAN/Mobilfunk, zu
+  // schnelles Spulen, oder beim Spulen in einer vom Service Worker
+  // gelieferten Aufnahme (in Chromium reproduzierbar: "PIPELINE_ERROR_READ")
+  // -, bleibt ein <audio>-Element sonst einfach stehen. Deshalb: Quelle neu
+  // setzen, an dieselbe Stelle springen und weiterspielen.
   //
   // Die neue Adresse traegt 'retry=N', damit der Browser wirklich neu
   // anfragt statt den kaputten Zwischenstand weiterzuverwenden. Der Service
   // Worker ignoriert den Zusatz beim Nachschlagen im Offline-Speicher.
+  //
+  // Was sich in 0.18.3 geaendert hat (Nutzer: "wenn man zu schnell vorspult
+  // oder wechselt und das Geraet nicht schafft nachzuladen, steht
+  // 'Wiedergabe fehlgeschlagen'", danach half auch Play nicht mehr):
+  //   - Bis zu sechs Versuche mit wachsendem Abstand (zusammen rund eine
+  //     halbe Minute) statt drei schneller. Ohne Netz wird auf die
+  //     Rueckkehr der Verbindung gewartet.
+  //   - Der Zaehler gilt nicht mehr fuer den ganzen Titel: Nach 10 Sekunden
+  //     sauberer Wiedergabe beginnt er von vorn. Frueher war ein Titel nach
+  //     drei Aussetzern - egal wie weit auseinander - endgueltig verloren.
+  //   - Auch "Quelle nicht ladbar" (Code 4) wird wiederholt. Chrome meldet
+  //     so einen Abruf, der unterwegs scheitert.
+  //   - Waechter gegen stilles Haengenbleiben: Wartet die Wiedergabe ueber
+  //     20 Sekunden auf Daten, ohne dass ein Fehler kommt, wird ebenfalls
+  //     neu geladen.
+  //   - Ein geplanter Versuch wird beim Titelwechsel verworfen. Vorher
+  //     konnte er nach schnellem Wechseln den ALTEN Titel zurueckholen.
+  //   - Nach dem endgueltigen Scheitern laedt Play neu, an derselben Stelle.
+  //   - Ob weitergespielt werden soll, merkt sich ein eigener Zustand
+  //     (shouldPlay). audio.paused taugt dafuer nicht: Schon das Neuladen
+  //     setzt es auf "pausiert", und der zweite Versuch hielt sich dann
+  //     faelschlich fuer eine Pause und blieb stehen.
   // ------------------------------------------------------------------
+  const RETRY_DELAYS = [0, 1500, 3000, 5000, 8000, 12000]; // ms, zusammen ~30 s
+  // Titel lud noch nie (vielleicht gar nicht abspielbar): etwas kuerzer
+  const RETRY_DELAYS_NEVER_LOADED = [0, 2000, 5000, 10000];
+  const STALL_TIMEOUT = 20000;   // ms ohne Fortschritt beim Warten auf Daten
+  const STABLE_AFTER = 10;       // s saubere Wiedergabe -> Zaehler zuruecksetzen
+
   let recoveries = 0;
   let recoveryKey = '';
-  let resumeAt = null;      // Position nach dem Neuladen
+  let resumeAt = null;        // Position nach dem Neuladen
   let resumePlay = false;
   let pendingRecovery = null; // im Pausenzustand aufgeschobenes Neuladen (ab 0.15.6)
-  let lastGoodTime = 0;     // letzte sicher erreichte Position
-  let intendedTime = null;  // Ziel eines laufenden Sprungs
+  let recoveryTimer = 0;
+  let lastGoodTime = 0;       // letzte sicher erreichte Position
+  let intendedTime = null;    // Ziel eines laufenden Sprungs
+  let shouldPlay = false;     // Will der Nutzer gerade hoeren?
+  let reloading = false;      // Pause-Ereignisse beim Neuladen nicht als Nutzer-Pause werten
+  let loadedOnce = false;     // Hat dieser Titel schon einmal Metadaten geliefert?
+  let stableFrom = null;      // Position, ab der wieder sauber gespielt wird
+  let reloadCounter = 0;
+  let failed = false;
 
-  audio.addEventListener('seeking', () => { intendedTime = audio.currentTime; });
-  audio.addEventListener('seeked', () => { intendedTime = null; lastGoodTime = audio.currentTime; });
-  audio.addEventListener('timeupdate', () => { if (!audio.seeking) lastGoodTime = audio.currentTime; });
+  function trackKey(track) {
+    return track ? (track.source || 'shared') + '|' + track.path : '';
+  }
 
-  audio.addEventListener('error', () => {
+  /** Alles verwerfen, was noch zum vorherigen Titel gehoert. */
+  function resetRecovery() {
+    window.clearTimeout(recoveryTimer);
+    window.removeEventListener('online', onlineAgain);
+    recoveryTimer = 0;
+    pendingRecovery = null;
+    resumeAt = null;
+    resumePlay = false;
+    reloading = false;
+    intendedTime = null;
+    lastGoodTime = 0;
+    loadedOnce = false;
+    stableFrom = null;
+    recoveries = 0;
+    recoveryKey = '';
+    stallSince = 0;
+    if (failed) {
+      failed = false;
+      els.bar.classList.remove('is-failed');
+    }
+  }
+
+  function reloadAt(position, play) {
     const track = playlist[currentIndex];
-    const code = audio.error ? audio.error.code : 0;
-    const key = track ? (track.source || 'shared') + '|' + track.path : '';
+    if (!track) return;
+    resumeAt = position;
+    resumePlay = play;
+    reloading = true;
+    stallSince = 0;
+    const base = streamUrlFor(track);
+    reloadCounter++;
+    audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + reloadCounter;
+    audio.load();
+    if (play) {
+      // play() gleich mitgeben: Ohne laedt iOS im Hintergrund nicht weiter
+      audio.play().catch(() => {});
+    }
+  }
+
+  let waitingForOnline = null;
+  function onlineAgain() {
+    window.removeEventListener('online', onlineAgain);
+    const run = waitingForOnline;
+    waitingForOnline = null;
+    window.clearTimeout(recoveryTimer);
+    if (run) run();
+  }
+
+  function giveUp(position) {
+    failed = true;
+    shouldPlay = false;
+    els.bar.classList.add('is-failed');
+    setMarqueeText(els.title, 'Wiedergabe fehlgeschlagen');
+    setMarqueeText(els.context, 'Zum erneuten Versuch auf Play tippen');
+    updateMarquees();
+    updatePlayPauseIcon();
+    setMediaSessionPlaybackState('paused');
+    // Play laedt neu - mit frischem Zaehler, an derselben Stelle
+    pendingRecovery = () => {
+      const track = playlist[currentIndex];
+      failed = false;
+      els.bar.classList.remove('is-failed');
+      if (track) {
+        setMarqueeText(els.title, trackTitle(track));
+        setMarqueeText(els.context, trackContext(track));
+        updateMarquees();
+      }
+      recoveries = 0;
+      reloadAt(position, true);
+    };
+  }
+
+  /**
+   * Gemeinsamer Weg fuer Fehler-Ereignis und Haenger-Waechter.
+   */
+  function recover() {
+    const track = playlist[currentIndex];
+    if (!track) return;
+    const key = trackKey(track);
     if (key !== recoveryKey) {
       recoveryKey = key;
       recoveries = 0;
     }
-    // 2 = Netzwerk, 3 = Dekodierung (oft Folge eines abgerissenen Stroms)
-    if (track && (code === 2 || code === 3) && recoveries < 3) {
-      recoveries++;
-      resumeAt = intendedTime !== null ? intendedTime : lastGoodTime;
-      const base = streamUrlFor(track);
-      const attempt = recoveries;
-      const reload = () => {
-        audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + attempt;
-        audio.load();
-      };
-      /*
-       * Ab 0.15.6: Reisst die Verbindung WAEHREND einer Pause ab, wird nicht
-       * sofort neu geladen. Ein Quellwechsel beendet die Medien-Sitzung -
-       * Android nimmt dann die Benachrichtigung weg, und Kopfhoerer-Tasten
-       * erreichen die Seite nicht mehr. Geladen wird erst beim naechsten
-       * Abspielen; bis dahin bleibt die Sitzung (pausiert) bestehen.
-       * Vorher wurde ausserdem immer weitergespielt, auch aus der Pause.
-       */
-      if (audio.paused) {
-        resumePlay = false;
-        pendingRecovery = reload;
-        return;
-      }
-      resumePlay = true;
-      setTimeout(reload, recoveries === 1 ? 0 : 1000 * recoveries);
+    const position = intendedTime !== null ? intendedTime : lastGoodTime;
+    const wantPlay = shouldPlay || resumePlay;
+
+    /*
+     * Ab 0.15.6: Reisst die Verbindung WAEHREND einer Pause ab, wird nicht
+     * sofort neu geladen. Ein Quellwechsel beendet die Medien-Sitzung -
+     * Android nimmt dann die Benachrichtigung weg, und Kopfhoerer-Tasten
+     * erreichen die Seite nicht mehr. Geladen wird erst beim naechsten
+     * Abspielen; bis dahin bleibt die Sitzung (pausiert) bestehen.
+     */
+    if (!wantPlay) {
+      resumePlay = false;
+      pendingRecovery = () => reloadAt(position, true);
       return;
     }
-    setMarqueeText(els.title, 'Wiedergabe fehlgeschlagen');
+
+    const delays = loadedOnce ? RETRY_DELAYS : RETRY_DELAYS_NEVER_LOADED;
+    if (recoveries >= delays.length) {
+      giveUp(position);
+      return;
+    }
+    const delay = delays[recoveries];
+    recoveries++;
+    if (recoveries === 2) showToast('Verbindung stockt – lade neu …');
+
+    const attempt = () => {
+      recoveryTimer = 0;
+      if (trackKey(playlist[currentIndex]) !== key) return; // inzwischen gewechselt
+      if (!shouldPlay) {
+        // Inzwischen pausiert: erst beim naechsten Play neu laden
+        pendingRecovery = () => reloadAt(position, true);
+        return;
+      }
+      reloadAt(position, true);
+    };
+
+    window.clearTimeout(recoveryTimer);
+    if (navigator.onLine === false) {
+      // Ohne Netz sinnlos zu klopfen: auf die Verbindung warten, aber nicht
+      // laenger als 30 Sekunden je Versuch
+      waitingForOnline = attempt;
+      window.addEventListener('online', onlineAgain);
+      recoveryTimer = window.setTimeout(onlineAgain, 30000);
+      return;
+    }
+    recoveryTimer = window.setTimeout(attempt, delay);
+  }
+
+  audio.addEventListener('seeking', () => { intendedTime = audio.currentTime; stableFrom = null; });
+  audio.addEventListener('seeked', () => { intendedTime = null; lastGoodTime = audio.currentTime; });
+  audio.addEventListener('timeupdate', () => {
+    // Waehrend eines Neuladens steht currentTime kurz auf 0 - das ist keine
+    // erreichte Position (sonst begann der naechste Versuch von vorn)
+    if (audio.seeking || resumeAt !== null || audio.readyState < 1) return;
+    lastGoodTime = audio.currentTime;
+    if (audio.paused) return;
+    if (stableFrom === null) stableFrom = audio.currentTime;
+    if (recoveries > 0 && audio.currentTime - stableFrom > STABLE_AFTER) recoveries = 0;
+  });
+  audio.addEventListener('playing', () => { reloading = false; });
+
+  audio.addEventListener('error', () => {
+    const code = audio.error ? audio.error.code : 0;
+    // 1 = vom Browser selbst abgebrochen (Quellwechsel) - kein Fehler
+    if (code === 1 || !audio.getAttribute('src')) return;
+    const track = playlist[currentIndex];
+    if (!track) return;
+
+    // Ohne Verbindung und nicht gespeichert: Warten hilft nicht
+    if (isOffline()) {
+      const key = trackKey(track);
+      isStoredOffline(track).then((stored) => {
+        if (trackKey(playlist[currentIndex]) !== key) return;
+        if (stored) recover();
+        else skipUnavailable();
+      });
+      return;
+    }
+    // 2 = Netzwerk, 3 = Dekodierung (oft Folge eines abgerissenen Stroms),
+    // 4 = Quelle nicht ladbar (so meldet Chrome einen gescheiterten Abruf)
+    recover();
   });
 
   audio.addEventListener('loadedmetadata', () => {
+    loadedOnce = true;
     if (resumeAt === null) return;
     const target = Math.min(resumeAt, Math.max(0, (audio.duration || resumeAt) - 0.25));
     resumeAt = null;
-    audio.currentTime = target;
+    if (target > 0) audio.currentTime = target;
     if (resumePlay) {
       resumePlay = false;
       audio.play().catch(() => {});
     }
   });
+
+  /*
+   * Waechter: Wartet die Wiedergabe lange auf Daten, ohne dass der Browser
+   * einen Fehler meldet (haengende Verbindung), wird neu geladen. Laeuft
+   * nur, solange der Nutzer hoeren will.
+   */
+  let stallSince = 0;
+  let stallAt = 0;
+  window.setInterval(() => {
+    if (!shouldPlay || failed || recoveryTimer || !audio.getAttribute('src')) {
+      stallSince = 0;
+      return;
+    }
+    const starving = audio.readyState < 3 /* HAVE_FUTURE_DATA */ && !audio.ended;
+    if (!starving) {
+      stallSince = 0;
+      return;
+    }
+    const now = Date.now();
+    if (!stallSince || Math.abs(audio.currentTime - stallAt) > 0.5) {
+      stallSince = now;
+      stallAt = audio.currentTime;
+      return;
+    }
+    if (now - stallSince > STALL_TIMEOUT) {
+      stallSince = 0;
+      recover();
+    }
+  }, 2000);
+
+  // ------------------------------------------------------------------
+  // Offline: nicht gespeicherte Titel (ab 0.18.3)
+  //
+  // Wurde ein Ordner nur teilweise gespeichert, stehen ohne Verbindung
+  // auch Titel in der Liste, die gar nicht auf dem Geraet liegen. Frueher
+  // blieb die Wiedergabe am ersten davon haengen - die gespeicherten
+  // dahinter kamen nie dran. Jetzt werden sie uebersprungen.
+  // ------------------------------------------------------------------
+  let storedUrls = null; // Set der Adressen im Offline-/Vorauslade-Speicher
+
+  function isOffline() {
+    return navigator.onLine === false || document.body.classList.contains('is-offline');
+  }
+
+  // Wie cacheKeyFor() im Service Worker: per Textersetzung, damit %20 nicht
+  // zu "+" wird
+  function plainUrl(raw) {
+    let url = raw;
+    try {
+      url = new URL(raw, location.href).href;
+    } catch (e) { /* unveraendert */ }
+    if (!/[?&]retry=/.test(url)) return url;
+    return url
+      .replace(/([?&])retry=[^&#]*(&)?/, (match, sep, amp) => (amp ? sep : ''))
+      .replace(/[?&]$/, '');
+  }
+
+  async function refreshStoredUrls() {
+    if (!('caches' in window)) return;
+    try {
+      const set = new Set();
+      for (const name of [OFFLINE_AUDIO_CACHE_PLAYER, PREFETCH_CACHE]) {
+        const cache = await caches.open(name);
+        (await cache.keys()).forEach((req) => set.add(plainUrl(req.url)));
+      }
+      storedUrls = set;
+    } catch (e) {
+      storedUrls = null;
+    }
+  }
+
+  async function isStoredOffline(track) {
+    await refreshStoredUrls();
+    return !!storedUrls && storedUrls.has(plainUrl(streamUrlFor(track)));
+  }
+
+  /** Ohne Verbindung sicher NICHT abspielbar? (unbekannt = abspielbar) */
+  function knownUnavailable(track) {
+    return isOffline() && !!storedUrls && !storedUrls.has(plainUrl(streamUrlFor(track)));
+  }
+
+  /** Naechster abspielbarer Titel ab from (einschliesslich), -1 wenn keiner. */
+  function playableIndex(from, step) {
+    for (let i = from; i >= 0 && i < playlist.length; i += step) {
+      if (!knownUnavailable(playlist[i])) return i;
+    }
+    return -1;
+  }
+
+  async function skipUnavailable() {
+    await refreshStoredUrls();
+    const next = playableIndex(currentIndex + 1, 1);
+    if (next !== -1) {
+      showToast('Nicht offline gespeichert – übersprungen');
+      loadTrack(next, true);
+      return;
+    }
+    shouldPlay = false;
+    audio.removeAttribute('src');
+    audio.load();
+    updatePlayPauseIcon();
+    setMarqueeText(els.context, 'Nicht offline gespeichert');
+    updateMarquees();
+    showToast('Keine weitere Aufnahme offline gespeichert');
+    setMediaSessionPlaybackState('paused');
+  }
+
+  window.addEventListener('offline', refreshStoredUrls);
+  refreshStoredUrls();
 
   // --- Bedienelemente in der Player-Leiste ---
   els.btnPlayPause.addEventListener('click', () => {
@@ -1480,11 +1766,18 @@ const Player = (() => {
      * bestimmten Titel-Index. tracks: [{name, path}], label: Anzeigekontext.
      */
     playFolder(tracks, startIndex, label) {
+      // Ohne Verbindung nicht gespeichert: gar nicht erst versuchen (ab 0.18.3)
+      if (tracks[startIndex] && knownUnavailable(tracks[startIndex])) {
+        showToast('Diese Aufnahme ist nicht offline gespeichert');
+        return;
+      }
       playlist = tracks;
       loadTrack(startIndex, true);
+      refreshStoredUrls();
     },
 
     resume() {
+      shouldPlay = true;
       if (pendingRecovery) {
         const reload = pendingRecovery;
         pendingRecovery = null;
@@ -1492,33 +1785,51 @@ const Player = (() => {
         reload();
         return;
       }
+      // Quelle im Fehlerzustand: play() allein bewirkt dann nichts. Ein
+      // geplanter Versuch wird dabei vorgezogen, der Zaehler beginnt neu.
+      if (audio.error && playlist[currentIndex]) {
+        window.clearTimeout(recoveryTimer);
+        recoveryTimer = 0;
+        recoveries = 0;
+        reloadAt(intendedTime !== null ? intendedTime : lastGoodTime, true);
+        return;
+      }
       audio.play().catch(() => {});
     },
 
     pause() {
+      shouldPlay = false;
       audio.pause();
     },
 
     prev() {
-      if (currentIndex > 0) {
-        loadTrack(currentIndex - 1, true);
+      const prevIndex = currentIndex > 0 ? playableIndex(currentIndex - 1, -1) : -1;
+      if (prevIndex !== -1) {
+        loadTrack(prevIndex, true);
       } else {
         audio.currentTime = 0;
       }
     },
 
     next() {
-      if (currentIndex + 1 < playlist.length) {
-        loadTrack(currentIndex + 1, true);
+      const nextIndex = playableIndex(currentIndex + 1, 1);
+      if (nextIndex !== -1) {
+        loadTrack(nextIndex, true);
         return;
       }
       // Am Ende des Ordners wie beim natuerlichen Ende - ausser bei
       // "Titel wiederholen": Dort soll "Naechster" nicht haengen bleiben
       if (repeatMode === 'folder' || repeatMode === 'one') {
-        loadTrack(0, true);
+        const first = playableIndex(0, 1);
+        if (first !== -1) loadTrack(first, true);
       } else if (repeatMode === 'next') {
         finishQueue(false);
       }
+    },
+
+    /** Nach dem Offline-Speichern/-Entfernen aufrufen (ab 0.18.3). */
+    refreshOffline() {
+      return refreshStoredUrls();
     },
 
     getCurrentPath() {
