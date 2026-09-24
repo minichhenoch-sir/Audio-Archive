@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.18.1)
+# Audio Archive – Nextcloud-App (0.18.2)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1009,3 +1009,29 @@ muss.
 
 Nur CSS, JavaScript und eine Vorlage geändert – kein Neustart des
 Containers nötig.
+
+---
+
+## 0.18.2: Wegwischen fühlt sich richtig an
+
+Die Wisch-Geste zum Schließen des Vollbild-Players ist überarbeitet.
+
+- **Kein Aufblitzen mehr beim Schließen.** Die Karte sprang kurz zurück
+  nach oben, bevor sie verschwand. Jetzt gleitet sie in einem Zug nach
+  unten hinaus, und die kleine Leiste blendet danach sanft ein.
+- **Es zählt die Richtung beim Loslassen.** Wer runterzieht, es sich
+  anders überlegt und wieder ein Stück hochzieht, behält den Player offen.
+  Ein schneller Schubs nach unten schließt dagegen schon auf kurzer
+  Strecke; langsames Ziehen braucht etwa ein Fünftel der Kartenhöhe.
+- **Zurückfedern ist weich** statt eines harten Sprungs.
+- **Mehr Stellen zum Anfassen:** Die Geste startet jetzt auch auf dem
+  Cover, auf dem Griff und im abgedunkelten Streifen oben. Tippen auf den
+  Streifen schließt ebenfalls. Nur auf dem Fortschrittsregler startet sie
+  nicht.
+- Nach unten ziehen löst im Browser kein Neuladen der Seite (Android) und
+  kein Gummiband-Scrollen (iPhone) mehr aus.
+- Schließen über Griff, Zurück-Geste oder Escape fährt die Karte ebenfalls
+  nach unten hinaus. Doppeltes Tippen auf den Griff springt nicht mehr
+  zwei Schritte im Verlauf zurück.
+
+Nur CSS und JavaScript geändert – kein Neustart des Containers nötig.

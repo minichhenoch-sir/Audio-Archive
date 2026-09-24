@@ -1021,28 +1021,130 @@ const Player = (() => {
   // ------------------------------------------------------------------
   let expandedByHistory = false;
 
-  function setExpanded(open) {
-    // Reste einer Wisch-Geste entfernen (ab 0.18)
+  /*
+   * Zustand beim Hinausschieben (ab 0.18.2). "sheetOut" heisst: Die Karte
+   * liegt schon unten ausserhalb des Bildes, es fehlt nur noch das
+   * eigentliche Schliessen. So springt sie nicht mehr kurz zurueck, waehrend
+   * history.back() auf den popstate wartet (das war das Blitzen in 0.18.1).
+   */
+  let sheetSliding = false;
+  let sheetOut = false;
+  let slideCallbacks = [];
+  let backPending = false;
+  let slideTimer = 0;
+  let enterTimer = 0;
+
+  function reducedMotion() {
+    return !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
+  }
+
+  function clearSheetStyles() {
     els.bar.style.transform = '';
-    els.bar.style.opacity = '';
     els.bar.style.transition = '';
-    els.bar.classList.remove('is-dragging');
+    els.bar.classList.remove('is-dragging', 'is-entering', 'is-docking');
     if (els.scrim) {
       els.scrim.style.transition = '';
       els.scrim.style.opacity = '';
-      els.scrim.hidden = !open;
     }
+  }
+
+  function setExpanded(open) {
+    const wasOpen = els.bar.classList.contains('is-expanded');
+    window.clearTimeout(slideTimer);
+    window.clearTimeout(enterTimer);
+    sheetSliding = false;
+    sheetOut = false;
+    slideCallbacks = [];
+    backPending = false;
+    clearSheetStyles();
+    if (els.scrim) els.scrim.hidden = !open;
     els.bar.classList.toggle('is-expanded', open);
     document.getElementById('audioarchive').classList.toggle('aa-player-expanded', open);
     els.btnExpand.setAttribute('aria-expanded', open ? 'true' : 'false');
     updateMarquees();
     if (open) {
+      /*
+       * Die Einfahr-Animation haengt an einer eigenen Klasse, die nach dem
+       * Einfahren wieder verschwindet. Vorher hing sie an .is-expanded und
+       * startete jedes Mal neu, wenn die Wisch-Geste .is-dragging (dort
+       * "animation: none") wieder abnahm - die Karte fuhr dann mitten im
+       * Schliessen noch einmal von unten herein.
+       */
+      if (!reducedMotion()) {
+        els.bar.classList.add('is-entering');
+        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-entering'), 400);
+      }
       els.btnCollapse.focus({ preventScroll: true });
     } else {
       // Die Angaben gehoeren zum Vollbild - beim Verkleinern zuklappen
       if (!els.details.hidden) setDetailsOpen(false);
       updatePlayerBarSpace();
+      if (wasOpen && !reducedMotion()) {
+        els.bar.classList.add('is-docking');
+        enterTimer = window.setTimeout(() => els.bar.classList.remove('is-docking'), 400);
+      }
     }
+  }
+
+  els.bar.addEventListener('animationend', (event) => {
+    if (event.target !== els.bar) return;
+    if (event.animationName === 'aa-player-in') els.bar.classList.remove('is-entering');
+    if (event.animationName === 'aa-bar-dock') els.bar.classList.remove('is-docking');
+  });
+
+  /**
+   * Schiebt die Karte nach unten aus dem Bild und ruft danach done() auf.
+   * velocity (px/ms) kommt von der Wisch-Geste: Ein schneller Schubs
+   * faehrt entsprechend schneller hinaus, damit die Bewegung nahtlos
+   * weiterlaeuft statt abzubremsen.
+   */
+  function slideOut(velocity, fromOffset, done) {
+    if (sheetOut) { done(); return; }
+    // Faehrt sie schon hinaus, nur den Abschluss vormerken
+    slideCallbacks.push(done);
+    if (sheetSliding) return;
+    const runCallbacks = () => {
+      const list = slideCallbacks;
+      slideCallbacks = [];
+      list.forEach((fn) => fn());
+    };
+    if (reducedMotion()) {
+      sheetOut = true;
+      runCallbacks();
+      return;
+    }
+    sheetSliding = true;
+    els.bar.classList.remove('is-dragging', 'is-entering');
+
+    const height = els.bar.getBoundingClientRect().height || window.innerHeight;
+    const rest = Math.max(0, height - fromOffset);
+    let duration = 260;
+    if (velocity > 0.2) duration = Math.round(rest / Math.max(velocity, 1.1));
+    duration = Math.min(300, Math.max(140, duration));
+
+    els.bar.style.transition = 'transform ' + duration + 'ms cubic-bezier(0.3, 0.6, 0.4, 1)';
+    els.bar.style.transform = 'translate3d(0, ' + Math.ceil(height + 8) + 'px, 0)';
+    if (els.scrim) {
+      els.scrim.style.transition = 'opacity ' + duration + 'ms ease-out';
+      els.scrim.style.opacity = '0';
+    }
+
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      els.bar.removeEventListener('transitionend', onEnd);
+      window.clearTimeout(slideTimer);
+      sheetSliding = false;
+      sheetOut = true;
+      runCallbacks();
+    };
+    const onEnd = (event) => {
+      if (event.target === els.bar && event.propertyName === 'transform') finish();
+    };
+    els.bar.addEventListener('transitionend', onEnd);
+    // Falls transitionend ausbleibt (Tab im Hintergrund, Unterbrechung)
+    slideTimer = window.setTimeout(finish, duration + 80);
   }
 
   function expand() {
@@ -1058,12 +1160,25 @@ const Player = (() => {
 
   function collapse() {
     if (!els.bar.classList.contains('is-expanded')) return;
+    // Doppelt getippt, bevor der popstate da ist: nicht zwei Schritte zurueck
+    if (backPending) return;
     if (expandedByHistory) {
-      // Der popstate-Handler unten schliesst dann
+      // Der popstate-Handler unten schiebt die Karte hinaus und schliesst
+      backPending = true;
       history.back();
+      // Sicherheitsnetz: Liegt die Karte schon draussen und kommt kein
+      // popstate, darf die unsichtbare Karte nicht die Liste verdecken
+      if (sheetOut) {
+        window.setTimeout(() => {
+          if (sheetOut && els.bar.classList.contains('is-expanded')) {
+            expandedByHistory = false;
+            setExpanded(false);
+          }
+        }, 500);
+      }
       return;
     }
-    setExpanded(false);
+    slideOut(0, 0, () => setExpanded(false));
   }
 
   els.btnExpand.addEventListener('click', expand);
@@ -1072,121 +1187,248 @@ const Player = (() => {
     expand();
   });
   els.btnCollapse.addEventListener('click', collapse);
+  // Tippen auf den abgedunkelten Streifen ueber der Karte schliesst auch
+  if (els.scrim) els.scrim.addEventListener('click', collapse);
 
   /*
-   * Nach unten wischen schliesst den Vollbild-Player (ab 0.18).
+   * Nach unten wischen schliesst den Vollbild-Player (ab 0.18, ueberarbeitet
+   * in 0.18.2).
    *
-   * Vom Nutzer gewuenscht: "wenn runtergescrollt wird, soll das aus dem
-   * Fenster verschwinden". Die Leiste folgt dabei dem Finger und rutscht
-   * nach unten aus dem Bild; wird zu wenig gezogen, federt sie zurueck.
+   * Die Karte folgt dem Finger. Beim Loslassen entscheidet vor allem die
+   * RICHTUNG der letzten Bewegung, nicht nur die Strecke:
+   *   - zuletzt nach oben bewegt oder spuerbar zurueckgezogen -> bleibt offen
+   *   - schneller Schubs nach unten                          -> schliesst
+   *   - sonst: weit genug gezogen                            -> schliesst
+   * In 0.18.0/0.18.1 zaehlte nur die aktuelle Strecke (und eine ueber die
+   * ganze Geste gemittelte Geschwindigkeit). Wer erst runter und dann
+   * wieder etwas hoch zog, bekam trotzdem ein Schliessen.
    *
    * Nur wenn oben nichts mehr zu scrollen ist: Bei aufgeklappten Angaben
-   * scrollt die Seite zuerst, erst ganz oben beginnt die Geste. Auf
-   * Schiebereglern und Knoepfen startet sie gar nicht, sonst liesse sich
-   * der Fortschritt nicht mehr ziehen.
+   * scrollt der Inhalt zuerst. Auf Reglern und Eingabefeldern startet die
+   * Geste nicht, sonst liesse sich der Fortschritt nicht mehr ziehen. Auf
+   * Knoepfen (Griff, Cover) darf sie starten - ein Klick nach dem Ziehen
+   * wird dann verschluckt.
    */
-  const CLOSE_DISTANCE = 120;      // ab hier schliesst es
-  const CLOSE_VELOCITY = 0.55;     // px/ms - schneller Schubs genuegt auch kurz
-  let dragStartY = null;
-  let dragStartTime = 0;
-  let dragDelta = 0;
+  const SLOP = 8;                 // px Totzone, bevor die Karte mitgeht
+  const FLICK_VELOCITY = 0.45;    // px/ms nach unten: Schubs schliesst
+  const BACK_VELOCITY = -0.08;    // px/ms nach oben beim Loslassen: bleibt offen
+  const PULLBACK = 24;            // px vom tiefsten Punkt zurueck: bleibt offen
+  const VELOCITY_WINDOW = 90;     // ms - nur die letzten Bewegungen zaehlen
+
+  let touchId = null;
+  let startY = 0;
   let dragging = false;
+  let offset = 0;
+  let peak = 0;
+  let samples = [];
+  let suppressClickUntil = 0;
 
   function isExpanded() {
     return els.bar.classList.contains('is-expanded');
   }
 
+  function closeDistance() {
+    const h = els.bar.clientHeight || window.innerHeight;
+    // Rund ein Fuenftel der Karte, aber nie unter 90 oder ueber 140 Punkte
+    return Math.min(140, Math.max(90, h * 0.2));
+  }
+
   function setDragOffset(px) {
     if (px <= 0) {
       els.bar.style.transform = '';
-      els.bar.style.opacity = '';
       if (els.scrim) els.scrim.style.opacity = '';
       return;
     }
     // Die Karte folgt dem Finger, die abgedunkelte Flaeche dahinter wird
-    // dabei heller - so sieht man, dass die Liste zurueckkommt
+    // heller - so sieht man, dass die Liste zurueckkommt
     els.bar.style.transform = 'translate3d(0, ' + px + 'px, 0)';
     const share = Math.min(1, px / (els.bar.clientHeight || 600));
-    els.bar.style.opacity = String(Math.max(0.5, 1 - share * 0.5));
-    if (els.scrim) els.scrim.style.opacity = String(Math.max(0, 1 - share * 1.2));
+    if (els.scrim) els.scrim.style.opacity = String(Math.max(0, 1 - share * 1.4));
   }
 
-  function endDrag(close) {
-    els.bar.classList.remove('is-dragging');
-    dragStartY = null;
-    dragging = false;
-
-    if (!close) {
+  function springBack(fromOffset) {
+    if (reducedMotion() || fromOffset <= 0) {
       setDragOffset(0);
       return;
     }
-
-    const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    if (reduced) {
-      setDragOffset(0);
-      collapse();
-      return;
-    }
-
-    // Nach unten hinausschieben, danach erst wirklich schliessen
-    els.bar.style.transition = 'transform 0.2s ease-out, opacity 0.2s ease-out';
-    els.bar.style.transform = 'translate3d(0, 100%, 0)';
-    els.bar.style.opacity = '';
-    if (els.scrim) {
-      els.scrim.style.transition = 'opacity 0.2s ease-out';
-      els.scrim.style.opacity = '0';
-    }
-    window.setTimeout(() => {
+    els.bar.style.transition = 'transform 0.3s cubic-bezier(0.2, 0.9, 0.3, 1)';
+    if (els.scrim) els.scrim.style.transition = 'opacity 0.3s ease-out';
+    setDragOffset(0);
+    window.clearTimeout(slideTimer);
+    slideTimer = window.setTimeout(() => {
+      if (sheetSliding || sheetOut) return;
       els.bar.style.transition = '';
-      setDragOffset(0);
-      collapse();
-    }, 200);
+      if (els.scrim) els.scrim.style.transition = '';
+    }, 340);
   }
 
-  els.bar.addEventListener('touchstart', (event) => {
-    if (!isExpanded() || event.touches.length !== 1) return;
-    if (event.target.closest('input, button, a')) return;
-    // Erst ganz oben: sonst scrollen die Angaben
-    if (els.bar.scrollTop > 0) return;
-    dragStartY = event.touches[0].clientY;
-    dragStartTime = Date.now();
-    dragDelta = 0;
+  function releaseVelocity(now) {
+    // Geschwindigkeit nur aus den letzten ~90 ms vor der letzten Bewegung.
+    // Steht der Finger vor dem Loslassen still, kommen keine touchmove
+    // mehr - liegt die letzte Bewegung zu lange zurueck, ist sie 0.
+    if (samples.length < 2) return 0;
+    const last = samples[samples.length - 1];
+    if (now - last.t > 80) return 0;
+    let first = last;
+    for (let i = samples.length - 2; i >= 0; i--) {
+      if (last.t - samples[i].t > VELOCITY_WINDOW) break;
+      first = samples[i];
+    }
+    const dt = last.t - first.t;
+    return dt > 0 ? (last.y - first.y) / dt : 0;
+  }
+
+  function resetTouch() {
+    touchId = null;
     dragging = false;
-  }, { passive: true });
+    offset = 0;
+    peak = 0;
+    samples = [];
+  }
 
-  els.bar.addEventListener('touchmove', (event) => {
-    if (dragStartY === null || event.touches.length !== 1) return;
-    const delta = event.touches[0].clientY - dragStartY;
-
-    if (!dragging) {
-      // Nach oben gewischt: normales Scrollen, Geste verwerfen
-      if (delta < -4) {
-        dragStartY = null;
+  function onTouchStart(event) {
+    if (!isExpanded() || sheetSliding || sheetOut) return;
+    if (event.touches.length !== 1) {
+      // Zweiter Finger: laufende Geste abbrechen
+      if (dragging) {
+        const was = offset;
+        resetTouch();
+        els.bar.classList.remove('is-dragging');
+        springBack(was);
         return;
       }
-      if (delta < 10) return;
+      resetTouch();
+      return;
+    }
+    const fromScrim = event.currentTarget === els.scrim;
+    if (!fromScrim) {
+      if (event.target.closest('input, select, textarea, [contenteditable="true"]')) return;
+      // Erst ganz oben (1 Punkt Spielraum fuer Rundungen)
+      if (els.bar.scrollTop > 1) return;
+    }
+    // Faengt eine noch laufende Einfahr-Animation ab
+    els.bar.classList.remove('is-entering');
+    window.clearTimeout(slideTimer);
+    els.bar.style.transition = '';
+    if (els.scrim) els.scrim.style.transition = '';
+
+    const touch = event.touches[0];
+    touchId = touch.identifier;
+    startY = touch.clientY;
+    dragging = false;
+    offset = 0;
+    peak = 0;
+    samples = [{ t: performance.now(), y: touch.clientY }];
+  }
+
+  function findTouch(list) {
+    for (let i = 0; i < list.length; i++) {
+      if (list[i].identifier === touchId) return list[i];
+    }
+    return null;
+  }
+
+  function onTouchMove(event) {
+    if (touchId === null) return;
+    const touch = findTouch(event.changedTouches);
+    if (!touch) return;
+    const dy = touch.clientY - startY;
+
+    if (!dragging) {
+      // Nach oben: normales Scrollen, Geste verwerfen
+      if (dy < -SLOP / 2) {
+        resetTouch();
+        return;
+      }
+      // Hat der Browser schon selbst zu scrollen begonnen, laesst sich das
+      // nicht mehr verhindern - dann keine Geste, sonst ruckelt beides
+      if (!event.cancelable) {
+        resetTouch();
+        return;
+      }
+      // Schon die ersten Punkte nach unten abfangen, sonst beginnt der
+      // Browser mit Neu-Laden (Android) oder Gummiband (iPhone)
+      event.preventDefault();
+      if (dy < SLOP) return;
       dragging = true;
       els.bar.classList.add('is-dragging');
     }
 
-    dragDelta = Math.max(0, delta);
-    // Ohne preventDefault wuerde der Browser gleichzeitig scrollen
     if (event.cancelable) event.preventDefault();
-    setDragOffset(dragDelta);
-  }, { passive: false });
-
-  function finishTouch() {
-    if (dragStartY === null) return;
-    if (!dragging) {
-      dragStartY = null;
-      return;
-    }
-    const speed = dragDelta / Math.max(1, Date.now() - dragStartTime);
-    endDrag(dragDelta > CLOSE_DISTANCE || speed > CLOSE_VELOCITY);
+    // Totzone abziehen, damit die Karte beim Start nicht springt
+    offset = Math.max(0, dy - SLOP);
+    peak = Math.max(peak, offset);
+    const now = performance.now();
+    samples.push({ t: now, y: touch.clientY });
+    // Nur die juengsten Punkte behalten
+    while (samples.length > 2 && now - samples[0].t > VELOCITY_WINDOW * 2) samples.shift();
+    setDragOffset(offset);
   }
 
-  els.bar.addEventListener('touchend', finishTouch);
-  els.bar.addEventListener('touchcancel', () => endDrag(false));
+  function onTouchEnd(event) {
+    if (touchId === null) return;
+    if (event.changedTouches && !findTouch(event.changedTouches)) return;
+    if (!dragging) {
+      resetTouch();
+      return;
+    }
+
+    const velocity = releaseVelocity(performance.now());
+    const pulledBack = peak - offset > PULLBACK;
+    let close;
+    if (velocity < BACK_VELOCITY) {
+      close = false;                        // zuletzt nach oben bewegt
+    } else if (velocity > FLICK_VELOCITY && offset > SLOP) {
+      close = true;                         // schneller Schubs nach unten
+    } else if (pulledBack) {
+      close = false;                        // zurueckgezogen und losgelassen
+    } else {
+      // Strecke plus etwas Schwung: Wer zuegig zieht, muss nicht ganz so
+      // weit ziehen wie jemand, der langsam zieht und stehen bleibt
+      close = offset + Math.max(0, velocity) * 150 > closeDistance();
+    }
+
+    // Nach dem Ziehen keinen Klick auf Griff, Cover oder Knopf ausloesen
+    suppressClickUntil = Date.now() + 400;
+    const releasedOffset = offset;
+    resetTouch();
+
+    if (close) {
+      slideOut(Math.max(0, velocity), releasedOffset, collapse);
+    } else {
+      els.bar.classList.remove('is-dragging');
+      springBack(releasedOffset);
+    }
+  }
+
+  function onTouchCancel() {
+    if (touchId === null) return;
+    const wasDragging = dragging;
+    const releasedOffset = offset;
+    resetTouch();
+    if (wasDragging) {
+      els.bar.classList.remove('is-dragging');
+      springBack(releasedOffset);
+    }
+  }
+
+  [els.bar, els.scrim].forEach((el) => {
+    if (!el) return;
+    el.addEventListener('touchstart', onTouchStart, { passive: true });
+    el.addEventListener('touchmove', onTouchMove, { passive: false });
+    el.addEventListener('touchend', onTouchEnd);
+    el.addEventListener('touchcancel', onTouchCancel);
+  });
+
+  // Klick nach einer Wisch-Geste verschlucken (Capture-Phase, vor allen
+  // anderen Handlern der Leiste)
+  document.addEventListener('click', (event) => {
+    if (Date.now() < suppressClickUntil
+      && (els.bar.contains(event.target) || event.target === els.scrim)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  }, true);
 
   /*
    * Am Rechner dasselbe mit dem Mausrad: nach unten scrollen schliesst,
@@ -1219,12 +1461,17 @@ const Player = (() => {
    * Laeuft VOR dem Handler in app.js (player.js wird zuerst geladen). Ist
    * der Player offen, schliesst Zurueck nur ihn - die Ordneransicht soll
    * davon nichts merken, deshalb stopImmediatePropagation.
+   *
+   * Ab 0.18.2 faehrt die Karte auch hier nach unten hinaus (Zurueck-Geste,
+   * Griff, Escape). Liegt sie nach einer Wisch-Geste schon draussen, wird
+   * nur noch geschlossen.
    */
   window.addEventListener('popstate', (event) => {
     if (!els.bar.classList.contains('is-expanded')) return;
     expandedByHistory = false;
-    setExpanded(false);
+    backPending = false;
     event.stopImmediatePropagation();
+    slideOut(0, 0, () => setExpanded(false));
   });
 
   return {

@@ -866,7 +866,26 @@ body.has-bg-image #audioarchive .explorer-row.active {
   -webkit-backdrop-filter: none;
   overflow: hidden;
   z-index: 50;
+  /* Wisch-Geste (0.18.2): Nach unten ziehen darf weder die Seite neu
+     laden (Android) noch Gummiband-Scrollen ausloesen (iPhone) */
+  overscroll-behavior: contain;
+}
+
+/* Einfahren nur direkt nach dem Oeffnen (0.18.2). Vorher hing die
+   Animation an .is-expanded und startete neu, sobald die Wisch-Geste
+   .is-dragging wieder abnahm - die Karte blitzte beim Schliessen auf. */
+#audioarchive .player-bar.is-expanded.is-entering {
   animation: aa-player-in 0.26s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* Nach dem Schliessen gleitet die kleine Leiste sanft herein, statt
+   schlagartig zu erscheinen */
+#audioarchive .player-bar.is-docking {
+  animation: aa-bar-dock 0.22s ease-out;
+}
+@keyframes aa-bar-dock {
+  from { opacity: 0; transform: translate3d(0, 14px, 0); }
+  to { opacity: 1; transform: translate3d(0, 0, 0); }
 }
 
 @keyframes aa-player-in {
@@ -883,6 +902,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
   backdrop-filter: blur(3px) saturate(120%);
   -webkit-backdrop-filter: blur(3px) saturate(120%);
   animation: aa-scrim-in 0.26s ease-out;
+  /* Auch hier laesst sich die Karte nach unten wegwischen (player.js) */
+  touch-action: none;
 }
 
 @keyframes aa-scrim-in {
@@ -907,7 +928,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .collapse-icon--double { display: none; }
 
 @media (prefers-reduced-motion: reduce) {
-  #audioarchive .player-bar.is-expanded,
+  #audioarchive .player-bar.is-expanded.is-entering,
+  #audioarchive .player-bar.is-docking,
   #audioarchive .player-scrim { animation: none; }
 }
 
