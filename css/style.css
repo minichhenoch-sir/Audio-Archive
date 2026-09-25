@@ -2702,6 +2702,13 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5); }
 #audioarchive.aa-design-nextcloud .app-version { color: var(--aa-nc-text-soft); text-shadow: none; }
 #audioarchive .app-version-panel { margin-top: 12px; opacity: 0.8; }
+/* Auf dem Anmelde-Bildschirm unter dem Anmeldefeld (ab 0.19.2) */
+#audioarchive .login-version {
+  margin: 20px 0 -6px;
+  position: relative;
+  color: var(--color-cream-soft);
+  opacity: 0.75;
+}
 
 /* =====================================================================
  * 0.15.3: Kleine Bildschirme

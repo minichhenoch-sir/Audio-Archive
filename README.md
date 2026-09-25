@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.19.1)
+# Audio Archive – Nextcloud-App (0.19.2)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1097,5 +1097,14 @@ Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
 - Schließen über Griff oder Zurück-Geste läuft ebenfalls etwas ruhiger;
   nach dem Wegwischen bleibt der Schwung des Fingers erhalten.
 - Mit „Bewegung reduzieren“ im System erscheint alles ohne Animation.
+
+Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.19.2: Version auf dem Anmelde-Bildschirm
+
+Die Versionsangabe („Audio Archive · Version …“) steht jetzt auch auf dem
+Anmelde-Bildschirm, dezent unter dem Anmeldefeld.
 
 Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.

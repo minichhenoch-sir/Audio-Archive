@@ -3356,6 +3356,21 @@
     }
     const panel = document.getElementById('us-version');
     if (panel) panel.textContent = text;
+    /*
+     * Auch auf dem Anmelde-Bildschirm, unter dem Anmeldefeld (ab 0.19.2,
+     * Wunsch des Nutzers) - so laesst sich die Fassung schon vor dem
+     * Anmelden ablesen. Per Skript eingefuegt statt in der Vorlage, damit
+     * das Einspielen ohne Container-Neustart auskommt (OPcache haelt auch
+     * PHP-Vorlagen fest).
+     */
+    const card = document.querySelector('#login-screen .login-card');
+    if (card && !document.getElementById('login-version')) {
+      const line = document.createElement('p');
+      line.id = 'login-version';
+      line.className = 'app-version login-version';
+      line.textContent = text;
+      card.appendChild(line);
+    }
   })();
 
   applySettingsFromDocument();
