@@ -44,7 +44,17 @@ class Version1300Date20260918150000 extends SimpleMigrationStep {
             // Nutzerkennung bzw. Gruppenkennung
             $table->addColumn('member', Types::STRING, ['notnull' => true, 'length' => 64]);
 
-            $table->setPrimaryKey(['id']);
+            /*
+             * Primaerschluessel mit eigenem, kurzem Namen (ab 0.20.1). Mit
+             * dem Standardnamen verlangt Nextcloud bis einschliesslich 32
+             * einen Tabellennamen unter 23 Zeichen - "audioarchive_share_
+             * members" hat 26, die Installation brach dort mit "Primary
+             * index name ... is too long" ab. Mit eigenem Namen gilt nur
+             * die Grenze von 30 Zeichen fuer den Namen selbst. Bestehende
+             * Installationen (ab Nextcloud 33) betrifft das nicht: Dort ist
+             * dieser Schritt schon gelaufen und wird nie wiederholt.
+             */
+            $table->setPrimaryKey(['id'], 'audioarchive_members_pk');
             $table->addIndex(['share_id'], 'audioarchive_members_share');
             $table->addIndex(['member_type', 'member'], 'audioarchive_members_who');
             $changed = true;

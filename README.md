@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.20.0)
+# Audio Archive – Nextcloud-App (0.20.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1154,3 +1154,21 @@ PHP, Routen und `info.xml` geändert – nach dem Einspielen Container neu
 starten; keine Datenbankänderung. Bereits installierte Apps übernehmen das
 neue Symbol auf Android beim nächsten Manifest-Abgleich, auf dem iPhone erst
 nach erneutem Hinzufügen zum Home-Bildschirm.
+
+---
+
+## 0.20.1: Installierbar auf Nextcloud 31 und 32
+
+Seit 0.13.0 brach die Installation auf Nextcloud bis einschließlich 32 mit
+„Primary index name on "oc_audioarchive_share_members" is too long“ ab.
+Diese Versionen verlangen bei Tabellen mit Standard-Primärschlüssel einen
+Namen unter 23 Zeichen. Der Primärschlüssel der Tabelle hat jetzt einen
+eigenen, kurzen Namen.
+
+Bestehende Installationen (ab Nextcloud 33) betrifft das nicht, dort ist
+dieser Schritt bereits gelaufen. Geprüft: Neuinstallation auf Nextcloud
+31.0.14 und 32.0.15 mit allen Funktionen von 0.20.0, Update 0.20.0 → 0.20.1
+auf Nextcloud 35.0.1.
+
+Nur eine PHP-Datei (Migration) geändert – nach dem Einspielen Container neu
+starten.
