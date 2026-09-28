@@ -13,21 +13,29 @@ use OCP\IURLGenerator;
 /**
  * App-Symbol in der Farbe der Player-Leiste (ab 0.16).
  *
- * Das Mikrofon bleibt gleich, nur der Hintergrund nimmt die Leistenfarbe
+ * Das Zeichen bleibt gleich, nur der Hintergrund nimmt die Leistenfarbe
  * der jeweiligen Ansicht an (Freigabe, Administrator-Link, persoenliche
  * Darstellung; bei Nextcloud-Gestaltung Nextclouds Hauptfarbe). Das
- * Mikrofon wird weiss oder schwarz - je nachdem, was auf dem Hintergrund
+ * Zeichen wird weiss oder schwarz - je nachdem, was auf dem Hintergrund
  * besser lesbar ist.
  *
- * Grundlage sind die mitgelieferten PNGs (weisses Mikrofon auf Blau): Pro
- * Bildpunkt gibt der Rotanteil an, wie viel "Mikrofon" er enthaelt (Blau
+ * Seit 0.20 ist das Zeichen die Archiv-Liste mit Lautsprecher (vorher ein
+ * Mikrofon). Dazu kommen die Cover-Ersatzbilder ("cover..."): randlose
+ * Flaechen mit kleinerem Zeichen, die im Player stehen, wenn eine Aufnahme
+ * kein Cover hat. Welches davon, legt je Freigabe deren Einstellung
+ * "coverIcon" fest (siehe COVER_ICONS), sonst gilt DEFAULT_COVER.
+ *
+ * Grundlage sind die mitgelieferten PNGs (weisses Zeichen auf Blau): Pro
+ * Bildpunkt gibt der Rotanteil an, wie viel "Zeichen" er enthaelt (Blau
  * hat fast kein Rot, Weiss volles Rot). Damit bleiben die weichen Kanten
- * erhalten, und die Form muss nicht ein zweites Mal gepflegt werden.
+ * und die abgestuften Streifen erhalten, und die Form muss nicht ein
+ * zweites Mal gepflegt werden.
  *
  * Erzeugte Bilder werden im AppData-Bereich abgelegt (Ordner "icons") -
  * einmal je Farbe und Variante, auch ohne Memcache/Redis dauerhaft. Nicht
  * im App-Ordner, das wuerde die Code-Signierung verletzen. Der Browser
- * haelt sie ein Jahr (die Farbe steht in der Adresse).
+ * haelt sie ein Jahr (die Farbe steht in der Adresse, die Appversion im
+ * Parameter v).
  */
 class AppIcon {
     /** Name => [Vorlage, Kantenlaenge] */
@@ -37,7 +45,22 @@ class AppIcon {
         'any-512' => ['icon-512.png', 512],
         'maskable-512' => ['icon-maskable-512.png', 512],
         'apple-180' => ['icon-maskable-512.png', 180],
+        // Cover-Ersatz (ab 0.20), Name = 'cover' + Schluessel aus COVER_ICONS
+        'coverspeaker-512' => ['cover-speaker.png', 512],
+        'coverbadge-512' => ['cover-badge.png', 512],
+        'coverbox-512' => ['cover-box.png', 512],
+        'coverphones-512' => ['cover-phones.png', 512],
+        'coverplay-512' => ['cover-play.png', 512],
+        'covermic-512' => ['cover-mic.png', 512],
     ];
+
+    /**
+     * Waehlbare Cover-Ersatzbilder einer Freigabe (ab 0.20). Dazu kommt
+     * 'custom' = eigenes hochgeladenes Bild der Freigabe.
+     */
+    public const COVER_ICONS = ['speaker', 'badge', 'box', 'phones', 'play', 'mic'];
+    public const DEFAULT_COVER = 'speaker';
+    public const COVER_CUSTOM = 'custom';
 
     /** Rotanteil des Blaus und des Weiss in den Vorlagen */
     private const RED_BACKGROUND = 1;
@@ -96,6 +119,11 @@ class AppIcon {
         return $version !== '' ? $url . '?v=' . rawurlencode($version) : $url;
     }
 
+    /** Variante zu einem Cover-Ersatz ('speaker' => 'coverspeaker-512'). */
+    public static function coverVariant(string $key): string {
+        return 'cover' . (in_array($key, self::COVER_ICONS, true) ? $key : self::DEFAULT_COVER) . '-512';
+    }
+
     /** Liegt das Symbol schon im Zwischenspeicher? */
     public function isCached(string $color, string $variant): bool {
         $hex = self::normalizeColor($color);
@@ -109,8 +137,12 @@ class AppIcon {
         }
     }
 
+    /*
+     * v2 ab 0.20: neue Vorlagen (Archiv-Liste statt Mikrofon). Mit dem
+     * alten Praefix kaemen die abgelegten Mikrofon-Bilder wieder heraus.
+     */
     private function key(string $hex, string $variant): string {
-        return 'v1-' . $hex . '-' . $variant . '.png';
+        return 'v2-' . $hex . '-' . $variant . '.png';
     }
 
     /** PNG-Daten oder null bei unbekannter Variante/Farbe. */
@@ -205,7 +237,7 @@ class AppIcon {
     }
 
     /**
-     * Weiss oder Schwarz fuer das Mikrofon (Kontrastformel der WCAG).
+     * Weiss oder Schwarz fuer das Zeichen (Kontrastformel der WCAG).
      *
      * @param int[] $rgb
      * @return int[]

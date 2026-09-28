@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.19.3)
+# Audio Archive – Nextcloud-App (0.20.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1132,3 +1132,25 @@ Gefunden an einem Werksradio im VW T5 (Android 9, installierte App).
   Befehle kamen.
 
 Nur JavaScript geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.20.0: Neues Logo, Cover-Ersatz je Freigabe wählbar
+
+- **Neues App-Symbol:** Archiv-Liste mit Lautsprecher statt Mikrofon – auf
+  dem Startbildschirm, im Browser-Tab, in der Benachrichtigung und in der
+  Nextcloud-Kopfleiste. Weiterhin in der Farbe der Player-Leiste.
+- **Vollbild ohne Cover:** Statt des abgerundeten App-Symbols (dessen
+  Schatten an den Ecken abgeschnitten wurde) füllt jetzt eine Fläche in der
+  Leistenfarbe das Cover-Feld randlos, das Zeichen steht kleiner in der
+  Mitte. Gilt auch für die kleine Player-Leiste und den Sperrbildschirm.
+- **Je Freigabe wählbar** („Aussehen“ → „Bild bei Aufnahmen ohne Cover“):
+  Standard, Lautsprecher rund, Box, Kopfhörer, Abspielen, Mikrofon oder ein
+  eigenes Bild (PNG/JPEG/WebP, am besten quadratisch). Ohne Wahl gilt das
+  Standard-Zeichen in der Farbe der Freigabe. Eigene Ansicht und
+  Administrator-Link zeigen immer das Standard-Zeichen.
+
+PHP, Routen und `info.xml` geändert – nach dem Einspielen Container neu
+starten; keine Datenbankänderung. Bereits installierte Apps übernehmen das
+neue Symbol auf Android beim nächsten Manifest-Abgleich, auf dem iPhone erst
+nach erneutem Hinzufügen zum Home-Bildschirm.

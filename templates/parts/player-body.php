@@ -64,6 +64,8 @@ if ($_['backgroundUrl'] !== '') {
      data-app-version="<?php echo $escape($_['appVersion'] ?? ''); ?>"
      data-icon-color="<?php echo $escape($_['iconColor'] ?? ''); ?>"
      data-nc-primary="<?php echo $escape($_['ncPrimary'] ?? ''); ?>"
+     data-cover-icon="<?php echo $escape($_['coverIcon'] ?? ''); ?>"
+     data-cover-url="<?php echo $escape($_['coverUrl'] ?? ''); ?>"
      data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
      data-beta="<?php echo $escape($_['betaEnabled']); ?>"
      data-beta-text="<?php echo $escape($_['betaText']); ?>"

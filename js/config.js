@@ -14,6 +14,9 @@ const AudioArchive = (() => {
 
   const data = {
     publicToken: el.dataset.publicToken || '',
+    // Bild fuer Aufnahmen ohne Cover, wie vom Server bestimmt (ab 0.20)
+    coverIcon: el.dataset.coverIcon || '',
+    coverUrl: el.dataset.coverUrl || '',
     embedded: el.dataset.embedded === '1',
     design: el.dataset.design || 'custom',
     // Vollstaendige Werte bei 'admin'/'defined' (ab 0.17), sonst null
@@ -64,6 +67,20 @@ const AudioArchive = (() => {
   // Farbe des App-Symbols (6 Hexziffern) - folgt der Leistenfarbe (ab 0.16)
   let iconColor = /^[0-9a-f]{6}$/.test(el.dataset.iconColor || '') ? el.dataset.iconColor : '';
   const ncPrimary = el.dataset.ncPrimary || '';
+  // Bild fuer Aufnahmen ohne Cover (ab 0.20): Schluessel eines mitgelieferten
+  // Bildes oder 'custom' (eigenes Bild der Freigabe unter coverImage)
+  const COVER_ICONS = ['speaker', 'badge', 'box', 'phones', 'play', 'mic'];
+  let coverIcon = 'speaker';
+  let coverImage = '';
+  function setCoverState(icon, url) {
+    const next = icon === 'custom' && url ? 'custom' : (COVER_ICONS.includes(icon) ? icon : 'speaker');
+    const nextUrl = next === 'custom' ? new URL(url, location.href).href : '';
+    const changed = next !== coverIcon || nextUrl !== coverImage;
+    coverIcon = next;
+    coverImage = nextUrl;
+    return changed;
+  }
+  setCoverState(el.dataset.coverIcon || '', el.dataset.coverUrl || '');
 
   return {
     ...data,
@@ -145,11 +162,14 @@ const AudioArchive = (() => {
      */
     /**
      * App-Symbol in der aktuellen Leistenfarbe (ab 0.16). Varianten:
-     * any-64, any-192, any-512, maskable-512, apple-180. Ohne Farbe das
+     * any-64, any-192, any-512, maskable-512, apple-180, cover<Zeichen>-512
+     * (ab 0.20, Ersatzbild ohne Cover). Ohne Farbe das
      * mitgelieferte blaue Symbol.
      */
     iconUrl(variant) {
       if (!iconColor) {
+        const cover = /^cover([a-z]+)-512$/.exec(variant);
+        if (cover) return this.asset('img/cover-' + cover[1] + '.png');
         return this.asset(variant === 'any-192' ? 'img/icon-192.png' : 'img/icon-512.png');
       }
       return new URL(data.scope + 'icon/' + iconColor + '/' + variant
@@ -164,6 +184,35 @@ const AudioArchive = (() => {
       if (!/^[0-9a-f]{6}$/.test(hex) || hex === iconColor) return false;
       iconColor = hex;
       return true;
+    },
+
+    /**
+     * Bild fuer Aufnahmen ohne Cover (ab 0.20): randlose Flaeche in der
+     * Leistenfarbe mit dem gewaehlten Zeichen, oder das eigene Bild der
+     * Freigabe. Ohne Farbe das mitgelieferte blaue Bild.
+     */
+    fallbackCoverUrl() {
+      if (coverIcon === 'custom' && coverImage) return coverImage;
+      if (!iconColor) return this.asset('img/cover-' + coverIcon + '.png');
+      return this.iconUrl('cover' + coverIcon + '-512');
+    },
+
+    /** Ist das Ersatzbild ein eigenes Bild der Freigabe (kein Zeichen)? */
+    customCover() {
+      return coverIcon === 'custom' && coverImage !== '';
+    },
+
+    /** Letzte Rueckfallstufe, wenn auch das farbige Bild nicht laedt. */
+    plainCoverUrl() {
+      return this.asset('img/cover-speaker.png');
+    },
+
+    /**
+     * Auswahl setzen (Look in app.js: eigene Ansicht bzw. geteilter
+     * Ordner). true, wenn sich etwas geaendert hat.
+     */
+    setCover(icon, url) {
+      return setCoverState(icon || '', url || '');
     },
 
     /** Nextclouds Hauptfarbe - Symbolfarbe bei Nextcloud-Gestaltung */

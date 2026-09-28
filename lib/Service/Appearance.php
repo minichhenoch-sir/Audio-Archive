@@ -270,7 +270,8 @@ class Appearance {
             // Andere Gestaltung als die eigene: das dazu passende Bild
             $look['backgroundUrl'] = $this->backgroundFor($uid, $look['design']);
         }
-        return $look;
+        // Bild fuer Aufnahmen ohne Cover (ab 0.20)
+        return $look + $this->shareCover($share, true);
     }
 
     /** Hintergrundbild eines Nutzers fuer eine bestimmte Gestaltung. */
@@ -335,6 +336,37 @@ class Appearance {
         }
 
         return ['design' => $design, 'style' => $resolved['style'], 'backgroundUrl' => $url];
+    }
+
+    /**
+     * Bild fuer Aufnahmen ohne Cover (ab 0.20). Nur Freigaben koennen es
+     * waehlen; eigene Ansicht und Administrator-Link zeigen immer die
+     * Vorgabe (Archiv-Liste mit Lautsprecher) in der Leistenfarbe.
+     *
+     * 'custom' ohne hochgeladenes Bild faellt ebenfalls auf die Vorgabe
+     * zurueck - etwa wenn das Bild entfernt wurde.
+     *
+     * @param bool $incoming Adresse fuer Empfaenger einer internen Freigabe
+     *                       (angemeldet, ohne Token) statt fuer den Link
+     * @return array{coverIcon: string, coverUrl: string}
+     */
+    public function shareCover(?array $share, bool $incoming = false): array {
+        $default = ['coverIcon' => AppIcon::DEFAULT_COVER, 'coverUrl' => ''];
+        $icon = $share !== null ? (string)($share['settings']['coverIcon'] ?? '') : '';
+        if ($icon === '') {
+            return $default;
+        }
+        if ($icon !== AppIcon::COVER_CUSTOM) {
+            return in_array($icon, AppIcon::COVER_ICONS, true) ? ['coverIcon' => $icon, 'coverUrl' => ''] : $default;
+        }
+        $key = BackgroundImage::shareCoverKey($share['id']);
+        if (!$this->backgroundImage->exists($key)) {
+            return $default;
+        }
+        $url = $incoming
+            ? $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.incomingCover', ['id' => $share['id']])
+            : $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.shareCover', ['token' => $share['token']]);
+        return ['coverIcon' => AppIcon::COVER_CUSTOM, 'coverUrl' => $url . '?v=' . $this->backgroundImage->version($key)];
     }
 
     /** Adresse des Administrator-Bildes, sofern es in dieser Gestaltung gilt. */

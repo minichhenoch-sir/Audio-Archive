@@ -17,6 +17,7 @@ use OCP\Files\SimpleFS\ISimpleFolder;
  *   - ADMIN:            vom Administrator, gilt als Vorgabe fuer alle
  *   - userKey($uid):    vom einzelnen Nutzer fuer seine eigene Ansicht
  *   - shareKey($id):    fuer eine einzelne Freigabe (ab 0.12)
+ *   - shareCoverKey($id): eigenes Bild fuer Aufnahmen ohne Cover (ab 0.20)
  * Welches Bild eine Seite tatsaechlich zeigt, entscheidet PlayerPage.
  *
  * Abgelegt wird im AppData-Bereich von Nextcloud, NICHT im App-Ordner.
@@ -58,6 +59,14 @@ class BackgroundImage {
     /** Schluessel fuer das Bild einer Freigabe. */
     public static function shareKey(int $shareId): string {
         return 'background-share-' . $shareId;
+    }
+
+    /**
+     * Schluessel fuer das eigene Cover-Ersatzbild einer Freigabe (ab 0.20).
+     * Gleiche Ablage und gleiche Pruefung wie die Hintergrundbilder.
+     */
+    public static function shareCoverKey(int $shareId): string {
+        return 'cover-share-' . $shareId;
     }
 
     public function store(string $tmpPath, int $size, string $key = self::ADMIN): string {

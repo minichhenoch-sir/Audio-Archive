@@ -48,6 +48,9 @@ return [
         ['name' => 'share#delete', 'url' => '/api/shares/{id}/delete', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         ['name' => 'share#uploadBackground', 'url' => '/api/shares/{id}/background', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         ['name' => 'share#removeBackground', 'url' => '/api/shares/{id}/background/remove', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        // Eigenes Bild fuer Aufnahmen ohne Cover (ab 0.20)
+        ['name' => 'share#uploadCover', 'url' => '/api/shares/{id}/coverimage', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
+        ['name' => 'share#removeCover', 'url' => '/api/shares/{id}/coverimage/remove', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         // Mit mir geteilte Ordner (interne Freigaben, ab 0.13)
         ['name' => 'share#incoming', 'url' => '/api/incoming', 'verb' => 'GET'],
         ['name' => 'share#setIncomingDesign', 'url' => '/api/incoming/{id}/design', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
@@ -57,6 +60,9 @@ return [
         ['name' => 'asset#incomingBackground', 'url' => '/background/incoming/{id}', 'verb' => 'GET', 'requirements' => ['id' => '\\d+']],
         // Bild einer Freigabe (oeffentlich, solange die Freigabe gilt)
         ['name' => 'asset#shareBackground', 'url' => '/background/share/{token}', 'verb' => 'GET'],
+        // Eigenes Cover-Ersatzbild einer Freigabe (ab 0.20), ebenso
+        ['name' => 'asset#shareCover', 'url' => '/coverimage/share/{token}', 'verb' => 'GET'],
+        ['name' => 'asset#incomingCover', 'url' => '/coverimage/incoming/{id}', 'verb' => 'GET', 'requirements' => ['id' => '\\d+']],
 
         // Persoenliche Einstellungen angemeldeter Nutzer
         ['name' => 'userSettings#get', 'url' => '/api/user/settings', 'verb' => 'GET'],

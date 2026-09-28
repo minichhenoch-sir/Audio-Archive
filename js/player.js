@@ -189,11 +189,13 @@ const Player = (() => {
   // Quelle: eingebettetes Bild der mp3, sonst cover.jpg o. ae. im Ordner -
   // das entscheidet der Server, die Ordnerliste meldet nur, OB es eins gibt
   // (track.cover = Versionskennung). Ohne Cover, oder wenn es nicht laedt
-  // (etwa offline und nicht gespeichert), erscheint das App-Symbol.
+  // (etwa offline und nicht gespeichert), erscheint ein Ersatzbild.
   // ------------------------------------------------------------------
-  // Ab 0.16 in der Leistenfarbe - deshalb eine Funktion statt fester Adresse
+  // Ab 0.16 in der Leistenfarbe, ab 0.20 als randlose Flaeche (vorher das
+  // abgerundete App-Symbol, dessen Schatten das Cover-Feld abschnitt) und
+  // je Freigabe waehlbar - deshalb eine Funktion statt fester Adresse
   function fallbackCover() {
-    return AudioArchive.iconUrl('any-512');
+    return AudioArchive.fallbackCoverUrl();
   }
 
   /** Adresse des Covers eines Titels, oder null ohne Cover. */
@@ -204,15 +206,20 @@ const Player = (() => {
   function showCover(track) {
     const url = coverUrlFor(track);
     els.bar.classList.toggle('has-cover', !!url);
-    // Kein Cover -> farbiges Symbol -> (falls auch das nicht laedt, etwa
-    // offline oder gedrosselt) das mitgelieferte blaue Symbol
+    // Mitgeliefertes Zeichen statt Cover: bekommt per CSS etwas Tiefe
+    // (leichter Verlauf), ein eigenes Bild der Freigabe nicht (ab 0.20)
+    els.bar.classList.toggle('cover-generated', !url && !AudioArchive.customCover());
+    // Kein Cover -> Ersatzbild (farbig bzw. eigenes Bild der Freigabe) ->
+    // (falls auch das nicht laedt, etwa offline oder gedrosselt) das
+    // mitgelieferte blaue Ersatzbild
     const colored = fallbackCover();
-    const plain = AudioArchive.asset('img/icon-512.png');
+    const plain = AudioArchive.plainCoverUrl();
     els.cover.onerror = () => {
       els.bar.classList.remove('has-cover');
       els.bar.style.removeProperty('--aa-cover');
       const next = els.cover.src === colored ? plain : colored;
       if (next === plain) els.cover.onerror = null;
+      els.bar.classList.toggle('cover-generated', next === plain || !AudioArchive.customCover());
       els.cover.src = next;
     };
     els.cover.src = url || colored;
@@ -227,16 +234,14 @@ const Player = (() => {
   function updateMediaSession(track) {
     if (!('mediaSession' in navigator)) return;
 
-    // Titelbild fuer den Sperrbildschirm: das Cover, sonst das App-Symbol.
+    // Titelbild fuer den Sperrbildschirm: das Cover, sonst dasselbe
+    // Ersatzbild wie im Player (ab 0.20; vorher das App-Symbol).
     // Immer absolute Adressen - relativ wuerden sie auf der oeffentlichen
     // Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
     const cover = coverUrlFor(track);
     const artwork = cover
       ? [{ src: cover, sizes: '512x512' }]
-      : [
-        { src: AudioArchive.iconUrl('any-192'), sizes: '192x192', type: 'image/png' },
-        { src: AudioArchive.iconUrl('any-512'), sizes: '512x512', type: 'image/png' },
-      ];
+      : [{ src: fallbackCover(), sizes: '512x512' }];
 
     try {
       navigator.mediaSession.metadata = new MediaMetadata({
@@ -2004,12 +2009,13 @@ const Player = (() => {
     },
 
     /**
-     * Symbolfarbe hat sich geaendert (Aussehen einer Freigabe, ab 0.16):
-     * Titel ohne eigenes Cover zeigen das Symbol in der neuen Farbe.
+     * Symbolfarbe (ab 0.16) oder Ersatzbild (ab 0.20) haben sich geaendert
+     * (Aussehen einer Freigabe): Titel ohne eigenes Cover zeigen das neue.
      */
     refreshIcon() {
       const track = playlist[currentIndex];
       if (!track || els.bar.hidden || coverUrlFor(track)) return;
+      els.bar.classList.toggle('cover-generated', !AudioArchive.customCover());
       els.cover.src = fallbackCover();
       updateMediaSession(track);
     },

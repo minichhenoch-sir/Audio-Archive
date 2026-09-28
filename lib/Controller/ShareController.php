@@ -234,12 +234,38 @@ class ShareController extends Controller {
             return $share;
         }
         $this->backgroundImage->remove(BackgroundImage::shareKey($share['id']));
+        $this->backgroundImage->remove(BackgroundImage::shareCoverKey($share['id']));
         $this->shares->delete($share);
         return new DataResponse(['deleted' => true]);
     }
 
     #[NoAdminRequired]
     public function uploadBackground(int $id): DataResponse {
+        return $this->storeImage($id, BackgroundImage::shareKey(...));
+    }
+
+    /**
+     * Eigenes Bild fuer Aufnahmen ohne Cover (ab 0.20). Gewaehlt wird es
+     * ueber die Einstellung coverIcon = 'custom'; das Hochladen allein
+     * aendert die Auswahl nicht.
+     */
+    #[NoAdminRequired]
+    public function uploadCover(int $id): DataResponse {
+        return $this->storeImage($id, BackgroundImage::shareCoverKey(...));
+    }
+
+    #[NoAdminRequired]
+    public function removeCover(int $id): DataResponse {
+        $share = $this->editable($id);
+        if (!is_array($share)) {
+            return $share;
+        }
+        $this->backgroundImage->remove(BackgroundImage::shareCoverKey($share['id']));
+        return new DataResponse(['share' => $this->present($share)]);
+    }
+
+    /** Hochgeladenes Bild einer Freigabe ablegen (Hintergrund oder Cover-Ersatz). */
+    private function storeImage(int $id, \Closure $keyFor): DataResponse {
         $share = $this->editable($id);
         if (!is_array($share)) {
             return $share;
@@ -253,7 +279,7 @@ class ShareController extends Controller {
         $error = $this->backgroundImage->store(
             (string)$file['tmp_name'],
             (int)$file['size'],
-            BackgroundImage::shareKey($share['id'])
+            $keyFor($share['id'])
         );
         if ($error !== '') {
             return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
@@ -306,7 +332,8 @@ class ShareController extends Controller {
                 // Hat der Teilende ueberhaupt ein eigenes Aussehen gewaehlt?
                 'hasLook' => $settings['design'] !== '' || $settings['themeAccent'] !== ''
                     || $settings['themeBar'] !== '' || $settings['themeBase'] !== ''
-                    || $settings['title'] !== '' || $settings['subtitle'] !== '' || $hasBackground,
+                    || $settings['title'] !== '' || $settings['subtitle'] !== '' || $hasBackground
+                    || $settings['coverIcon'] !== '',
                 'useShareDesign' => !in_array($share['id'], $own, true),
                 'look' => $this->appearance->incomingLook($share, $uid),
             ];
@@ -453,6 +480,18 @@ class ShareController extends Controller {
         return $timestamp;
     }
 
+    /** Adresse des eigenen Cover-Ersatzbildes, oder '' ohne Bild. */
+    private function coverImageUrl(array $share, bool $isLink): string {
+        $key = BackgroundImage::shareCoverKey($share['id']);
+        if (!$this->backgroundImage->exists($key)) {
+            return '';
+        }
+        $url = $isLink
+            ? $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.shareCover', ['token' => $share['token']])
+            : $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.incomingCover', ['id' => $share['id']]);
+        return $url . '?v=' . $this->backgroundImage->version($key);
+    }
+
     /** Darstellung fuer die Oberflaeche - ohne Passwort-Pruefwert. */
     private function present(array $share): array {
         $folder = $this->shares->rootFolder($share);
@@ -491,6 +530,9 @@ class ShareController extends Controller {
             'missing' => $folder === null,
             'settings' => $share['settings'],
             'hasBackground' => $this->backgroundImage->exists(BackgroundImage::shareKey($share['id'])),
+            'hasCoverImage' => $this->backgroundImage->exists(BackgroundImage::shareCoverKey($share['id'])),
+            // Vorschau des eigenen Cover-Ersatzbildes im Formular (ab 0.20)
+            'coverImageUrl' => $this->coverImageUrl($share, $isLink),
             'created' => $share['created'],
         ];
     }

@@ -2331,15 +2331,22 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   opacity: 0.6;
 }
 
-/* Ohne Cover steht das App-Symbol da - es hat eigene runde Ecken, der
-   Rahmen des Cover-Feldes wuerde sonst an den Ecken hervorschauen */
-#audioarchive .player-bar:not(.has-cover) .player-cover,
-#audioarchive.aa-design-nextcloud .player-bar:not(.has-cover) .player-cover {
-  background: transparent;
-  box-shadow: none;
-}
-#audioarchive .player-bar.is-expanded:not(.has-cover) .player-cover img {
-  filter: drop-shadow(0 14px 30px rgba(0, 0, 0, 0.4));
+/* Ohne Cover (ab 0.20): Das Ersatzbild ist eine randlose Flaeche in der
+   Leistenfarbe und verhaelt sich wie ein echtes Cover - Ecken und Schatten
+   kommen vom Cover-Feld. Bis 0.19 stand hier das abgerundete App-Symbol
+   mit eigenem drop-shadow; overflow: hidden schnitt den Schatten an den
+   Ecken ab (graue Ecken mit harter Kante).
+   Ein mitgeliefertes Zeichen bekommt einen leichten Verlauf darueber, damit
+   die Flaeche nicht mit einer Karte in derselben Leistenfarbe verschmilzt. */
+#audioarchive .player-bar.cover-generated .player-cover { position: relative; }
+#audioarchive .player-bar.cover-generated .player-cover::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 45%, rgba(0, 0, 0, 0.16));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+  pointer-events: none;
 }
 
 /* =====================================================================

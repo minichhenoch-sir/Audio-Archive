@@ -63,6 +63,10 @@ class ShareService {
         'style' => null,           // Werte fuer 'defined' (ab 0.17), sonst null
         'featureOffline' => true,
         'featureDownload' => false,
+        // Bild im Player fuer Aufnahmen ohne Cover (ab 0.20): '' = Vorgabe
+        // (Archiv-Liste mit Lautsprecher), sonst ein Schluessel aus
+        // AppIcon::COVER_ICONS oder 'custom' (eigenes hochgeladenes Bild)
+        'coverIcon' => '',
     ];
 
     public function __construct(
@@ -580,6 +584,9 @@ class ShareService {
         }
         foreach (['themeAccent', 'themeBar', 'themeBase'] as $color) {
             $out[$color] = self::normalizeColor($out[$color]);
+        }
+        if ($out['coverIcon'] !== AppIcon::COVER_CUSTOM && !in_array($out['coverIcon'], AppIcon::COVER_ICONS, true)) {
+            $out['coverIcon'] = '';
         }
         $out['title'] = mb_substr($out['title'], 0, 200);
         $out['subtitle'] = mb_substr($out['subtitle'], 0, 500);

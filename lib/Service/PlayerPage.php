@@ -162,6 +162,9 @@ class PlayerPage {
                 $barColor, 'any-192', false,
                 (string)$this->appManager->getAppVersion(Application::APP_ID)
             ),
+            // Bild fuer Aufnahmen ohne Cover (ab 0.20): Auswahl der Freigabe,
+            // sonst die Vorgabe (Archiv-Liste mit Lautsprecher)
+            ...$this->appearance->shareCover($share),
             'appleIconUrl' => $this->appIcon->url(
                 $barColor, 'apple-180', false,
                 (string)$this->appManager->getAppVersion(Application::APP_ID)

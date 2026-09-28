@@ -216,6 +216,32 @@ class AssetController extends Controller {
         return $this->imageResponse(BackgroundImage::shareKey($share['id']), false);
     }
 
+    /**
+     * Eigenes Cover-Ersatzbild einer Freigabe (ab 0.20). Oeffentlich wie
+     * das Hintergrundbild des Links, solange die Freigabe gilt.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function shareCover(string $token): Response {
+        $share = $this->shares->findActive($token);
+        if ($share === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        return $this->imageResponse(BackgroundImage::shareCoverKey($share['id']), false);
+    }
+
+    /** Dasselbe fuer Empfaenger einer internen Freigabe (ab 0.20). */
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function incomingCover(int $id): Response {
+        $uid = $this->userSession->getUser()?->getUID();
+        $share = $uid !== null ? $this->shares->findIncoming($id, $uid) : null;
+        if ($share === null) {
+            return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+        return $this->imageResponse(BackgroundImage::shareCoverKey($share['id']), false);
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function manifest(string $s = ''): DataDisplayResponse {

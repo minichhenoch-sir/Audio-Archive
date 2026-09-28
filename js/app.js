@@ -394,6 +394,10 @@
       themeBar: AudioArchive.themeBar,
       themeBase: AudioArchive.themeBase,
       backgroundUrl: AudioArchive.backgroundUrl || '',
+      // Bild fuer Aufnahmen ohne Cover (ab 0.20; waehlen koennen es nur
+      // Freigaben - die eigene Ansicht bekommt hier immer die Vorgabe)
+      coverIcon: AudioArchive.coverIcon,
+      coverUrl: AudioArchive.coverUrl,
     };
     let activeKey = 'base';
     let stylesheetsLoaded = AudioArchive.design === 'nextcloud' || AudioArchive.isEmbedded();
@@ -464,7 +468,9 @@
       let iconColor = look.themeBar || base.themeBar;
       if (look.design === 'nextcloud') iconColor = AudioArchive.ncPrimary();
       else if (style) iconColor = AAStyle.compute(style).themeColor;
-      updateAppIcon(iconColor);
+      // Ersatzbild vor der Farbe setzen - refreshIcon() zeigt dann beides
+      const coverChanged = AudioArchive.setCover(look.coverIcon, look.coverUrl);
+      if (!updateAppIcon(iconColor) && coverChanged) Player.refreshIcon();
     }
 
     // Vorschau beim Einstellen (Zahnrad): danach zurueck zum vorigen Stand
@@ -473,10 +479,11 @@
 
     /** App-Symbol (Browser-Tab, Player, Benachrichtigung) umfaerben, ab 0.16 */
     function updateAppIcon(color) {
-      if (!AudioArchive.setIconColor(color)) return;
+      if (!AudioArchive.setIconColor(color)) return false;
       const favicon = document.querySelector('link[rel="icon"]');
       if (favicon && !AudioArchive.isEmbedded()) favicon.href = AudioArchive.iconUrl('any-192');
       Player.refreshIcon();
+      return true;
     }
 
     return {
@@ -2885,6 +2892,110 @@
         look.appendChild(bgRow);
         syncBg();
       }
+
+      /*
+       * Bild fuer Aufnahmen ohne Cover (ab 0.20): eines der mitgelieferten
+       * Zeichen (randlos in der Leistenfarbe der Freigabe) oder ein eigenes
+       * Bild. "Standard" = Archiv-Liste mit Lautsprecher.
+       */
+      let chosenCover = st.coverIcon || '';
+      if (chosenCover === 'custom' && (isNew || !share.hasCoverImage)) chosenCover = '';
+      look.appendChild(el('span', 'panel-field-label', 'Bild bei Aufnahmen ohne Cover'));
+      const coverCards = el('div', 'aa-design-cards aa-cover-cards');
+      const coverName = 'share-cover-' + (isNew ? 'new' : share.id);
+      const coverInputs = {};
+      [
+        ['', 'Standard', 'speaker'],
+        ['badge', 'Lautsprecher rund', 'badge'],
+        ['box', 'Box', 'box'],
+        ['phones', 'Kopfhörer', 'phones'],
+        ['play', 'Abspielen', 'play'],
+        ['mic', 'Mikrofon', 'mic'],
+        ['custom', 'Eigenes Bild', ''],
+      ].forEach(([value, label, icon]) => {
+        const card = el('label', 'aa-design-card aa-cover-card');
+        const input = document.createElement('input');
+        input.type = 'radio';
+        input.name = coverName;
+        input.value = value;
+        input.checked = value === chosenCover;
+        input.addEventListener('change', () => { if (input.checked) chosenCover = value; });
+        coverInputs[value] = input;
+        const thumb = el('span', 'aa-cover-thumb');
+        const img = document.createElement('img');
+        img.alt = '';
+        img.decoding = 'async';
+        if (icon) img.src = AudioArchive.iconUrl('cover' + icon + '-512');
+        thumb.appendChild(img);
+        card.append(input, thumb, el('span', 'aa-design-card-name', label));
+        coverCards.appendChild(card);
+      });
+      look.appendChild(coverCards);
+      const coverState = el('p', 'panel-hint');
+      look.appendChild(coverState);
+      const customInput = coverInputs.custom;
+      const customImg = customInput.parentElement.querySelector('img');
+      const syncCustom = () => {
+        const has = !isNew && share.hasCoverImage && share.coverImageUrl;
+        customInput.disabled = !has;
+        customInput.parentElement.classList.toggle('is-empty', !has);
+        if (has) customImg.src = new URL(share.coverImageUrl, location.href).href;
+        else customImg.removeAttribute('src');
+      };
+      if (isNew) {
+        coverState.textContent = 'Die Farbe folgt der Gestaltung der Freigabe. Ein eigenes Bild lässt sich nach dem Anlegen hochladen.';
+      } else {
+        const coverRow = el('div', 'panel-row');
+        const coverPick = el('label', 'panel-button', 'Eigenes Bild wählen …');
+        const coverFile = document.createElement('input');
+        coverFile.type = 'file';
+        coverFile.accept = 'image/png,image/jpeg,image/webp';
+        coverFile.hidden = true;
+        coverPick.appendChild(coverFile);
+        const removeCover = button('Eigenes Bild entfernen', '', async () => {
+          try {
+            await request(AudioArchive.api('shares/' + share.id + '/coverimage/remove'), { method: 'POST' });
+            share.hasCoverImage = false;
+            share.coverImageUrl = '';
+            if (chosenCover === 'custom') {
+              chosenCover = '';
+              coverInputs[''].checked = true;
+            }
+            syncCoverRow();
+          } catch (err) { coverState.textContent = err.message; }
+        });
+        const syncCoverRow = () => {
+          removeCover.hidden = !share.hasCoverImage;
+          syncCustom();
+          coverState.textContent = share.hasCoverImage
+            ? 'Eigenes Bild vorhanden – quadratisch wirkt es am besten. Die Farbe der Zeichen folgt der Gestaltung der Freigabe.'
+            : 'Die Farbe folgt der Gestaltung der Freigabe. Eigenes Bild: PNG, JPEG oder WebP, am besten quadratisch.';
+        };
+        coverFile.addEventListener('change', async () => {
+          if (!coverFile.files[0]) return;
+          const form = new FormData();
+          form.append('file', coverFile.files[0]);
+          coverState.textContent = 'Lade hoch …';
+          try {
+            const data = await request(AudioArchive.api('shares/' + share.id + '/coverimage'), { method: 'POST', body: form });
+            share.hasCoverImage = true;
+            share.coverImageUrl = (data && data.share && data.share.coverImageUrl) || '';
+            syncCoverRow();
+            // Hochgeladen = gewuenscht: gleich auswaehlen, gilt mit "Speichern"
+            chosenCover = 'custom';
+            customInput.checked = true;
+            coverState.textContent = 'Bild hochgeladen – mit „Speichern“ wird es verwendet.';
+          } catch (err) {
+            coverState.textContent = err.message;
+          } finally {
+            coverFile.value = '';
+          }
+        });
+        coverRow.append(coverPick, removeCover);
+        look.appendChild(coverRow);
+        syncCoverRow();
+      }
+      if (isNew) syncCustom();
       panel.appendChild(look);
 
       const error = el('p', 'panel-error');
@@ -2906,6 +3017,7 @@
           themeBase: ownColors.input.checked ? colorInputs.themeBase.value : '',
           featureOffline: offline.input.checked,
           featureDownload: download.input.checked,
+          coverIcon: chosenCover,
         };
         if (isInternal && members.value().length === 0) {
           showError(error, 'Bitte mindestens eine Person oder Gruppe auswählen.');
