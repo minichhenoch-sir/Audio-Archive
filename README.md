@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.19.2)
+# Audio Archive – Nextcloud-App (0.19.3)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1108,3 +1108,27 @@ Die Versionsangabe („Audio Archive · Version …“) steht jetzt auch auf dem
 Anmelde-Bildschirm, dezent unter dem Anmeldefeld.
 
 Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
+
+---
+
+## 0.19.3: Autoradio – Spulen hört wieder auf, Länge sofort da
+
+Gefunden an einem Werksradio im VW T5 (Android 9, installierte App).
+
+- **Spulen am Radio:** Ein kurzer Druck auf „Spulen“ ließ die Wiedergabe
+  bisher immer weiter um 15 Sekunden springen, bis zum nächsten Titel. Das
+  Radio wiederholt den Befehl von sich aus. Jetzt zählen schnell
+  aufeinanderfolgende Spulbefehle als ein Druck: höchstens zwei Sprünge
+  (30 Sekunden), danach wird ignoriert, bis das Radio aufhört. Play, Pause,
+  Titelwechsel oder der Fortschrittsbalken beenden das sofort. Die Knöpfe in
+  der App selbst sind davon nicht betroffen.
+- **Gesamtlänge im Radio:** Die Länge wird jetzt schon beim Titelwechsel
+  zusammen mit dem Titel gemeldet, nicht erst nach dem Laden der Datei.
+  Vorher zeigte das Radio sie deshalb nur manchmal an.
+- **Fehlersuche:** Unter „Angaben“ (i) im großen Player steht jetzt die
+  Gruppe „Befehle von außen“ – die letzten Befehle von Radio,
+  Sperrbildschirm oder Kopfhörer mit Uhrzeit, Abstand und ob sie gebremst
+  wurden. Sie erscheint nur, wenn in den letzten zwei Stunden solche
+  Befehle kamen.
+
+Nur JavaScript geändert – kein Neustart des Containers nötig.

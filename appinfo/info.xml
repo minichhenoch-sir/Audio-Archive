@@ -12,7 +12,7 @@ Plays audio recordings from a folder in Nextcloud.
 * Can be installed on the home screen and used offline
 * Optional public access with a shared password, for listeners without an account
     ]]></description>
-    <version>0.19.2</version>
+    <version>0.19.3</version>
     <licence>agpl</licence>
     <author>Henoch Minich</author>
     <namespace>AudioArchive</namespace>

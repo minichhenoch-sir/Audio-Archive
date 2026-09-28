@@ -275,16 +275,127 @@ const Player = (() => {
     updatePositionState();
   }
 
+  /*
+   * Bremse gegen Dauerspulen (ab 0.19.3).
+   *
+   * Befund (Nutzer, 2026-09-28): Autoradio VW T5 (Werksradio), Android 9,
+   * installierte App offline. Kurz am Radio gespult - danach sprang die
+   * Wiedergabe immer weiter um 15 s, bis zum naechsten Titelwechsel.
+   * Die App springt je Befehl genau einmal; die Wiederholungen kommen also
+   * von aussen (Radio haelt "Spulen" gedrueckt bzw. wiederholt den Befehl).
+   * Eine Web-App bekommt nur einzelne 'seekforward'/'seekbackward' - kein
+   * "Taste gedrueckt/losgelassen" - und kann das Spulen des Radios deshalb
+   * nicht sauber beenden.
+   *
+   * Deshalb: Befehle gleicher Richtung, zwischen denen weniger als
+   * SERIES_GAP liegt, gelten als EINE Serie. Pro Serie hoechstens
+   * SERIES_MAX_JUMPS Spruenge, und zwischen zwei Spruengen mindestens
+   * SERIES_MIN_INTERVAL. Alles darueber wird ignoriert, solange die
+   * Wiederholungen weiterlaufen. Jeder andere Befehl (Play, Pause, Titel,
+   * Balken) und jeder Titelwechsel beendet die Serie. Die Knoepfe IN der
+   * App sind davon nicht betroffen.
+   */
+  const SERIES_GAP = 2500;          // ms Pause, ab der ein neuer Druck zaehlt
+  const SERIES_MAX_JUMPS = 2;       // hoechstens 2 x 15 s je Serie
+  const SERIES_MIN_INTERVAL = 1000; // ms zwischen zwei Spruengen einer Serie
+
+  let seekSeries = null; // { dir, lastAt, jumpAt, jumps }
+
+  function endSeekSeries() {
+    seekSeries = null;
+  }
+
+  /** Spulbefehl von aussen; liefert true, wenn gesprungen wurde. */
+  function externalSeek(dir, seconds) {
+    const now = Date.now();
+    const s = seekSeries;
+    if (!s || s.dir !== dir || now - s.lastAt >= SERIES_GAP) {
+      seekSeries = { dir, lastAt: now, jumpAt: now, jumps: 1 };
+      seekBy(dir * seconds);
+      return true;
+    }
+    // Serie laeuft: auch ignorierte Wiederholungen halten sie am Leben
+    s.lastAt = now;
+    if (s.jumps >= SERIES_MAX_JUMPS || now - s.jumpAt < SERIES_MIN_INTERVAL) return false;
+    s.jumps += 1;
+    s.jumpAt = now;
+    seekBy(dir * seconds);
+    return true;
+  }
+
+  /*
+   * Protokoll der Befehle von aussen (ab 0.19.3) - fuer die Fehlersuche im
+   * Auto. Sichtbar im Vollbild-Player unter "Angaben" (i), Gruppe "Befehle
+   * von aussen". Zeigt Uhrzeit, Abstand zum vorigen Befehl und ob er
+   * ausgefuehrt oder gebremst wurde. Bleibt ueber einen Neustart der App
+   * erhalten (localStorage, nur die letzten Eintraege).
+   */
+  const MEDIA_LOG_KEY = 'audioarchive_media_log';
+  const MEDIA_LOG_MAX = 40;
+  const MEDIA_LOG_SHOW = 15;
+  const MEDIA_LOG_AGE = 2 * 60 * 60 * 1000; // aelter als 2 h: nicht mehr zeigen
+  const ACTION_LABELS = {
+    play: 'Play',
+    pause: 'Pause',
+    previoustrack: 'Titel zurück',
+    nexttrack: 'Titel vor',
+    seekbackward: 'Zurückspulen',
+    seekforward: 'Vorspulen',
+    seekto: 'Balken',
+    stop: 'Stopp',
+  };
+
+  let mediaLog = [];
+  try {
+    const stored = JSON.parse(localStorage.getItem(MEDIA_LOG_KEY) || '[]');
+    if (Array.isArray(stored)) mediaLog = stored.slice(-MEDIA_LOG_MAX);
+  } catch (e) { /* ohne Speicher: nur fuer diese Sitzung */ }
+
+  function logMediaAction(action, executed) {
+    mediaLog.push({ t: Date.now(), a: action, ok: executed });
+    if (mediaLog.length > MEDIA_LOG_MAX) mediaLog = mediaLog.slice(-MEDIA_LOG_MAX);
+    try {
+      localStorage.setItem(MEDIA_LOG_KEY, JSON.stringify(mediaLog));
+    } catch (e) { /* nicht kritisch */ }
+  }
+
+  /** Zeilen fuer die Angaben: neueste zuerst. */
+  function mediaLogRows() {
+    const since = Date.now() - MEDIA_LOG_AGE;
+    const recent = mediaLog.filter((e) => e.t >= since);
+    const rows = [];
+    for (let i = recent.length - 1; i >= 0 && rows.length < MEDIA_LOG_SHOW; i--) {
+      const e = recent[i];
+      const d = new Date(e.t);
+      const time = d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        + ',' + String(d.getMilliseconds()).padStart(3, '0').slice(0, 1);
+      const gap = i > 0 ? ((e.t - recent[i - 1].t) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' s danach' : '';
+      const label = ACTION_LABELS[e.a] || e.a;
+      rows.push([time, [label, e.ok ? '' : 'gebremst', gap].filter(Boolean).join(' · ')]);
+    }
+    return rows;
+  }
+
   function registerMediaActions() {
     if (!('mediaSession' in navigator)) return;
+    // Jeder andere Befehl beendet eine laufende Spul-Serie
+    const other = (action, fn) => (details) => {
+      endSeekSeries();
+      logMediaAction(action, true);
+      fn(details);
+    };
+    const seek = (action, dir) => (details) => {
+      const executed = externalSeek(dir, (details && details.seekOffset) || SEEK_STEP);
+      logMediaAction(action, executed);
+    };
     const actions = {
-      play: () => Player.resume(),
-      pause: () => Player.pause(),
-      previoustrack: () => Player.prev(),
-      nexttrack: () => Player.next(),
-      seekbackward: (details) => seekBy(-((details && details.seekOffset) || SEEK_STEP)),
-      seekforward: (details) => seekBy((details && details.seekOffset) || SEEK_STEP),
-      seekto: (details) => {
+      play: other('play', () => Player.resume()),
+      pause: other('pause', () => Player.pause()),
+      previoustrack: other('previoustrack', () => Player.prev()),
+      nexttrack: other('nexttrack', () => Player.next()),
+      seekbackward: seek('seekbackward', -1),
+      seekforward: seek('seekforward', 1),
+      seekto: other('seekto', (details) => {
         if (!details || !isFinite(details.seekTime)) return;
         const duration = isFinite(audio.duration) ? audio.duration : Infinity;
         const target = Math.min(Math.max(0, details.seekTime), Math.max(0, duration - 0.25));
@@ -294,12 +405,12 @@ const Player = (() => {
           audio.currentTime = target;
         }
         updatePositionState();
-      },
-      stop: () => {
+      }),
+      stop: other('stop', () => {
         audio.pause();
         audio.currentTime = 0;
         updatePositionState();
-      },
+      }),
     };
     Object.keys(actions).forEach((action) => {
       try {
@@ -358,6 +469,39 @@ const Player = (() => {
           // Nicht kritisch - dann ohne Fortschritt
         }
       }
+    }
+  }
+
+  /*
+   * Laufzeit sofort beim Titelwechsel melden (ab 0.19.3).
+   *
+   * Befund (Nutzer, 2026-09-28): Das Autoradio (VW T5, Android 9) zeigte
+   * die Gesamtlaenge beim naechsten Titel mal an, mal nicht. Die Titel-
+   * angaben (MediaMetadata) koennen keine Laenge tragen - Chrome nimmt sie
+   * aus setPositionState(). Die kam bisher erst mit 'loadedmetadata', also
+   * nach Titel und Cover. Autoradios fragen die Angaben meist nur einmal,
+   * direkt nach "Titel gewechselt", ab - je nachdem, was schneller war,
+   * fehlte die Laenge. Bis dahin galt ausserdem noch die Laenge des
+   * VORIGEN Titels.
+   *
+   * Die Liste vom Server (und offline die gespeicherte Liste) kennt die
+   * Laenge schon (Feld 'duration'). Sie wird hier gemeldet, bevor die
+   * Titelangaben gesetzt werden. Sobald die Datei geladen ist, ersetzt
+   * updatePositionState() sie durch die Laenge laut Browser. Ist keine
+   * bekannt, wird die alte Angabe geloescht statt stehen gelassen.
+   */
+  function announceTrackDuration(track) {
+    if (!('mediaSession' in navigator) || !('setPositionState' in navigator.mediaSession)) return;
+    const known = Number(track && track.duration);
+    reportedAt = 0; // Abweichungspruefung erst nach der echten Meldung
+    try {
+      if (isFinite(known) && known > 0) {
+        navigator.mediaSession.setPositionState({ duration: known, playbackRate: 1, position: 0 });
+      } else {
+        navigator.mediaSession.setPositionState();
+      }
+    } catch (e) {
+      // Nicht kritisch - dann wie bisher erst nach dem Laden
     }
   }
 
@@ -564,6 +708,10 @@ const Player = (() => {
     updateMarquees();
     updatePlayerBarSpace();
 
+    // Titelwechsel beendet eine laufende Spul-Serie des Autoradios (ab 0.19.3)
+    endSeekSeries();
+    // Laufzeit VOR den Titelangaben melden (ab 0.19.3) - siehe dort
+    announceTrackDuration(track);
     updateMediaSession(track);
     startPrefetch(index);
     if (!els.details.hidden) loadDetails();
@@ -864,6 +1012,8 @@ const Player = (() => {
         ['Größe', formatSize(f.size !== undefined ? f.size : track.size)],
         ['Geändert', f.mtime ? new Date(f.mtime * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''],
       ]],
+      // Nur sichtbar, wenn in den letzten 2 h Befehle von aussen kamen (ab 0.19.3)
+      ['Befehle von außen', mediaLogRows()],
     ];
 
     els.details.textContent = '';
