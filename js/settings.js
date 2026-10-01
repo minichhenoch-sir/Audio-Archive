@@ -470,18 +470,21 @@
       note.className = 'aa-share-note';
       note.textContent = (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsamer Ordner: ')
         + (share.path || '/')
+        + (share.via ? ' – weitergeteilt aus einer Freigabe von ' + (share.via.creatorName || share.via.creator) : '')
         + (share.missing ? ' – Ordner nicht mehr vorhanden' : '')
         + (share.expired ? ' – abgelaufen' : '');
       folderCell.appendChild(note);
 
       const creatorCell = document.createElement('td');
-      creatorCell.textContent = share.creator;
+      creatorCell.textContent = share.creatorName || share.creator;
       const passwordCell = document.createElement('td');
       if (share.kind === 'internal') {
-        passwordCell.textContent = 'Personen: ' + ((share.members || [])
-          .map((m) => (m.type === 'group' ? 'Gruppe ' : '') + m.label).join(', ') || '–');
+        // Person oder Gruppe erkennbar (ab 0.26.0, Vikunja #8)
+        passwordCell.textContent = ((share.members || [])
+          .map((m) => (m.type === 'group' ? '👥 Gruppe ' : '👤 ') + m.label).join(', ') || '–')
+          + (share.settings.allowReshare ? ' · dürfen weiterteilen' : '');
       } else {
-        passwordCell.textContent = 'Link' + (share.slug ? ' „' + share.slug + '“' : '')
+        passwordCell.textContent = '🔗 Link' + (share.slug ? ' „' + share.slug + '“' : '')
           + (share.hasPassword ? ', mit Passwort' : ', ohne Passwort');
       }
       const expiresCell = document.createElement('td');

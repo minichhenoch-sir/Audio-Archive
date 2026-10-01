@@ -88,13 +88,13 @@
     <p class="settings-hint">
         Zwei Arten: öffentliche Links (auch mit Wunschnamen) und Freigaben an
         Nextcloud-Nutzer und -Gruppen, die nur in dieser App unter „Mit mir
-        geteilt" erscheinen. Jede Freigabe hat eigene Einstellungen (Ablauf,
+        geteilt“ erscheinen. Jede Freigabe hat eigene Einstellungen (Ablauf,
         Aussehen, Funktionen). Abschalten sperrt nur das Anlegen neuer
         Freigaben. Bestehende bleiben gültig, bis sie hier gelöscht werden.
     </p>
     <table class="aa-shares" id="aa-shares" hidden>
         <thead>
-            <tr><th>Ordner</th><th>Angelegt von</th><th>Art / Zugang</th><th>Ablauf</th><th></th></tr>
+            <tr><th>Ordner</th><th>Angelegt von</th><th>Geteilt mit</th><th>Ablauf</th><th></th></tr>
         </thead>
         <tbody></tbody>
     </table>

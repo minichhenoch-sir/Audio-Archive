@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.25.1)
+# Audio Archive – Nextcloud-App (0.26.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1377,3 +1377,33 @@ Container neu starten; keine Datenbankänderung.
 PHP, JavaScript, Vorlagen und `info.xml` geändert; **neue Tabelle**
 `audioarchive_meta` (wird beim Aktualisieren automatisch angelegt, bestehende
 Daten bleiben unverändert). Nach dem Einspielen Container neu starten.
+
+---
+
+## 0.26.0: Weiterteilen, Empfänger erkennbar, persönliche Einstellungen
+
+Erster Teil von Vikunja #8 (mehrere Quellordner und Links).
+
+- **Schalter „Empfänger dürfen weiterteilen“** bei Freigaben an Personen und
+  Gruppen (Vorgabe: aus). Ist er an, sehen die Empfänger in „Mit mir
+  geteilt“ den Teilen-Knopf und können den Ordner (oder Unterordner) an
+  Personen, Gruppen oder per Link weitergeben. Wer über einen Link zuhört,
+  hat kein Konto und kann **nie** weiterteilen.
+- Weitergeteilte Freigaben merken sich ihren Ursprung (`viaShare` in den
+  Einstellungen der Freigabe). Sie gelten nur, solange die Ursprungsfreigabe
+  besteht, gültig ist, Weiterteilen erlaubt und der Weitergebende dort noch
+  Empfänger ist – sonst sind sie sofort ungültig (Link: „nicht gefunden“).
+  Höchstens fünf Stufen.
+- **Empfänger erkennbar:** in der App, in der Verwaltung und in den
+  persönlichen Einstellungen steht „👤 Name“ bzw. „👥 Gruppe Name“ bzw.
+  „🔗 Link“, dazu „dürfen weiterteilen“ und ggf. „weitergeteilt aus einer
+  Freigabe von …“.
+- **Einstellungen → Persönlich → Audio Archive:** Liste der eigenen
+  Freigaben mit Empfängern und Ablauf; Link kopieren, löschen, „In der App
+  bearbeiten“ (öffnet die App direkt im Formular dieser Freigabe,
+  `#share=<id>`), „+ Neue Freigabe in der App“.
+
+PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert (neuer Abschnitt in
+den persönlichen Einstellungen). Keine Datenbankänderung – die neuen Angaben
+liegen in den vorhandenen Einstellungen der Freigabe. Nach dem Einspielen
+Container neu starten.

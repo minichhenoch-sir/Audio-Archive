@@ -626,6 +626,12 @@
     loadLibrary('', view.source);
     Tree.init();
     if (resumeApi) resumeApi.show();
+    // Sprung aus den persoenlichen Einstellungen: #share=<id> (ab 0.26.0)
+    const jump = /^#share=(\d{1,18})$/.exec(location.hash);
+    if (jump && AudioArchive.loggedIn && !AudioArchive.isPublic() && !offlineMode) {
+      history.replaceState({ view }, '', location.pathname + location.search);
+      Shares.openById(Number(jump[1]));
+    }
   }
 
   // ------------------------------------------------------------------
@@ -3299,10 +3305,12 @@
     function describe(share) {
       const parts = [];
       if (share.kind === 'internal') {
-        parts.push(share.members.map((m) => (m.type === 'group' ? 'Gruppe ' : '') + m.label).join(', ') || 'niemand');
+        parts.push(AudioArchive.describeMembers(share.members));
+        if (share.settings.allowReshare) parts.push('dürfen weiterteilen');
       } else {
-        parts.push(share.hasPassword ? 'mit Passwort' : 'ohne Passwort');
+        parts.push('🔗 Link ' + (share.hasPassword ? 'mit Passwort' : 'ohne Passwort'));
       }
+      if (share.via && share.via.creatorName) parts.push('weitergeteilt aus einer Freigabe von ' + share.via.creatorName);
       parts.push(share.expires ? 'gültig bis ' + formatDate(share.expires) : 'unbegrenzt');
       if (share.expired) parts.push('ABGELAUFEN');
       if (share.missing) parts.push('ORDNER FEHLT');
@@ -3509,7 +3517,7 @@
         members = memberPicker(isNew ? [] : share.members);
         access.appendChild(members.wrap);
         access.appendChild(el('p', 'panel-hint',
-          'Sichtbar nur in dieser App, nicht in der Dateien-App. Weiterteilen können die Personen nicht.'));
+          'Sichtbar nur in dieser App, nicht in der Dateien-App.'));
       } else {
         // Wunschname
         slug = textInput(isNew ? '' : share.slug, 'z. B. vortraege-2026');
@@ -3555,6 +3563,15 @@
       // Unterordner als ZIP (ab 0.25.0) - die oberste Ebene der Freigabe nie
       const folderDownload = checkbox('Unterordner als ZIP herunterladen erlauben', isNew ? false : st.featureFolderDownload === true);
       functions.append(offline.wrap, download.wrap, folderDownload.wrap);
+      // Weiterteilen (ab 0.26.0, Vikunja #8) - nur bei Personen und Gruppen;
+      // wer ueber einen Link zuhoert, hat kein Konto und kann nie weiterteilen
+      let reshare = null;
+      if (isInternal) {
+        reshare = checkbox('Empfänger dürfen weiterteilen', isNew ? false : st.allowReshare === true);
+        functions.append(reshare.wrap, el('p', 'panel-hint',
+          'Dann können die Personen den Ordner selbst mit anderen teilen – an Personen, Gruppen oder per Link. '
+          + 'Wer nur über einen Link zuhört, kann nie weiterteilen. Wird der Schalter ausgeschaltet, gelten auch ihre Freigaben nicht mehr.'));
+      }
       panel.appendChild(functions);
 
       // Aussehen
@@ -3846,6 +3863,7 @@
           featureOffline: offline.input.checked,
           featureDownload: download.input.checked,
           featureFolderDownload: folderDownload.input.checked,
+          allowReshare: reshare ? reshare.input.checked : false,
           coverIcon: chosenCover,
         };
         if (isInternal && members.value().length === 0) {
@@ -3918,8 +3936,10 @@
         }
         // Die eigenen Dateien als Ganzes lassen sich nicht teilen, mit mir
         // geteilte Ordner nicht weiterteilen
+        // Ab 0.26.0: mit mir geteilte Ordner, wenn die Freigabe Weiterteilen erlaubt
+        const incoming = Incoming.get(view.source);
         const shareable = !offlineMode && !(view.source === 'home' && view.path === '')
-          && !AudioArchive.isIncoming(view.source);
+          && (!AudioArchive.isIncoming(view.source) || (incoming !== null && incoming.allowReshare === true));
         shareBtn.hidden = !shareable;
         actions.hidden = !shareable && !zipOk;
 
@@ -3937,16 +3957,30 @@
 
       /** Aus "Meine Freigaben": zum Ordner wechseln und die Freigabe oeffnen. */
       openFromList(share) {
-        const source = share.source === 'home' ? 'home' : 'shared';
+        // Weitergeteilt (ab 0.26.0): der Ordner liegt unter "Mit mir geteilt"
+        const source = share.via ? 'in:' + share.via.id : (share.source === 'home' ? 'home' : 'shared');
+        const path = share.via ? share.via.path : share.path;
         if (share.missing) {
-          window.alert('Der Ordner dieser Freigabe existiert nicht mehr. Die Freigabe lässt sich in den Einstellungen der Verwaltung löschen.');
+          window.alert(share.via
+            ? 'Diese Freigabe gilt nicht mehr: Der Ordner ist nicht mehr mit dir geteilt oder Weiterteilen ist nicht mehr erlaubt. Du kannst sie unter Einstellungen → Persönlich → Audio Archive löschen.'
+            : 'Der Ordner dieser Freigabe existiert nicht mehr. Du kannst sie unter Einstellungen → Persönlich → Audio Archive löschen.');
           return;
         }
         pendingShareId = share.id;
-        if (view.source === source && view.path === share.path) {
+        if (view.source === source && view.path === path) {
           Shares.onFolderLoaded();
         } else {
-          navigate(share.path, source);
+          navigate(path, source);
+        }
+      },
+
+      /** Sprung aus den persoenlichen Einstellungen (#share=<id>, ab 0.26.0). */
+      async openById(id) {
+        try {
+          const share = (await fetchOwn()).find((s) => s.id === id);
+          if (share) this.openFromList(share);
+        } catch (err) {
+          // nicht erreichbar: dann eben die normale Ansicht
         }
       },
     };

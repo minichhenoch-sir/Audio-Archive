@@ -260,6 +260,15 @@ const AudioArchive = (() => {
     },
 
     /** Ist die Quelle ein mit dem Nutzer geteilter Ordner ('in:<id>')? */
+    /**
+     * Empfaenger einer Freigabe lesbar: "👤 Anna Beispiel, 👥 Gruppe Chor"
+     * (ab 0.26.0, Vikunja #8: Person oder Gruppe muss erkennbar sein).
+     */
+    describeMembers(members) {
+      const list = (members || []).map((m) => (m.type === 'group' ? '👥 Gruppe ' : '👤 ') + m.label);
+      return list.length ? list.join(', ') : 'niemand';
+    },
+
     isIncoming(source) {
       return /^in:\d+$/.test(source || '');
     },

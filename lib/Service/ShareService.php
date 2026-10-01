@@ -69,7 +69,18 @@ class ShareService {
         // (Archiv-Liste mit Lautsprecher), sonst ein Schluessel aus
         // AppIcon::COVER_ICONS oder 'custom' (eigenes hochgeladenes Bild)
         'coverIcon' => '',
+        // Interne Freigaben (ab 0.26.0, Vikunja #8): Empfaenger duerfen den
+        // Ordner weiterteilen. Wer ueber einen Link zuhoert, hat kein Konto
+        // und kann nie weiterteilen.
+        'allowReshare' => false,
+        // Weitergeteilt aus dieser internen Freigabe (Kennung), 0 = nein.
+        // Wird nur vom Server gesetzt; gilt nur, solange die Ursprungs-
+        // freigabe besteht und das Weiterteilen erlaubt.
+        'viaShare' => 0,
     ];
+
+    /** Wie tief Weitergeteiltes hoechstens verkettet sein darf. */
+    private const MAX_RESHARE_DEPTH = 5;
 
     public function __construct(
         private IDBConnection $db,
@@ -244,8 +255,15 @@ class ShareService {
         return $share['expires'] !== null && $share['expires'] < time();
     }
 
-    /** Der freigegebene Ordner, oder null wenn er nicht mehr existiert. */
-    public function rootFolder(array $share): ?Folder {
+    /**
+     * Der freigegebene Ordner, oder null wenn er nicht mehr existiert - oder
+     * wenn die Freigabe weitergeteilt wurde und die Ursprungsfreigabe das
+     * nicht (mehr) erlaubt (ab 0.26.0).
+     */
+    public function rootFolder(array $share, int $depth = 0): ?Folder {
+        if (!$this->resharePermitted($share, $depth)) {
+            return null;
+        }
         try {
             $userFolder = $this->rootFolder->getUserFolder($share['owner']);
             $nodes = $userFolder->getById($share['fileId']);
@@ -258,6 +276,39 @@ class ShareService {
             }
         }
         return null;
+    }
+
+    /**
+     * Gilt eine weitergeteilte Freigabe noch? Die Ursprungsfreigabe muss
+     * bestehen, gueltig sein, Weiterteilen erlauben, und wer weitergeteilt
+     * hat, muss dort noch Empfaenger sein. Freigaben ohne Ursprung: immer.
+     */
+    private function resharePermitted(array $share, int $depth): bool {
+        $parentId = (int)($share['settings']['viaShare'] ?? 0);
+        if ($parentId <= 0) {
+            return true;
+        }
+        if ($depth >= self::MAX_RESHARE_DEPTH) {
+            return false;
+        }
+        $parent = $this->findById($parentId);
+        if ($parent === null || $parent['kind'] !== Application::SHARE_KIND_INTERNAL
+            || $this->isExpired($parent) || !$parent['settings']['allowReshare']) {
+            return false;
+        }
+        if ($parent['creator'] !== $share['creator'] && !$this->isMember($parent, $share['creator'])) {
+            return false;
+        }
+        return $this->rootFolder($parent, $depth + 1) !== null;
+    }
+
+    /**
+     * Weiterteilen erlaubt? Eine interne Freigabe an diesen Nutzer mit
+     * eingeschaltetem Schalter (ab 0.26.0). Sonst null.
+     */
+    public function findResharable(int $id, string $uid): ?array {
+        $share = $this->findIncoming($id, $uid);
+        return ($share !== null && $share['settings']['allowReshare']) ? $share : null;
     }
 
     // ------------------------------------------------------------------
@@ -590,6 +641,8 @@ class ShareService {
             $value = $input[$key];
             if ($key === 'style') {
                 $out[$key] = is_array($value) ? StyleTokens::normalize($value) : null;
+            } elseif (is_int($default)) {
+                $out[$key] = max(0, (int)$value);
             } elseif (is_bool($default)) {
                 $out[$key] = (bool)$value;
             } else {

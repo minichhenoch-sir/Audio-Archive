@@ -119,26 +119,43 @@ class ShareController extends Controller {
         }
 
         $kind = $kind === Application::SHARE_KIND_INTERNAL ? Application::SHARE_KIND_INTERNAL : Application::SHARE_KIND_LINK;
-        if (str_starts_with($source, 'in:')) {
-            // Mit einem geteilte Ordner darf nur weiterteilen, wer sie freigegeben hat
-            return new DataResponse(
-                ['error' => 'Mit dir geteilte Ordner lassen sich nicht weiterteilen.'],
-                Http::STATUS_FORBIDDEN
-            );
-        }
-        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
         $path = trim($path, '/');
 
-        if ($source === AudioFolder::SOURCE_HOME && $path === '') {
-            return new DataResponse(
-                ['error' => 'Die gesamten eigenen Dateien lassen sich nicht teilen – bitte einen Ordner wählen.'],
-                Http::STATUS_BAD_REQUEST
-            );
+        // Weiterteilen eines mit mir geteilten Ordners (ab 0.26.0): nur, wenn
+        // die Freigabe es erlaubt. Die neue Freigabe zeigt auf denselben
+        // Ordner beim Besitzer und merkt sich ihren Ursprung.
+        $parent = null;
+        $incomingId = \OCA\AudioArchive\Service\ContentScope::incomingId($source);
+        if ($incomingId !== null) {
+            $parent = $this->shares->findResharable($incomingId, $uid);
+            if ($parent === null) {
+                return new DataResponse(
+                    ['error' => 'Diesen Ordner darfst du nicht weiterteilen – das hat die Person, die ihn mit dir geteilt hat, nicht erlaubt.'],
+                    Http::STATUS_FORBIDDEN
+                );
+            }
+            $folder = $this->folderFor($source, $path);
+            $source = $parent['source'];
+            $path = trim($parent['path'] . '/' . $path, '/');
+            $owner = $parent['owner'];
+            $settings['viaShare'] = $parent['id'];
+        } else {
+            $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+            if ($source === AudioFolder::SOURCE_HOME && $path === '') {
+                return new DataResponse(
+                    ['error' => 'Die gesamten eigenen Dateien lassen sich nicht teilen – bitte einen Ordner wählen.'],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+            $folder = $this->folderFor($source, $path);
+            $owner = $source === AudioFolder::SOURCE_HOME ? $uid : $this->audioFolder->sharedOwner();
+            $settings['viaShare'] = 0;
         }
-
-        $folder = $this->folderFor($source, $path);
         if ($folder === null) {
             return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+        if ($kind === Application::SHARE_KIND_LINK) {
+            $settings['allowReshare'] = false;
         }
 
         $expiresAt = $this->parseExpires($expires);
@@ -163,7 +180,6 @@ class ShareController extends Controller {
             }
         }
 
-        $owner = $source === AudioFolder::SOURCE_HOME ? $uid : $this->audioFolder->sharedOwner();
         $share = $this->shares->create($kind, $uid, $owner, $folder, $source, $path, $settings,
             $kind === Application::SHARE_KIND_LINK ? $password : '', $expiresAt, $token);
 
@@ -219,6 +235,12 @@ class ShareController extends Controller {
                 return new DataResponse(['error' => 'Bitte mindestens eine Person oder Gruppe auswählen.'], Http::STATUS_BAD_REQUEST);
             }
             $this->shares->setMembers($share['id'], $memberList);
+        }
+
+        // Herkunft bleibt, wie sie ist; Links koennen nie weitergeteilt werden
+        $settings['viaShare'] = $share['settings']['viaShare'];
+        if ($share['kind'] === Application::SHARE_KIND_LINK) {
+            $settings['allowReshare'] = false;
         }
 
         $newPassword = $removePassword ? '' : (($password === null || $password === '') ? null : $password);
@@ -336,6 +358,8 @@ class ShareController extends Controller {
                     || $settings['coverIcon'] !== '',
                 'useShareDesign' => !in_array($share['id'], $own, true),
                 'look' => $this->appearance->incomingLook($share, $uid),
+                // Darf der Empfaenger weiterteilen? (ab 0.26.0)
+                'allowReshare' => $settings['allowReshare'] && $this->shares->sharingAllowed(),
             ];
         }
 
@@ -451,6 +475,17 @@ class ShareController extends Controller {
 
     /** Ordner einer Quelle, den der Aufrufer in der App sehen darf. */
     private function folderFor(string $source, string $path): ?Folder {
+        $incomingId = \OCA\AudioArchive\Service\ContentScope::incomingId($source);
+        if ($incomingId !== null) {
+            $uid = $this->uid();
+            $share = $uid !== null ? $this->shares->findIncoming($incomingId, $uid) : null;
+            $root = $share !== null ? $this->shares->rootFolder($share) : null;
+            if ($root === null) {
+                return null;
+            }
+            $node = $this->audioFolder->resolveIn($root, trim($path, '/'));
+            return $node instanceof Folder ? $node : null;
+        }
         $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
         $root = $this->audioFolder->rootFor($source);
         if ($root === null) {
@@ -510,9 +545,31 @@ class ShareController extends Controller {
             }
         }
 
+        // Weitergeteilt (ab 0.26.0): Ursprung und Pfad darin, damit die App
+        // den Ordner unter "Mit mir geteilt" oeffnen kann
+        $via = null;
+        $viaId = (int)$share['settings']['viaShare'];
+        if ($viaId > 0) {
+            $parent = $this->shares->findById($viaId);
+            $relative = '';
+            if ($parent !== null) {
+                $base = trim($parent['path'], '/');
+                $own = trim($share['path'], '/');
+                $relative = $base === '' ? $own : (str_starts_with($own . '/', $base . '/') ? ltrim(substr($own, strlen($base)), '/') : '');
+            }
+            $via = [
+                'id' => $viaId,
+                'path' => $relative,
+                'creator' => $parent['creator'] ?? '',
+                'creatorName' => $parent !== null ? ($this->userManager->getDisplayName($parent['creator']) ?? $parent['creator']) : '',
+            ];
+        }
+
         return [
             'id' => $share['id'],
             'kind' => $share['kind'],
+            'via' => $via,
+            'creatorName' => $this->userManager->getDisplayName($share['creator']) ?? $share['creator'],
             // Interne Freigaben haben keinen Link - der Token bleibt geheim
             'token' => $isLink ? $share['token'] : '',
             'slug' => ($isLink && preg_match(ShareService::SLUG_PATTERN, $share['token'])) ? $share['token'] : '',

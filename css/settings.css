@@ -159,3 +159,14 @@
   height: 100%;
   object-fit: cover;
 }
+
+/* Persoenliche Einstellungen (ab 0.26.0) */
+#audioarchive-settings .aa-shares .aa-share-actions {
+    white-space: nowrap;
+}
+#audioarchive-settings .aa-shares .aa-share-actions > * {
+    margin: 2px 6px 2px 0;
+}
+#audioarchive-settings.aa-personal .aa-shares .aa-share-folder {
+    white-space: normal;
+}
