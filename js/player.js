@@ -1201,7 +1201,7 @@ const Player = (() => {
         ['Geändert', f.mtime ? new Date(f.mtime * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''],
       ]],
       // Nur sichtbar, wenn in den letzten 2 h Befehle von aussen kamen (ab 0.19.3)
-      ['Befehle von außen', mediaLogRows()],
+      ['Tastenbefehle (Protokoll)', mediaLogRows()],
     ];
 
     els.details.textContent = '';
@@ -1270,7 +1270,7 @@ const Player = (() => {
     const track = playlist[currentIndex];
     if (!track || els.details.hidden) return;
     const request = ++detailsRequest;
-    renderDetails(track, null, 'Lade weitere Angaben …');
+    renderDetails(track, null, 'Weitere Angaben werden geladen …');
     try {
       const res = await fetch(AudioArchive.infoUrl(track.path, track.source), { credentials: 'same-origin' });
       if (!res.ok) throw new Error('info');
@@ -1515,7 +1515,7 @@ const Player = (() => {
     }
     const delay = delays[recoveries];
     recoveries++;
-    if (recoveries === 2) showToast('Verbindung stockt – lade neu …');
+    if (recoveries === 2) showToast('Verbindung stockt – wird neu geladen …');
 
     const attempt = () => {
       recoveryTimer = 0;

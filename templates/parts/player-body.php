@@ -284,7 +284,7 @@ if ($_['backgroundUrl'] !== '') {
       <span id="offline-info" class="offline-info"></span>
     </div>
 
-    <p id="library-status" class="status-text">Lade Aufnahmen …</p>
+    <p id="library-status" class="status-text">Aufnahmen werden geladen …</p>
     <div id="list-container" class="explorer-list"></div>
 
     <!-- Versionsanzeige am Ende der Liste (ab 0.15.2) -->

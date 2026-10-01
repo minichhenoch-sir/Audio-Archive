@@ -163,7 +163,7 @@ class ListController extends Controller {
         try {
             $tags = $this->tagManager->load('files');
             if ($tags === null) {
-                throw new \RuntimeException('Tags nicht verfuegbar');
+                throw new \RuntimeException('Favoriten sind auf diesem Server nicht verfügbar.');
             }
             $ok = $on ? $tags->addToFavorites($node->getId()) : $tags->removeFromFavorites($node->getId());
         } catch (\Throwable $e) {
@@ -508,6 +508,9 @@ class ListController extends Controller {
         $dirs = [];
         $files = [];
         $complete = true;
+        // Angaben noch nicht gelesener Dateien fehlen nur wegen des Zeitbudgets;
+        // die naechste Anfrage liest weiter (die Oberflaeche fragt dann selbst nach)
+        $pending = false;
         $folders = 0;
         $seenFiles = 0;
         $queue = [[$root, '']];
@@ -525,6 +528,11 @@ class ListController extends Controller {
             }
             $folderCover = false;
             $subfolders = [];
+            // Bekannte Angaben aller Aufnahmen dieses Ordners mit einer Abfrage (ab 0.25.1)
+            $known = $this->metadata->peekMany(array_values(array_filter(
+                $listing,
+                fn ($c) => !($c instanceof Folder) && $this->audioFolder->isAllowedFile($c)
+            )));
             foreach ($listing as $child) {
                 $name = $child->getName();
                 if (str_starts_with($name, '.')) {
@@ -555,10 +563,11 @@ class ListController extends Controller {
                 $haystack = $childRelative;
                 if (!self::matches($terms, $haystack)) {
                     // Angaben aus der Datei: zwischengespeichert, sonst nur mit Zeit
-                    $meta = $this->metadata->peek($child);
+                    $meta = $known[(int)$child->getId()] ?? null;
                     if ($meta === null) {
                         if (microtime(true) > $deadline) {
                             $complete = false;
+                            $pending = true;
                             continue;
                         }
                         $meta = $this->metadata->read($child);
@@ -582,6 +591,8 @@ class ListController extends Controller {
         return new DataResponse([
             'results' => array_merge($dirs, $files),
             'complete' => $complete && count($files) < self::SEARCH_MAX_RESULTS && count($dirs) < self::SEARCH_MAX_RESULTS,
+            // ab 0.25.1: true = erneut fragen lohnt sich (Angaben werden noch gelesen)
+            'pending' => $pending && count($files) < self::SEARCH_MAX_RESULTS,
         ]);
     }
 

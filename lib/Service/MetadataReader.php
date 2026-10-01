@@ -3,9 +3,11 @@ declare(strict_types=1);
 
 namespace OCA\AudioArchive\Service;
 
+use OCP\DB\QueryBuilder\IQueryBuilder;
 use OCP\Files\File;
 use OCP\ICache;
 use OCP\ICacheFactory;
+use OCP\IDBConnection;
 
 /**
  * Liest Spieldauer und ID3-Tags (Kuenstler, Album, Titel) aus mp3-Dateien.
@@ -30,24 +32,119 @@ class MetadataReader {
 
     private ICache $cache;
 
+    private const TABLE = 'audioarchive_meta';
+    /** Haltezeit im schnellen Zwischenspeicher; dauerhaft liegt es in der Tabelle. */
+    private const CACHE_TTL = 60 * 60 * 24;
+
+    /** Ist die Tabelle (ab 0.25.1) da? null = noch nicht geprueft. */
+    private ?bool $tableReady = null;
+
     public function __construct(
         ICacheFactory $cacheFactory,
         private AudioProbe $probe,
+        private IDBConnection $db,
     ) {
         $this->cache = $cacheFactory->createDistributed('audioarchive_meta_');
     }
 
     /**
-     * Wie read(), aber nur aus dem Zwischenspeicher - liest die Datei nicht
-     * (ab 0.22.0, fuer die Suche). null = noch nie gelesen.
+     * Wie read(), aber ohne die Datei zu oeffnen (ab 0.22.0, fuer die
+     * Suche): erst Zwischenspeicher, dann Tabelle. null = noch nie gelesen.
      */
     public function peek(File $file): ?array {
-        $cached = $this->cache->get('v2-' . $file->getId() . '-' . $file->getMTime());
-        if (!is_string($cached)) {
-            return null;
+        return $this->peekMany([$file])[$file->getId()] ?? null;
+    }
+
+    /**
+     * peek() fuer viele Dateien auf einmal - eine Datenbankabfrage je Aufruf
+     * statt je Datei (ab 0.25.1).
+     *
+     * @param list<File> $files
+     * @return array<int, array> Angaben je Dateikennung, nur fuer bekannte
+     */
+    public function peekMany(array $files): array {
+        $found = [];
+        $missing = [];
+        foreach ($files as $file) {
+            $id = (int)$file->getId();
+            $cached = $this->cache->get(self::cacheKey($file));
+            $decoded = is_string($cached) ? json_decode($cached, true) : null;
+            if (is_array($decoded)) {
+                $found[$id] = $decoded;
+            } else {
+                $missing[$id] = (int)$file->getMTime();
+            }
         }
-        $decoded = json_decode($cached, true);
-        return is_array($decoded) ? $decoded : null;
+        if ($missing === [] || !$this->tableReady()) {
+            return $found;
+        }
+        try {
+            foreach (array_chunk(array_keys($missing), 500) as $chunk) {
+                $qb = $this->db->getQueryBuilder();
+                $qb->select('file_id', 'mtime', 'data')
+                    ->from(self::TABLE)
+                    ->where($qb->expr()->in('file_id', $qb->createNamedParameter($chunk, IQueryBuilder::PARAM_INT_ARRAY)));
+                $result = $qb->executeQuery();
+                while ($row = $result->fetch()) {
+                    $id = (int)$row['file_id'];
+                    if (!isset($missing[$id]) || (int)$row['mtime'] !== $missing[$id]) {
+                        continue; // Datei inzwischen geaendert: neu lesen
+                    }
+                    $decoded = json_decode((string)$row['data'], true);
+                    if (is_array($decoded)) {
+                        $found[$id] = $decoded;
+                        $this->cache->set('v2-' . $id . '-' . $missing[$id], (string)$row['data'], self::CACHE_TTL);
+                    }
+                }
+                $result->closeCursor();
+            }
+        } catch (\Throwable $e) {
+            // Tabelle (noch) nicht nutzbar: dann eben nur der Zwischenspeicher
+        }
+        return $found;
+    }
+
+    /** 'v2': ab 0.14 gehoert die Angabe 'cover' dazu. */
+    private static function cacheKey(File $file): string {
+        return 'v2-' . $file->getId() . '-' . $file->getMTime();
+    }
+
+    private function tableReady(): bool {
+        if ($this->tableReady === null) {
+            try {
+                $this->tableReady = $this->db->tableExists(self::TABLE);
+            } catch (\Throwable $e) {
+                $this->tableReady = false;
+            }
+        }
+        return $this->tableReady;
+    }
+
+    /** Schreibt die Angaben in die Tabelle (ersetzt einen alten Stand der Datei). */
+    private function persist(File $file, string $json): void {
+        if (!$this->tableReady()) {
+            return;
+        }
+        $id = (int)$file->getId();
+        $mtime = (int)$file->getMTime();
+        try {
+            $qb = $this->db->getQueryBuilder();
+            $qb->update(self::TABLE)
+                ->set('mtime', $qb->createNamedParameter($mtime, IQueryBuilder::PARAM_INT))
+                ->set('data', $qb->createNamedParameter($json))
+                ->where($qb->expr()->eq('file_id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+            if ($qb->executeStatement() === 0) {
+                $qb = $this->db->getQueryBuilder();
+                $qb->insert(self::TABLE)->values([
+                    'file_id' => $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT),
+                    'mtime' => $qb->createNamedParameter($mtime, IQueryBuilder::PARAM_INT),
+                    'data' => $qb->createNamedParameter($json),
+                ]);
+                $qb->executeStatement();
+            }
+        } catch (\Throwable $e) {
+            // z. B. gleichzeitig von einer zweiten Anfrage eingetragen - egal
+        }
     }
 
     /**
@@ -61,16 +158,10 @@ class MetadataReader {
      * @return array{duration: ?float, artist: ?string, album: ?string, title: ?string, cover: bool}
      */
     public function read(File $file): array {
-        // 'v2': ab 0.14 gehoert die Angabe 'cover' dazu - aeltere Eintraege
-        // ohne sie werden so nicht mehr verwendet, sondern neu gelesen
-        $key = 'v2-' . $file->getId() . '-' . $file->getMTime();
-
-        $cached = $this->cache->get($key);
-        if (is_string($cached)) {
-            $decoded = json_decode($cached, true);
-            if (is_array($decoded)) {
-                return $decoded;
-            }
+        $key = self::cacheKey($file);
+        $known = $this->peek($file);
+        if ($known !== null) {
+            return $known;
         }
 
         $result = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null, 'cover' => false];
@@ -117,7 +208,9 @@ class MetadataReader {
             fclose($fh);
         }
 
-        $this->cache->set($key, (string)json_encode($result), 60 * 60 * 24 * 30);
+        $json = (string)json_encode($result);
+        $this->cache->set($key, $json, self::CACHE_TTL);
+        $this->persist($file, $json);
 
         return $result;
     }

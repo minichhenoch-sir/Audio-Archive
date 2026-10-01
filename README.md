@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.25.0)
+# Audio Archive – Nextcloud-App (0.25.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1351,3 +1351,29 @@ Nextclouds eigener Tabelle).
 PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung.
 
+
+---
+
+## 0.25.1: Suche zuverlässiger, deutsche Texte durchgesehen
+
+- **Suche (Vikunja #32):** Gelesene Angaben der Aufnahmen (Dauer, Titel,
+  Künstler, Album) liegen jetzt **dauerhaft** in einer eigenen Tabelle
+  `audioarchive_meta` – nicht mehr nur im Zwischenspeicher (Redis/APCu), der
+  nach einem Neustart leer ist oder ganz fehlen kann. Dann fand die Suche
+  innerhalb ihrer Lesezeit nicht alles und meldete fälschlich „Nichts
+  gefunden“.
+- Liest der Server noch, fragt die Suche selbst nach und zeigt die Treffer
+  schon an („… Treffer bisher – die Angaben der Aufnahmen werden noch
+  gelesen“). Ist nichts gefunden, aber nicht alles durchsucht, steht das da.
+- Schlägt die Suche fehl (z. B. Fehler 404, wenn nach dem Einspielen der
+  Container nicht neu gestartet wurde), erscheint eine Fehlermeldung statt
+  „Nichts gefunden“.
+- Im Zwischenspeicher bleiben die Angaben nur noch einen Tag (vorher 30) –
+  dauerhaft liegen sie in der Tabelle.
+- **Texte (Vikunja #37):** Anführungszeichen vereinheitlicht („…“),
+  „Lade …“/„Speichere …“ ausformuliert, gemeindespezifische Beispiele
+  (Platzhalter, Vorschau im Gestaltungs-Editor) durch allgemeine ersetzt.
+
+PHP, JavaScript, Vorlagen und `info.xml` geändert; **neue Tabelle**
+`audioarchive_meta` (wird beim Aktualisieren automatisch angelegt, bestehende
+Daten bleiben unverändert). Nach dem Einspielen Container neu starten.

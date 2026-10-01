@@ -40,7 +40,7 @@
     <p class="settings-hint" id="aa-public-password-state"></p>
     <div class="aa-field">
         <label for="aa-public-slug">Wunschname im Link (optional)</label>
-        <input type="text" id="aa-public-slug" autocomplete="off" placeholder="z. B. gottesdienste">
+        <input type="text" id="aa-public-slug" autocomplete="off" placeholder="z. B. vortraege">
         <p class="settings-hint" id="aa-public-slug-preview">
             Leer = zufällige Adresse. Wird der Name geändert, funktioniert der
             bisherige Link nicht mehr – auch nicht in bereits installierten Apps.
@@ -98,7 +98,7 @@
         </thead>
         <tbody></tbody>
     </table>
-    <p class="settings-hint" id="aa-shares-state">Lade Freigaben …</p>
+    <p class="settings-hint" id="aa-shares-state">Freigaben werden geladen …</p>
 
     <!-- ============ Darstellung ============ -->
     <h3>Darstellung</h3>
@@ -253,7 +253,7 @@
     <!-- ============ Beta-Hinweis ============ -->
     <h3>Beta-Hinweis</h3>
     <p class="settings-hint">
-        Kennzeichnet die App als in Entwicklung: ein „Beta"-Zeichen neben dem
+        Kennzeichnet die App als in Entwicklung: ein „Beta“-Zeichen neben dem
         Titel und ein Hinweisstreifen über dem Pfad. Nur hier ein- und
         ausschaltbar – eingeschaltet erscheint er überall: in der App, auf dem
         öffentlichen Link und auf allen Links der Nutzer.

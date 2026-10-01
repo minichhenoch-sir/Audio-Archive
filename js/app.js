@@ -1377,7 +1377,7 @@
   // ------------------------------------------------------------------
   async function loadLibrary(path = '', source = view.source) {
     libraryStatus.hidden = false;
-    libraryStatus.textContent = 'Lade Aufnahmen \u2026';
+    libraryStatus.textContent = 'Aufnahmen werden geladen \u2026';
     listContainer.innerHTML = '';
 
     // Ohne Verbindung: Ansicht aus dem Offline-Speicher aufbauen
@@ -1666,6 +1666,8 @@
     let results = [];
     let complete = true;
     let loading = false;
+    let reading = false;   // Server liest noch Angaben, Treffer kommen nach
+    let failed = '';       // Fehler der letzten Suche (z. B. "404"), sonst leer
     let timer = 0;
     let seq = 0;
 
@@ -1697,10 +1699,15 @@
       return found;
     }
 
+    /** Wie oft die Suche hoechstens selbst nachfragt, solange der Server noch Angaben liest. */
+    const MAX_FOLLOW_UPS = 12;
+
     async function run() {
       const mySeq = ++seq;
       const q = query;
       loading = true;
+      failed = '';
+      reading = false;
       render();
       let list = [];
       let done = true;
@@ -1710,39 +1717,67 @@
         } else {
           const url = new URL(AudioArchive.api('search') + '?' + AudioArchive.sourceQuery(view.source)
             + 'q=' + encodeURIComponent(q), location.href).href;
-          const res = await fetch(url, { credentials: 'same-origin' });
-          if (res.status === 401) {
-            showLogin();
-            return;
+          for (let attempt = 0; ; attempt++) {
+            const res = await fetch(url, { credentials: 'same-origin' });
+            if (res.status === 401) {
+              showLogin();
+              return;
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (mySeq !== seq) return; // inzwischen weitergetippt
+            list = Array.isArray(data.results) ? data.results : [];
+            done = data.complete !== false;
+            // Der Server liest die Angaben der Aufnahmen (Titel, Kuenstler, Album)
+            // nur eine Weile am Stueck; solange er dabei ist, weiter nachfragen
+            // und die bisherigen Treffer schon zeigen.
+            if (!data.pending || attempt >= MAX_FOLLOW_UPS) break;
+            results = tagEntries(list, view.source);
+            complete = false;
+            reading = true;
+            render();
           }
-          const data = await res.json();
-          list = Array.isArray(data.results) ? data.results : [];
-          done = data.complete !== false;
         }
       } catch (err) {
+        if (mySeq !== seq) return;
         list = [];
-        done = false;
+        done = true;
+        const msg = String((err && err.message) || err);
+        failed = msg.startsWith('HTTP ') ? msg.slice(5) : 'keine Verbindung';
       }
       if (mySeq !== seq) return; // inzwischen weitergetippt
       results = tagEntries(list, view.source);
       complete = done;
       loading = false;
+      reading = false;
       render();
     }
 
     function render() {
       listContainer.innerHTML = '';
       libraryStatus.hidden = false;
-      if (loading) {
+      if (loading && !reading) {
         libraryStatus.textContent = 'Suche \u2026';
         return;
       }
+      if (failed) {
+        libraryStatus.textContent = 'Die Suche hat nicht geklappt (Fehler ' + failed + '). '
+          + 'Bitte die Seite neu laden. Bleibt der Fehler, bitte dem Administrator Bescheid geben.';
+        return;
+      }
       const n = results.length;
-      libraryStatus.textContent = n === 0
-        ? 'Nichts gefunden für „' + query + '“.'
-        : n + (n === 1 ? ' Treffer' : ' Treffer') + ' für „' + query + '“'
+      if (reading) {
+        libraryStatus.textContent = (n === 0 ? 'Suche läuft' : n + ' Treffer bisher')
+          + ' – die Angaben der Aufnahmen werden noch gelesen \u2026';
+      } else if (n === 0) {
+        libraryStatus.textContent = complete
+          ? 'Nichts gefunden für „' + query + '“.'
+          : 'Bisher nichts gefunden für „' + query + '“ – es wurde nicht alles durchsucht. Bitte gleich noch einmal suchen.';
+      } else {
+        libraryStatus.textContent = n + ' Treffer für „' + query + '“'
           + (complete ? '' : ' – nicht alles durchsucht, bitte genauer suchen')
           + (offlineMode ? ' (nur offline gespeicherte)' : '');
+      }
       const files = sortEntries(results).filter((e) => e.type === 'file');
       sortEntries(results).forEach((entry) => {
         const where = entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '';
@@ -1788,6 +1823,9 @@
       input.value = '';
       clearBtn.hidden = true;
       results = [];
+      failed = '';
+      reading = false;
+      loading = false;
       seq++;
       window.clearTimeout(timer);
       row.classList.remove('is-searching');
@@ -2117,7 +2155,7 @@
       listContainer.innerHTML = '';
       libraryStatus.hidden = false;
       if (loading) {
-        libraryStatus.textContent = 'Lade Favoriten \u2026';
+        libraryStatus.textContent = 'Favoriten werden geladen \u2026';
         return;
       }
       if (results.length === 0) {
@@ -2480,7 +2518,7 @@
       } catch (err) {
         failed++;
       }
-      offlineInfo.textContent = `Speichere … ${done + failed} von ${files.length}`;
+      offlineInfo.textContent = `Wird gespeichert … ${done + failed} von ${files.length}`;
     }
     if (saved.length > 0) setOfflineFolder(source, path, saved.slice());
 
@@ -2546,7 +2584,7 @@
       box.querySelector('#offline-pin-ok').addEventListener('click', () => {
         const value = input.value.trim();
         if (value.length < 4) {
-          error.textContent = 'Bitte mindestens vier Zeichen.';
+          error.textContent = 'Bitte mindestens vier Zeichen eingeben.';
           error.hidden = false;
           return;
         }
@@ -2582,14 +2620,14 @@
 
     try {
       if (removing) {
-        offlineInfo.textContent = 'Entferne …';
+        offlineInfo.textContent = 'Wird entfernt …';
         await removeFolderOffline(files);
         // Auch aus dem Verzeichnis nehmen, sonst bliebe der Ordner offline
         // sichtbar, obwohl seine Aufnahmen geloescht sind.
         removeOfflineFolder(view.source, view.path);
         offlineInfo.textContent = 'Offline-Aufnahmen entfernt.';
       } else {
-        offlineInfo.textContent = `Speichere … 0 von ${files.length}`;
+        offlineInfo.textContent = `Wird gespeichert … 0 von ${files.length}`;
         const { done, failed } = await downloadFolderOffline(files, view.source, view.path);
 
         /*
@@ -2880,7 +2918,7 @@
     }
 
     async function loadChildren(node) {
-      node.children.innerHTML = '<li class="tree-status">Lade …</li>';
+      node.children.innerHTML = '<li class="tree-status">Wird geladen …</li>';
       if (node.loader) {
         try {
           await node.loader(node);
@@ -3211,7 +3249,7 @@
       panel.hidden = false;
       panel.textContent = '';
       panel.appendChild(el('h2', 'panel-title', 'Teilen: ' + folderName()));
-      const status = el('p', 'panel-hint', 'Lade Freigaben …');
+      const status = el('p', 'panel-hint', 'Freigaben werden geladen …');
       panel.appendChild(status);
 
       try {
@@ -3229,8 +3267,8 @@
       // Mit Personen aus Nextcloud
       const people = group('Mit Personen und Gruppen');
       people.appendChild(el('p', 'panel-hint', internal.length === 0
-        ? 'Noch nicht geteilt. Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt".'
-        : 'Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt".'));
+        ? 'Noch nicht geteilt. Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt“.'
+        : 'Die Personen sehen den Ordner in dieser App unter „Mit mir geteilt“.'));
       internal.forEach((share) => people.appendChild(renderShareItem(share, share.id === highlightId)));
       const peopleRow = el('div', 'panel-row');
       peopleRow.appendChild(button('Mit Personen teilen', 'panel-button--primary', () => openForm(null, 'internal')));
@@ -3298,7 +3336,7 @@
           const consequence = share.kind === 'internal'
             ? 'Die Personen sehen den Ordner danach nicht mehr.'
             : 'Der Link funktioniert danach nicht mehr.';
-          if (!window.confirm('„' + name + '" löschen? ' + consequence)) return;
+          if (!window.confirm('„' + name + '“ löschen? ' + consequence)) return;
           try {
             await request(AudioArchive.api('shares/' + share.id + '/delete'), { method: 'POST' });
             Tree.refreshShares();
@@ -3474,7 +3512,7 @@
           'Sichtbar nur in dieser App, nicht in der Dateien-App. Weiterteilen können die Personen nicht.'));
       } else {
         // Wunschname
-        slug = textInput(isNew ? '' : share.slug, 'z. B. gottesdienst-sonntag');
+        slug = textInput(isNew ? '' : share.slug, 'z. B. vortraege-2026');
         slug.setAttribute('autocomplete', 'off');
         const preview = el('span', 'panel-hint share-slug-preview');
         const syncPreview = () => {
@@ -3526,7 +3564,7 @@
           'Die Personen können wählen, ob sie dieses Aussehen oder ihr eigenes sehen. Leere Felder übernehmen ihre eigene Darstellung.'));
       }
       const title = textInput(st.title, folderName());
-      look.appendChild(field('Titel', title, isInternal ? 'Leer = Name des Ordners im Baum, eigener Titel oben' : 'Leer = Name des Ordners'));
+      look.appendChild(field('Titel', title, isInternal ? 'Leer = Name des Ordners. Ein eigener Titel erscheint im Ordnerbaum und oben.' : 'Leer = Name des Ordners'));
       const subtitle = textInput(st.subtitle, '');
       look.appendChild(field('Zusatzzeile (optional)', subtitle));
 
@@ -3667,7 +3705,7 @@
           if (!file.files[0]) return;
           const form = new FormData();
           form.append('file', file.files[0]);
-          bgState.textContent = 'Lade hoch …';
+          bgState.textContent = 'Wird hochgeladen …';
           try {
             await request(AudioArchive.api('shares/' + share.id + '/background'), { method: 'POST', body: form });
             share.hasBackground = true;
@@ -3765,7 +3803,7 @@
           if (!coverFile.files[0]) return;
           const form = new FormData();
           form.append('file', coverFile.files[0]);
-          coverState.textContent = 'Lade hoch …';
+          coverState.textContent = 'Wird hochgeladen …';
           try {
             const data = await request(AudioArchive.api('shares/' + share.id + '/coverimage'), { method: 'POST', body: form });
             share.hasCoverImage = true;
@@ -4229,7 +4267,7 @@
       const file = usBackgroundFile.files[0];
       if (!file) return;
       usShowError('');
-      usBackgroundState.textContent = 'Lade hoch …';
+      usBackgroundState.textContent = 'Wird hochgeladen …';
       const form = new FormData();
       form.append('file', file);
       try {

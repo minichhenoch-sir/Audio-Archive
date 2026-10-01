@@ -154,7 +154,7 @@
   if (state.sourceFolderOwner) {
     folderOwner.textContent =
       'Die Aufnahmen werden aus den Dateien von „' + state.sourceFolderOwner
-      + '" gelesen – auch beim öffentlichen Zugang.';
+      + '“ gelesen – auch beim öffentlichen Zugang.';
   }
 
   publicPasswordState.textContent = state.hasPublicPassword
@@ -188,7 +188,7 @@
     const file = backgroundFile.files[0];
     if (!file) return;
 
-    backgroundState.textContent = 'Lade hoch …';
+    backgroundState.textContent = 'Wird hochgeladen …';
 
     // Klassischer Datei-Upload statt JSON - der Inhalt geht als FormData raus
     const form = new FormData();
@@ -294,7 +294,7 @@
   coverFile.addEventListener('change', async () => {
     const file = coverFile.files[0];
     if (!file) return;
-    coverState.textContent = 'Lade hoch …';
+    coverState.textContent = 'Wird hochgeladen …';
     const form = new FormData();
     form.append('file', file);
     try {
@@ -351,7 +351,7 @@
 
     folder.readOnly = false;
     folder.focus();
-    setStatus('Dateidialog nicht verfügbar – bitte den Pfad von Hand eintragen.', true);
+    setStatus('Die Dateiauswahl ist nicht verfügbar – bitte den Pfad von Hand eintragen.', true);
   });
 
   // ---------- Speichern ----------
@@ -361,7 +361,7 @@
   }
 
   el('aa-save').addEventListener('click', async () => {
-    setStatus('Speichere …', false);
+    setStatus('Wird gespeichert …', false);
 
     const payload = {
       sourceFolder: folder.value,
@@ -481,7 +481,7 @@
         passwordCell.textContent = 'Personen: ' + ((share.members || [])
           .map((m) => (m.type === 'group' ? 'Gruppe ' : '') + m.label).join(', ') || '–');
       } else {
-        passwordCell.textContent = 'Link' + (share.slug ? ' „' + share.slug + '"' : '')
+        passwordCell.textContent = 'Link' + (share.slug ? ' „' + share.slug + '“' : '')
           + (share.hasPassword ? ', mit Passwort' : ', ohne Passwort');
       }
       const expiresCell = document.createElement('td');
@@ -495,7 +495,7 @@
         const consequence = share.kind === 'internal'
           ? 'Die Personen sehen den Ordner danach nicht mehr.'
           : 'Der Link funktioniert danach nicht mehr.';
-        if (!window.confirm('Freigabe „' + link.textContent + '" löschen? ' + consequence)) return;
+        if (!window.confirm('Freigabe „' + link.textContent + '“ löschen? ' + consequence)) return;
         remove.disabled = true;
         try {
           const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/api/shares/' + share.id + '/delete'), {
