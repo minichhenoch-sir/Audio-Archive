@@ -52,6 +52,7 @@
   const userShares = el('aa-user-shares');
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
+  const sortDefault = el('aa-sort-default');
   const status = el('aa-status');
 
   // ---------- Startwerte einsetzen ----------
@@ -140,6 +141,7 @@
   userShares.checked = state.userShares !== false;
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
+  sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
 
   if (state.sourceFolderOwner) {
     folderOwner.textContent =
@@ -370,6 +372,7 @@
       userShares: userShares.checked,
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
+      sortDefault: sortDefault.value,
       betaEnabled: betaEnabled.checked,
       betaText: betaText.value,
       betaLinkUrl: betaLinkUrl.value,

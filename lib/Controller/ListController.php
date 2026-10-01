@@ -89,6 +89,8 @@ class ListController extends Controller {
                     'path' => $childRelative,
                     // null = nicht gezaehlt (eigene Dateien, siehe ContentScope)
                     'count' => $scope['countFolders'] ? $this->audioFolder->countRecursive($child) : null,
+                    // Datum fuer Anzeige und Sortierung (ab 0.22.0, Vikunja #30)
+                    'added' => self::folderAdded($child),
                 ];
                 continue;
             }
@@ -98,34 +100,7 @@ class ListController extends Controller {
             }
 
             /** @var File $child */
-            $meta = $this->metadata->read($child);
-
-            // Cover: 'v' ist die Versionskennung fuer die Adresse, damit ein
-            // geaendertes Bild nicht aus dem Browser-Speicher kommt
-            $coverVersion = null;
-            if ($meta['cover'] ?? false) {
-                $coverVersion = 'e' . $child->getMTime();
-            } else {
-                if ($folderCover === false) {
-                    $folderCover = $this->covers->imageFor($node, $root);
-                }
-                if ($folderCover !== null) {
-                    $coverVersion = 'f' . $folderCover->getId() . '-' . $folderCover->getMTime();
-                }
-            }
-
-            $files[] = [
-                'type' => 'file',
-                'cover' => $coverVersion,
-                'name' => pathinfo($name, PATHINFO_FILENAME),
-                'file' => $name,
-                'path' => $childRelative,
-                'size' => $child->getSize(),
-                'duration' => $meta['duration'],
-                'artist' => $meta['artist'],
-                'album' => $meta['album'],
-                'title' => $meta['title'],
-            ];
+            $files[] = $this->fileEntry($child, $node, $root, $childRelative, $folderCover);
         }
 
         usort($dirs, static fn ($a, $b) => strnatcasecmp($a['name'], $b['name']));
@@ -295,6 +270,215 @@ class ListController extends Controller {
         return new DataResponse([
             'path' => $found !== null ? $this->audioFolder->relativePath($root, $found) : null,
         ]);
+    }
+
+    /**
+     * Eintrag einer Aufnahme fuer Liste und Suche.
+     *
+     * @param File|false|null $folderCover Ordnerbild des Ordners, einmal je
+     *                                     Ordner gesucht (false = noch nicht)
+     */
+    private function fileEntry(File $file, Folder $parent, Folder $root, string $relative, mixed &$folderCover): array {
+        $meta = $this->metadata->read($file);
+
+        // Cover: 'v' ist die Versionskennung fuer die Adresse, damit ein
+        // geaendertes Bild nicht aus dem Browser-Speicher kommt
+        $coverVersion = null;
+        if ($meta['cover'] ?? false) {
+            $coverVersion = 'e' . $file->getMTime();
+        } else {
+            if ($folderCover === false) {
+                $folderCover = $this->covers->imageFor($parent, $root);
+            }
+            if ($folderCover !== null) {
+                $coverVersion = 'f' . $folderCover->getId() . '-' . $folderCover->getMTime();
+            }
+        }
+
+        $name = $file->getName();
+        return [
+            'type' => 'file',
+            'cover' => $coverVersion,
+            'name' => pathinfo($name, PATHINFO_FILENAME),
+            'file' => $name,
+            'path' => $relative,
+            'size' => $file->getSize(),
+            'duration' => $meta['duration'],
+            'artist' => $meta['artist'],
+            'album' => $meta['album'],
+            'title' => $meta['title'],
+            // Zuletzt geaendert - Anzeige und Sortierung (ab 0.22.0)
+            'mtime' => (int)$file->getMTime(),
+        ];
+    }
+
+    /**
+     * "Hinzugefuegt" eines Ordners (ab 0.22.0, Vikunja #30): Erstellzeit,
+     * sonst Zeitpunkt des Hochladens, sonst Aenderungszeit. Die ersten
+     * beiden kennt Nextcloud nur, wenn der Ordner ueber Nextcloud angelegt
+     * wurde; die Aenderungszeit eines Ordners steigt, sobald darin etwas
+     * hinzukommt.
+     */
+    private static function folderAdded(Folder $folder): int {
+        try {
+            $created = (int)$folder->getCreationTime();
+            if ($created > 0) {
+                return $created;
+            }
+            $uploaded = (int)$folder->getUploadTime();
+            if ($uploaded > 0) {
+                return $uploaded;
+            }
+        } catch (\Throwable $e) {
+            // aeltere Speicher ohne diese Angaben
+        }
+        return (int)$folder->getMTime();
+    }
+
+    // ------------------------------------------------------------------
+    // Suche (ab 0.22.0, Vikunja #32)
+    // ------------------------------------------------------------------
+
+    private const SEARCH_MAX_FOLDERS = 4000;
+    private const SEARCH_MAX_FILES = 40000;
+    private const SEARCH_MAX_RESULTS = 150;
+    /** Sekunden, in denen noch nicht zwischengespeicherte Angaben gelesen werden. */
+    private const SEARCH_READ_BUDGET = 4.0;
+
+    /**
+     * Sucht in der ganzen Quelle (gemeinsamer Ordner, eigene Dateien bzw.
+     * Freigabe): Ordner nach Namen, Aufnahmen nach Datei- und Ordnername
+     * sowie Titel, Kuenstler und Album. Mehrere Woerter muessen alle
+     * vorkommen ("predigt 2024"), Gross-/Kleinschreibung egal.
+     *
+     * Die Angaben aus den Dateien kommen aus dem Zwischenspeicher; noch
+     * nicht gelesene Dateien werden nur innerhalb eines Zeitbudgets gelesen.
+     * Reicht es nicht, meldet die Antwort complete=false.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function search(string $q = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
+        }
+        $terms = self::searchTerms($q);
+        if ($terms === []) {
+            return new DataResponse(['results' => [], 'complete' => true]);
+        }
+        $root = $scope['root'];
+        $deadline = microtime(true) + self::SEARCH_READ_BUDGET;
+
+        $dirs = [];
+        $files = [];
+        $complete = true;
+        $folders = 0;
+        $seenFiles = 0;
+        $queue = [[$root, '']];
+
+        while ($queue !== []) {
+            [$folder, $relative] = array_shift($queue);
+            if (++$folders > self::SEARCH_MAX_FOLDERS) {
+                $complete = false;
+                break;
+            }
+            try {
+                $listing = $folder->getDirectoryListing();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            $folderCover = false;
+            $subfolders = [];
+            foreach ($listing as $child) {
+                $name = $child->getName();
+                if (str_starts_with($name, '.')) {
+                    continue;
+                }
+                $childRelative = ltrim($relative . '/' . $name, '/');
+                if ($child instanceof Folder) {
+                    $subfolders[] = [$child, $childRelative];
+                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $childRelative)) {
+                        $dirs[] = [
+                            'type' => 'dir',
+                            'name' => $name,
+                            'path' => $childRelative,
+                            'count' => null,
+                            'added' => self::folderAdded($child),
+                        ];
+                    }
+                    continue;
+                }
+                if (!$this->audioFolder->isAllowedFile($child) || count($files) >= self::SEARCH_MAX_RESULTS) {
+                    continue;
+                }
+                if (++$seenFiles > self::SEARCH_MAX_FILES) {
+                    $complete = false;
+                    break 2;
+                }
+                /** @var File $child */
+                $haystack = $childRelative;
+                if (!self::matches($terms, $haystack)) {
+                    // Angaben aus der Datei: zwischengespeichert, sonst nur mit Zeit
+                    $meta = $this->metadata->peek($child);
+                    if ($meta === null) {
+                        if (microtime(true) > $deadline) {
+                            $complete = false;
+                            continue;
+                        }
+                        $meta = $this->metadata->read($child);
+                    }
+                    $haystack .= ' ' . ($meta['title'] ?? '') . ' ' . ($meta['artist'] ?? '') . ' ' . ($meta['album'] ?? '');
+                    if (!self::matches($terms, $haystack)) {
+                        continue;
+                    }
+                }
+                $files[] = $this->fileEntry($child, $folder, $root, $childRelative, $folderCover);
+            }
+            usort($subfolders, static fn ($a, $b) => strnatcasecmp($a[1], $b[1]));
+            foreach ($subfolders as $sub) {
+                $queue[] = $sub;
+            }
+        }
+
+        usort($dirs, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
+        usort($files, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
+
+        return new DataResponse([
+            'results' => array_merge($dirs, $files),
+            'complete' => $complete && count($files) < self::SEARCH_MAX_RESULTS && count($dirs) < self::SEARCH_MAX_RESULTS,
+        ]);
+    }
+
+    /** @return list<string> */
+    private static function searchTerms(string $q): array {
+        $q = self::fold(trim(substr($q, 0, 200)));
+        $terms = array_values(array_filter(preg_split('/\s+/u', $q) ?: [], static fn ($t) => $t !== ''));
+        return strlen(implode('', $terms)) < 2 ? [] : $terms;
+    }
+
+    private static function matches(array $terms, string $haystack): bool {
+        $h = self::fold($haystack);
+        foreach ($terms as $t) {
+            if (!str_contains($h, $t)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /** Kleinschreibung ohne Akzente ("Über" -> "uber", "é" -> "e"), ohne mbstring-Pflicht. */
+    private static function fold(string $s): string {
+        $map = [
+            'Ä' => 'a', 'ä' => 'a', 'Ö' => 'o', 'ö' => 'o', 'Ü' => 'u', 'ü' => 'u', 'ß' => 'ss',
+            'À' => 'a', 'Á' => 'a', 'Â' => 'a', 'à' => 'a', 'á' => 'a', 'â' => 'a',
+            'È' => 'e', 'É' => 'e', 'Ê' => 'e', 'Ë' => 'e', 'è' => 'e', 'é' => 'e', 'ê' => 'e', 'ë' => 'e',
+            'Ì' => 'i', 'Í' => 'i', 'Î' => 'i', 'Ï' => 'i', 'ì' => 'i', 'í' => 'i', 'î' => 'i', 'ï' => 'i',
+            'Ò' => 'o', 'Ó' => 'o', 'Ô' => 'o', 'ò' => 'o', 'ó' => 'o', 'ô' => 'o',
+            'Ù' => 'u', 'Ú' => 'u', 'Û' => 'u', 'ù' => 'u', 'ú' => 'u', 'û' => 'u',
+            'Ç' => 'c', 'ç' => 'c', 'Ñ' => 'n', 'ñ' => 'n', '´' => "'", '`' => "'", '’' => "'",
+        ];
+        $s = strtr($s, $map);
+        return function_exists('mb_strtolower') ? mb_strtolower($s, 'UTF-8') : strtolower($s);
     }
 
     /** @return list<Folder> sichtbare Unterordner, natuerlich sortiert */

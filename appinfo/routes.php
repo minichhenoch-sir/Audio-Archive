@@ -28,6 +28,8 @@ return [
         ['name' => 'list#next', 'url' => '/api/next', 'verb' => 'GET'],
         // Nur Unterordner, fuer den Ordnerbaum (angemeldet)
         ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
+        // Suche in der ganzen Quelle (ab 0.22.0)
+        ['name' => 'list#search', 'url' => '/api/search', 'verb' => 'GET'],
 
         // Anmeldung an der oeffentlichen Seite
         ['name' => 'publicAuth#login', 'url' => '/api/public/login', 'verb' => 'POST'],

@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.21.1)
+# Audio Archive – Nextcloud-App (0.22.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1247,6 +1247,35 @@ Container neu starten; keine Datenbankänderung.
   „Angaben“ wählbar, was Weiter/Zurück tun – „Titel wechseln“ (Vorgabe,
   wie bisher) oder „15 s spulen“ (mit derselben Bremse gegen Dauerspulen).
   Gilt je Gerät.
+
+PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung.
+
+---
+
+## 0.22.0: Sortieren, Datum und Suche
+
+- **Datum in der Liste:** Aufnahmen zeigen klein, wann sie zuletzt geändert
+  wurden („0:42 · 21.09.2026“), Ordner, wann sie hinzugekommen sind – neben
+  der Anzahl („21.09.2026 · 46 Aufnahmen“). „Hinzugekommen“ ist die
+  Erstellzeit, sonst der Zeitpunkt des Hochladens, sonst die Änderungszeit
+  des Ordners (sie steigt, sobald darin etwas hinzukommt).
+- **Sortieren:** Knopf rechts neben dem Pfad schaltet zwischen „Name“ und
+  „Neueste“ um; Ordner stehen immer vor den Aufnahmen, die Abspielreihenfolge
+  folgt der Anzeige. Die Vorgabe stellt der Administrator ein (Verwaltung →
+  Funktionen → „Sortierung der Liste“), jedes Gerät merkt sich die Wahl
+  seines Hörers.
+- **Suche:** Feld über der Liste. Gesucht wird in der ganzen geöffneten
+  Quelle (gemeinsame Aufnahmen, eigene Dateien oder Freigabe) – in Ordner-
+  und Dateinamen, im Ordnerpfad sowie in Titel, Künstler und Album. Mehrere
+  Wörter müssen alle vorkommen („predigt 2024“), Groß-/Kleinschreibung und
+  Akzente egal. Treffer zeigen darunter ihren Ordner; Antippen spielt die
+  Trefferliste ab bzw. öffnet den Ordner. Ohne Verbindung wird in den offline
+  gespeicherten Ordnern gesucht.
+- Grenzen der Suche (Schutz des Servers): höchstens 150 Treffer je Art,
+  4000 Ordner und 40 000 Dateien; Angaben aus noch nie gelesenen Dateien
+  werden höchstens 4 Sekunden lang nachgelesen. Wird eine Grenze erreicht,
+  sagt die Anzeige „nicht alles durchsucht“.
 
 PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung.

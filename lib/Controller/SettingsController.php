@@ -85,6 +85,7 @@ class SettingsController extends Controller {
         ?string $betaLinkUrl = null,
         ?string $betaLinkLabel = null,
         ?string $publicCoverIcon = null,
+        ?string $sortDefault = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -283,6 +284,11 @@ class SettingsController extends Controller {
         if ($featureOffline !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, $featureOffline
+            );
+        }
+        if ($sortDefault !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
             );
         }
         if ($featureDownload !== null) {

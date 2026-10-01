@@ -27,6 +27,15 @@
   // eigene Dateien), view.path der relative Pfad des geöffneten Ordners
   // ('' = Audio-Hauptverzeichnis), beliebig tief verschachtelt.
   let currentEntries = [];
+  // Suche (ab 0.22.0) - wird weiter unten angelegt, siehe "Suche"
+  let searchApi = null;
+  // Sortierung der Liste (ab 0.22.0), siehe "Datum und Sortierung"
+  const SORT_KEY = 'audioarchive_sort';
+  let sortMode = AudioArchive.sortDefault === 'newest' ? 'newest' : 'name';
+  try {
+    const stored = localStorage.getItem(SORT_KEY);
+    if (stored === 'name' || stored === 'newest') sortMode = stored;
+  } catch (e) { /* ohne Speicher: Vorgabe */ }
   let view = { source: 'shared', path: '' };
 
   // ------------------------------------------------------------------
@@ -624,6 +633,7 @@
   // schließt Zurück die App wie gewohnt.
   // ------------------------------------------------------------------
   function navigate(newPath, source = view.source) {
+    if (searchApi && searchApi.active()) searchApi.clear();
     view = { source, path: newPath };
     history.pushState({ view }, '');
     loadLibrary(newPath, source);
@@ -1470,17 +1480,23 @@
     void listContainer.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
     listContainer.classList.add('entering');
 
+    if (searchApi && searchApi.active()) {
+      searchApi.render();
+      return;
+    }
+
+    // Reihenfolge nach Wahl (ab 0.22.0): Name oder Neueste zuerst
+    const entries = sortEntries(currentEntries);
     // Nur die Audiodateien dieses Ordners bilden die Abspielliste
-    const folderFiles = currentEntries.filter((e) => e.type === 'file');
+    const folderFiles = entries.filter((e) => e.type === 'file');
     const folderLabel = view.path === '' ? sourceLabel(view.source) : prettyPath(view.path);
 
-    currentEntries.forEach((entry) => {
+    entries.forEach((entry) => {
       if (entry.type === 'dir') {
-        const count = entry.count || 0; // null bei den eigenen Dateien (nicht gezaehlt)
         listContainer.appendChild(makeRow({
           icon: folderIcon(),
           label: prettyFolderName(entry.name),
-          meta: count > 0 ? count + (count === 1 ? ' Aufnahme' : ' Aufnahmen') : '',
+          meta: folderMeta(entry),
           onClick: () => navigate(entry.path),
         }));
         return;
@@ -1551,6 +1567,223 @@
   });
   crumbRow.append(crumbBack, breadcrumbEl);
 
+  // Umschalter Name / Neueste (ab 0.22.0)
+  const sortBtn = document.createElement('button');
+  sortBtn.type = 'button';
+  sortBtn.className = 'sort-toggle';
+  function updateSortBtn() {
+    const label = sortMode === 'newest' ? 'Neueste' : 'Name';
+    sortBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" '
+      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/>'
+      + '<path d="M14 6h7M14 12h5M14 18h3"/></svg><span>' + label + '</span>';
+    const next = sortMode === 'newest' ? 'nach Name' : 'neueste zuerst';
+    sortBtn.title = 'Sortiert: ' + label + ' – tippen für ' + next;
+    sortBtn.setAttribute('aria-label', 'Sortierung: ' + label + '. Umschalten auf ' + next);
+  }
+  updateSortBtn();
+  sortBtn.addEventListener('click', () => {
+    sortMode = sortMode === 'newest' ? 'name' : 'newest';
+    try {
+      localStorage.setItem(SORT_KEY, sortMode);
+    } catch (e) { /* nur fuer diese Sitzung */ }
+    updateSortBtn();
+    renderEntries();
+  });
+  crumbRow.appendChild(sortBtn);
+
+  // ------------------------------------------------------------------
+  // Suche (ab 0.22.0, Vikunja #32)
+  //
+  // Sucht in der ganzen geoeffneten Quelle (gemeinsame Aufnahmen, eigene
+  // Dateien bzw. Freigabe) - in Ordner- und Dateinamen sowie Titel,
+  // Kuenstler und Album. Mehrere Woerter muessen alle vorkommen. Ohne
+  // Verbindung wird in den offline gespeicherten Ordnern gesucht.
+  // ------------------------------------------------------------------
+  const Search = (() => {
+    const row = document.createElement('div');
+    row.className = 'search-row';
+    row.innerHTML = '<svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" '
+      + 'stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>'
+      + '<input type="search" class="search-input" placeholder="Suchen: Titel, Künstler, Ordner …" '
+      + 'aria-label="Aufnahmen suchen" autocomplete="off" enterkeyhint="search">'
+      + '<button type="button" class="search-clear" aria-label="Suche löschen" title="Suche löschen" hidden>'
+      + '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" '
+      + 'stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button>';
+    crumbRow.parentNode.insertBefore(row, crumbRow);
+    const input = row.querySelector('.search-input');
+    const clearBtn = row.querySelector('.search-clear');
+
+    let query = '';
+    let results = [];
+    let complete = true;
+    let loading = false;
+    let timer = 0;
+    let seq = 0;
+
+    const fold = (s) => String(s || '').toLowerCase().replace(/ß/g, 'ss')
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const terms = (q) => fold(q).split(/\s+/).filter(Boolean);
+
+    function active() {
+      return query.length >= 2;
+    }
+
+    async function offlineSearch(q) {
+      const t = terms(q);
+      const found = [];
+      const folders = offlineIndexFor(view.source);
+      for (const folderPath of Object.keys(folders)) {
+        let entries = await offlineEntriesFromCache(folderPath, view.source);
+        if (entries === null) entries = offlineEntriesFor(folderPath, view.source);
+        entries.forEach((e) => {
+          if (found.some((f) => f.path === e.path)) return;
+          // Ordner nur, wenn darin etwas offline liegt - sonst waere er leer
+          if (e.type === 'dir' && !Object.keys(folders).some((k) => k === e.path || k.startsWith(e.path + '/'))) return;
+          const hay = fold([e.path, e.title, e.artist, e.album].join(' '));
+          if (t.every((x) => hay.includes(x))) found.push({ ...e });
+        });
+      }
+      found.sort((a, b) => (a.type === b.type ? 0 : a.type === 'dir' ? -1 : 1)
+        || a.path.localeCompare(b.path, 'de', { numeric: true }));
+      return found;
+    }
+
+    async function run() {
+      const mySeq = ++seq;
+      const q = query;
+      loading = true;
+      render();
+      let list = [];
+      let done = true;
+      try {
+        if (offlineMode) {
+          list = await offlineSearch(q);
+        } else {
+          const url = new URL(AudioArchive.api('search') + '?' + AudioArchive.sourceQuery(view.source)
+            + 'q=' + encodeURIComponent(q), location.href).href;
+          const res = await fetch(url, { credentials: 'same-origin' });
+          if (res.status === 401) {
+            showLogin();
+            return;
+          }
+          const data = await res.json();
+          list = Array.isArray(data.results) ? data.results : [];
+          done = data.complete !== false;
+        }
+      } catch (err) {
+        list = [];
+        done = false;
+      }
+      if (mySeq !== seq) return; // inzwischen weitergetippt
+      results = tagEntries(list, view.source);
+      complete = done;
+      loading = false;
+      render();
+    }
+
+    function render() {
+      listContainer.innerHTML = '';
+      libraryStatus.hidden = false;
+      if (loading) {
+        libraryStatus.textContent = 'Suche \u2026';
+        return;
+      }
+      const n = results.length;
+      libraryStatus.textContent = n === 0
+        ? 'Nichts gefunden für „' + query + '“.'
+        : n + (n === 1 ? ' Treffer' : ' Treffer') + ' für „' + query + '“'
+          + (complete ? '' : ' – nicht alles durchsucht, bitte genauer suchen')
+          + (offlineMode ? ' (nur offline gespeicherte)' : '');
+      const files = sortEntries(results).filter((e) => e.type === 'file');
+      sortEntries(results).forEach((entry) => {
+        const where = entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '';
+        if (entry.type === 'dir') {
+          listContainer.appendChild(makeRow({
+            icon: folderIcon(),
+            label: prettyFolderName(entry.name),
+            sub: where ? prettyPath(where) : sourceLabel(view.source),
+            meta: folderMeta(entry),
+            onClick: () => {
+              clear();
+              navigate(entry.path);
+            },
+          }));
+          return;
+        }
+        const index = files.indexOf(entry);
+        const isActive = Player.getCurrentKey() === entry.key;
+        const support = Player.formatSupport(entry);
+        const row = makeRow({
+          icon: isActive && support.playable ? playingIcon() : fileIcon(),
+          label: entry.name,
+          sub: where ? prettyPath(where) : sourceLabel(view.source),
+          meta: rowMeta(entry, isActive),
+          onClick: () => Player.playFolder(files, index, 'Suche: ' + query),
+        });
+        row.dataset.key = entry.key;
+        if (!support.playable) {
+          row.classList.add('is-unsupported');
+          row.title = support.hint;
+        }
+        if (isActive) {
+          row.classList.add('active');
+          if (!Player.isPlaying()) row.classList.add('paused');
+        }
+        listContainer.appendChild(row);
+      });
+    }
+
+    function clear() {
+      const was = active();
+      query = '';
+      input.value = '';
+      clearBtn.hidden = true;
+      results = [];
+      seq++;
+      window.clearTimeout(timer);
+      row.classList.remove('is-searching');
+      document.getElementById('audioarchive').classList.remove('aa-searching');
+      if (was) {
+        libraryStatus.hidden = true;
+        renderEntries();
+      }
+    }
+
+    input.addEventListener('input', () => {
+      const q = input.value.trim();
+      clearBtn.hidden = input.value === '';
+      window.clearTimeout(timer);
+      if (q.length < 2) {
+        if (active()) clear();
+        query = '';
+        clearBtn.hidden = input.value === '';
+        return;
+      }
+      query = q;
+      row.classList.add('is-searching');
+      document.getElementById('audioarchive').classList.add('aa-searching');
+      timer = window.setTimeout(run, 350);
+    });
+    input.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Escape') clear();
+      if (ev.key === 'Enter') {
+        window.clearTimeout(timer);
+        if (input.value.trim().length >= 2) {
+          query = input.value.trim();
+          run();
+        }
+        input.blur(); // Tastatur am Telefon schliessen
+      }
+    });
+    clearBtn.addEventListener('click', () => {
+      clear();
+      input.focus();
+    });
+
+    return { active, render, clear };
+  })();
+  searchApi = Search;
+
   function renderBreadcrumb() {
     breadcrumbEl.innerHTML = '';
 
@@ -1607,13 +1840,17 @@
     return s;
   }
 
-  function makeRow({ icon, label, meta, onClick }) {
+  function makeRow({ icon, label, meta, onClick, sub }) {
     const row = document.createElement('button');
     row.type = 'button';
     row.className = 'explorer-row';
+    // sub: kleine zweite Zeile, z. B. der Ordner eines Suchtreffers (ab 0.22.0)
+    const labelHtml = sub
+      ? `<span class="explorer-row-label explorer-row-label--two">${escapeHtml(label)}<span class="explorer-row-sub">${escapeHtml(sub)}</span></span>`
+      : `<span class="explorer-row-label">${escapeHtml(label)}</span>`;
     row.innerHTML = `
       <span class="explorer-row-icon">${icon}</span>
-      <span class="explorer-row-label">${escapeHtml(label)}</span>
+      ${labelHtml}
       <span class="explorer-row-meta">${escapeHtml(meta || '')}</span>
     `;
     row.addEventListener('click', onClick);
@@ -1663,7 +1900,45 @@
   function rowMeta(entry, isActive) {
     const support = Player.formatSupport(entry);
     if (isActive && support.playable) return 'L\u00e4uft gerade';
-    return [support.playable ? trackMeta(entry) : support.short, support.label].filter(Boolean).join(' \u00b7 ');
+    return [
+      support.playable ? trackMeta(entry) : support.short,
+      support.label,
+      shortDate(entry.mtime),
+    ].filter(Boolean).join(' \u00b7 ');
+  }
+
+  // ------------------------------------------------------------------
+  // Datum und Sortierung (ab 0.22.0, Vikunja #30)
+  //
+  // Aufnahmen zeigen, wann sie zuletzt geaendert wurden, Ordner, wann sie
+  // hinzugekommen sind - klein rechts neben Laenge bzw. Anzahl. Sortiert
+  // wird nach Name (wie bisher) oder "Neueste zuerst"; Ordner stehen immer
+  // vor den Aufnahmen. Die Vorgabe stellt der Administrator ein, jeder
+  // Hoerer kann umschalten - sein Geraet merkt sich das.
+  // ------------------------------------------------------------------
+  // (Zustand SORT_KEY/sortMode steht oben bei currentEntries)
+
+  function shortDate(ts) {
+    if (!ts || ts <= 0) return '';
+    return new Date(ts * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  }
+
+  function folderMeta(entry) {
+    const count = entry.count || 0; // null bei den eigenen Dateien (nicht gezaehlt)
+    return [
+      shortDate(entry.added),
+      count > 0 ? count + (count === 1 ? ' Aufnahme' : ' Aufnahmen') : '',
+    ].filter(Boolean).join(' \u00b7 ');
+  }
+
+  function sortEntries(entries) {
+    if (sortMode !== 'newest') return entries;
+    const when = (e) => (e.type === 'dir' ? e.added : e.mtime) || 0;
+    const byNewest = (a, b) => (when(b) - when(a)) || String(a.name).localeCompare(String(b.name), 'de', { numeric: true });
+    return [
+      ...entries.filter((e) => e.type === 'dir').sort(byNewest),
+      ...entries.filter((e) => e.type !== 'dir').sort(byNewest),
+    ];
   }
 
   /** Anzeigetext rechts in der Zeile: bevorzugt die Laenge, sonst die Groesse. */

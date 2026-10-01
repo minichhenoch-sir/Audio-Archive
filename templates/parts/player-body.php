@@ -53,6 +53,7 @@ if ($_['backgroundUrl'] !== '') {
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
+     data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
      data-header-subtitle="<?php echo $escape($_['headerSubtitle']); ?>"
      data-service-worker="<?php echo $escape($_['serviceWorkerUrl']); ?>"

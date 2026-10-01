@@ -178,6 +178,17 @@
 
     <!-- ============ Funktionen ============ -->
     <h3>Funktionen</h3>
+    <div class="aa-field">
+        <label for="aa-sort-default">Sortierung der Liste (Vorgabe)</label>
+        <select id="aa-sort-default">
+            <option value="name">Name (A–Z)</option>
+            <option value="newest">Neueste zuerst</option>
+        </select>
+        <p class="settings-hint">
+            Gilt für Ordner und Aufnahmen. Jeder Hörer kann in der App
+            umschalten; seine Wahl merkt sich sein Gerät.
+        </p>
+    </div>
     <p>
         <input type="checkbox" id="aa-feature-offline" class="checkbox">
         <label for="aa-feature-offline">Offline verfügbar machen erlauben</label>

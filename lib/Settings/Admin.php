@@ -74,6 +74,9 @@ class Admin implements ISettings {
             'hasCoverImage' => $this->backgroundImage->exists(BackgroundImage::ADMIN_COVER),
             'coverImageVersion' => $this->backgroundImage->version(BackgroundImage::ADMIN_COVER),
             'coverIcons' => AppIcon::COVER_ICONS,
+            'sortDefault' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
+            ),
             'betaEnabled' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ),

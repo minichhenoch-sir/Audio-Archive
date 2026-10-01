@@ -416,6 +416,107 @@ body.has-bg-image #audioarchive .explorer-row.active {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ===================== SUCHE UND SORTIERUNG (ab 0.22.0) ===================== */
+
+#audioarchive .search-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 12px;
+}
+#audioarchive .search-icon {
+  position: absolute;
+  left: 14px;
+  color: var(--color-ink-soft);
+  pointer-events: none;
+}
+#audioarchive .search-input {
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  padding: 0 44px 0 42px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-light-border);
+  background: var(--glass-row-bg);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font: inherit;
+  font-size: calc(0.95 * var(--aa-rem));
+  -webkit-appearance: none;
+  appearance: none;
+}
+#audioarchive .search-input::-webkit-search-cancel-button { display: none; }
+#audioarchive .search-input::placeholder { color: var(--color-ink-soft); opacity: 1; }
+#audioarchive .search-input:focus {
+  outline: 2px solid var(--aa-accent-on-surface, var(--color-accent-deep));
+  outline-offset: 1px;
+}
+#audioarchive .search-clear {
+  position: absolute;
+  right: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  margin: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+#audioarchive .search-clear[hidden] { display: none; }
+/* Waehrend der Suche gelten Pfad und Ordner-Knoepfe nicht - ausblenden */
+#audioarchive.aa-searching .folder-actions,
+#audioarchive.aa-searching .offline-bar,
+#audioarchive.aa-searching .incoming-bar { display: none !important; }
+#audioarchive .search-row.is-searching + .breadcrumb-row { display: none; }
+
+#audioarchive .sort-toggle {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin: 0 0 0 auto;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+  font: inherit;
+  font-size: calc(0.82 * var(--aa-rem));
+  font-weight: 600;
+  cursor: pointer;
+}
+
+/* Zweite Zeile unter dem Namen, z. B. Ordner eines Suchtreffers */
+#audioarchive .explorer-row-label--two { display: flex; flex-direction: column; }
+#audioarchive .explorer-row-sub {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: calc(0.76 * var(--aa-rem));
+  font-weight: 400;
+  color: var(--color-ink-soft);
+}
+
+#audioarchive.aa-design-nextcloud .search-input,
+#audioarchive.aa-design-nextcloud .sort-toggle {
+  background: var(--aa-nc-bg, #fff);
+  border: 1px solid var(--aa-nc-border);
+  box-shadow: none;
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .search-input::placeholder,
+#audioarchive.aa-design-nextcloud .search-icon,
+#audioarchive.aa-design-nextcloud .search-clear,
+#audioarchive.aa-design-nextcloud .explorer-row-sub { color: var(--aa-nc-text-soft); }
+
 /* ===================== BREADCRUMB (Explorer-Pfad) ===================== */
 
 /* Zeile aus Zurueck-Pfeil und Pfad (ab 0.19.0) */

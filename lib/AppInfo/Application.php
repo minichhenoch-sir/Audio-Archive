@@ -21,6 +21,8 @@ class Application extends App implements IBootstrap {
     public const SETTING_PUBLIC_PASSWORD = 'public_password_hash';
     /** Bild bei Aufnahmen ohne Cover fuer den Administrator-Link (ab 0.21.1) */
     public const SETTING_PUBLIC_COVER_ICON = 'public_cover_icon';
+    /** Vorgabe fuer die Sortierung der Liste: 'name' oder 'newest' (ab 0.22.0) */
+    public const SETTING_SORT_DEFAULT = 'sort_default';
     public const SETTING_HEADER_TITLE = 'header_title';
     public const SETTING_HEADER_SUBTITLE = 'header_subtitle';
     public const SETTING_THEME_ACCENT = 'theme_accent';

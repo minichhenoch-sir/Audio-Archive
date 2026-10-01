@@ -38,6 +38,19 @@ class MetadataReader {
     }
 
     /**
+     * Wie read(), aber nur aus dem Zwischenspeicher - liest die Datei nicht
+     * (ab 0.22.0, fuer die Suche). null = noch nie gelesen.
+     */
+    public function peek(File $file): ?array {
+        $cached = $this->cache->get('v2-' . $file->getId() . '-' . $file->getMTime());
+        if (!is_string($cached)) {
+            return null;
+        }
+        $decoded = json_decode($cached, true);
+        return is_array($decoded) ? $decoded : null;
+    }
+
+    /**
      * Liefert Dauer und Tags einer Datei.
      *
      * Zwischengespeichert wird ueber Dateikennung und Aenderungszeitpunkt -
