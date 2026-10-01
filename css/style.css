@@ -416,6 +416,64 @@ body.has-bg-image #audioarchive .explorer-row.active {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ===================== FAVORITEN (ab 0.24.0) ===================== */
+
+#audioarchive .row-fav {
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  margin: -6px -4px -6px 2px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--color-ink-soft);
+  opacity: 0.75;
+  cursor: pointer;
+}
+#audioarchive .row-fav.is-on {
+  color: #e0a100;
+  opacity: 1;
+}
+#audioarchive .row-fav:active { transform: scale(0.88); }
+#audioarchive .fav-entry .explorer-row-icon { color: #e0a100; }
+#audioarchive .fav-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+#audioarchive .fav-header[hidden] { display: none; }
+#audioarchive .fav-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: calc(21px * var(--aa-rf, 1));
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  font-weight: 700;
+}
+#audioarchive .fav-title svg { color: #e0a100; }
+#audioarchive.aa-favorites .breadcrumb-row,
+#audioarchive.aa-favorites .folder-actions,
+#audioarchive.aa-favorites .offline-bar,
+#audioarchive.aa-favorites .incoming-bar,
+#audioarchive.aa-favorites .resume-card { display: none !important; }
+#audioarchive.aa-design-nextcloud .fav-title {
+  background: var(--aa-nc-bg, #fff);
+  border: 1px solid var(--aa-nc-border);
+  box-shadow: none;
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .row-fav { color: var(--aa-nc-text-soft); }
+#audioarchive.aa-design-nextcloud .row-fav.is-on { color: #e0a100; }
+
 /* ===================== WEITERHOEREN (ab 0.23.0) ===================== */
 
 #audioarchive .resume-card {

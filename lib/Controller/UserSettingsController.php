@@ -13,6 +13,7 @@ use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\IConfig;
 use OCP\IRequest;
 use OCP\IUserSession;
 
@@ -36,6 +37,8 @@ class UserSettingsController extends Controller {
         private IUserSession $userSession,
         private Appearance $appearance,
         private BackgroundImage $backgroundImage,
+        private IConfig $config,
+        private \OCP\IAppConfig $appConfig,
     ) {
         parent::__construct($appName, $request);
     }
@@ -63,6 +66,9 @@ class UserSettingsController extends Controller {
             'adminStyle' => $this->appearance->adminStyleOffered() || $this->appearance->adminDesign() === Application::DESIGN_ADMIN
                 ? $this->appearance->adminStyle() : null,
             'hasBackground' => $this->backgroundImage->exists(BackgroundImage::userKey($uid)),
+            // Favoriten (ab 0.24.0): persoenlich ein/aus, sofern der Administrator sie anbietet
+            'favorites' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, '1') !== '0',
+            'favoritesOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true),
         ]);
     }
 
@@ -75,10 +81,13 @@ class UserSettingsController extends Controller {
     #[NoAdminRequired]
     public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
         ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null,
-        ?array $style = null): DataResponse {
+        ?array $style = null, ?bool $favorites = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+        if ($favorites !== null) {
+            $this->config->setUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, $favorites ? '1' : '0');
         }
         if (!$this->appearance->userCustomizationAllowed()) {
             return new DataResponse(['error' => 'Vom Administrator abgeschaltet.'], Http::STATUS_FORBIDDEN);

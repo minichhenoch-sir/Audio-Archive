@@ -39,7 +39,17 @@ class PlayerPage {
         private ShareService $shares,
         private IAppManager $appManager,
         private AppIcon $appIcon,
+        private \OCP\IConfig $config,
     ) {
+    }
+
+    /** Favoriten fuer diese Seite? Verwaltung ein und - angemeldet - nicht selbst abgeschaltet. */
+    private function favoritesOn(?string $uid): bool {
+        if (!$this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true)) {
+            return false;
+        }
+        return $uid === null
+            || $this->config->getUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, '1') !== '0';
     }
 
     /** Name des freigegebenen Ordners - Titel, wenn keiner gesetzt ist. */
@@ -194,6 +204,8 @@ class PlayerPage {
             // Startseite der Nextcloud fuer den Knopf "Zu Nextcloud" in der
             // Seitenleiste (ab 0.21.1, Vikunja #26)
             'nextcloudUrl' => $this->urlGenerator->linkToDefaultPageUrl(),
+            // Favoriten (ab 0.24.0, Vikunja #3): Verwaltung und persoenlich
+            'favorites' => $this->favoritesOn($uid) ? '1' : '',
             // Name des gemeinsamen Ordners (ab 0.23.0, Vikunja #37); leer = Vorgabe
             'sharedLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SHARED_LABEL, ''

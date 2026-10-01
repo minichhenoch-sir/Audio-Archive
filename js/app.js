@@ -31,6 +31,8 @@
   let searchApi = null;
   // Weiterhoeren-Karte (ab 0.23.0), siehe "Weiterhoeren"
   let resumeApi = null;
+  // Favoriten (ab 0.24.0), siehe "Favoriten"
+  let favApi = null;
   // Sortierung der Liste (ab 0.22.0), siehe "Datum und Sortierung"
   const SORT_KEY = 'audioarchive_sort';
   let sortMode = AudioArchive.sortDefault === 'newest' ? 'newest' : 'name';
@@ -637,6 +639,7 @@
   // ------------------------------------------------------------------
   function navigate(newPath, source = view.source) {
     if (searchApi && searchApi.active()) searchApi.clear();
+    if (favApi && favApi.active()) favApi.close(false);
     view = { source, path: newPath };
     history.pushState({ view }, '');
     return loadLibrary(newPath, source);
@@ -1517,6 +1520,10 @@
       searchApi.render();
       return;
     }
+    if (favApi && favApi.active()) {
+      favApi.render();
+      return;
+    }
 
     // Reihenfolge nach Wahl (ab 0.22.0): Name oder Neueste zuerst
     const entries = sortEntries(currentEntries);
@@ -1526,12 +1533,14 @@
 
     entries.forEach((entry) => {
       if (entry.type === 'dir') {
-        listContainer.appendChild(makeRow({
+        const dirRow = makeRow({
           icon: folderIcon(),
           label: prettyFolderName(entry.name),
           meta: folderMeta(entry),
           onClick: () => navigate(entry.path),
-        }));
+        });
+        if (favApi) favApi.decorate(dirRow, entry);
+        listContainer.appendChild(dirRow);
         return;
       }
 
@@ -1572,8 +1581,14 @@
         row.classList.add('active');
         if (!Player.isPlaying()) row.classList.add('paused');
       }
+      if (favApi) favApi.decorate(row, entry);
       listContainer.appendChild(row);
     });
+
+    // Eintrag "Favoriten" am Ende der obersten Ebene (ab 0.24.0)
+    if (favApi && favApi.enabled() && view.path === '') {
+      listContainer.appendChild(favApi.entryRow());
+    }
   }
 
   /*
@@ -1793,6 +1808,7 @@
         return;
       }
       query = q;
+      if (favApi && favApi.active()) favApi.close(false);
       row.classList.add('is-searching');
       document.getElementById('audioarchive').classList.add('aa-searching');
       timer = window.setTimeout(run, 350);
@@ -1905,6 +1921,261 @@
   })();
   resumeApi = Resume;
 
+  // ------------------------------------------------------------------
+  // Favoriten (ab 0.24.0, Vikunja #3)
+  //
+  // Stern rechts in jeder Zeile (Ordner und Aufnahmen). Angemeldete Nutzer
+  // setzen echte Nextcloud-Favoriten (Server), Hoerer ueber einen Link
+  // speichern sie auf dem Geraet. Die Ansicht "Favoriten" steht ganz unten:
+  // als letzter Eintrag der obersten Ebene und im Ordnerbaum. Abschaltbar in
+  // der Verwaltung und je Nutzer (Darstellung).
+  // ------------------------------------------------------------------
+  const Favorites = (() => {
+    const server = AudioArchive.loggedIn && !AudioArchive.isPublic();
+    const SCOPE = AudioArchive.apiToken || AudioArchive.publicToken || 'user';
+    const LOCAL_KEY = 'audioarchive_favs_' + SCOPE;
+    const CACHE_KEY = 'audioarchive_favs_cache';
+    let local = {};
+    try {
+      const stored = JSON.parse(localStorage.getItem(LOCAL_KEY) || '{}');
+      if (stored && typeof stored === 'object') local = stored;
+    } catch (e) { /* ohne Speicher: nur fuer diese Sitzung */ }
+
+    let isActive = false;
+    let loading = false;
+    let results = [];
+    let note = '';
+
+    const header = document.createElement('div');
+    header.className = 'fav-header';
+    header.hidden = true;
+    header.innerHTML = '<button type="button" class="crumb-back fav-back" aria-label="Zurück" title="Zurück">'
+      + '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.4" '
+      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>'
+      + '<span class="fav-title">' + starSvg(true) + '<span>Favoriten</span></span>';
+    crumbRow.parentNode.insertBefore(header, crumbRow.nextSibling);
+    header.querySelector('.fav-back').addEventListener('click', () => close(true));
+
+    function enabled() {
+      return AudioArchive.favorites === true;
+    }
+
+    function localKey(entry) {
+      return (entry.source || 'shared') + '|' + entry.path;
+    }
+
+    function isFav(entry) {
+      return server ? entry.fav === true : !!local[localKey(entry)];
+    }
+
+    function saveLocal() {
+      try {
+        localStorage.setItem(LOCAL_KEY, JSON.stringify(local));
+      } catch (e) { /* nicht kritisch */ }
+    }
+
+    function paint(btn, on) {
+      btn.classList.toggle('is-on', on);
+      btn.setAttribute('aria-pressed', on ? 'true' : 'false');
+      const label = on ? 'Aus den Favoriten entfernen' : 'Zu den Favoriten';
+      btn.title = label;
+      btn.setAttribute('aria-label', label);
+      btn.innerHTML = starSvg(on);
+    }
+
+    async function toggle(entry, btn) {
+      const on = !isFav(entry);
+      if (server) {
+        if (offlineMode) {
+          Player.showMessage('Favoriten ändern geht nur mit Internetverbindung');
+          return;
+        }
+        btn.disabled = true;
+        try {
+          const res = await fetch(AudioArchive.api('favorite'), {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/json', requesttoken: AudioArchive.requestToken },
+            body: JSON.stringify({ path: entry.path, source: entry.source || 'shared', on }),
+          });
+          if (!res.ok) throw new Error('fav');
+          entry.fav = on;
+        } catch (e) {
+          btn.disabled = false;
+          return;
+        }
+        btn.disabled = false;
+      } else if (on) {
+        local[localKey(entry)] = {
+          type: entry.type, name: entry.name, path: entry.path, source: entry.source || 'shared',
+          file: entry.file || '', title: entry.title || '', artist: entry.artist || '', album: entry.album || '',
+          duration: entry.duration || null, size: entry.size || null, mtime: entry.mtime || null,
+          added: entry.added || null, cover: entry.cover || null, at: Date.now(),
+        };
+        saveLocal();
+      } else {
+        delete local[localKey(entry)];
+        saveLocal();
+      }
+      paint(btn, on);
+      if (isActive && !on) {
+        results = results.filter((r) => localKey(r) !== localKey(entry));
+        render();
+      }
+    }
+
+    /** Stern an eine Zeile haengen. */
+    function decorate(row, entry) {
+      if (!enabled()) return;
+      if (server && offlineMode) return; // ohne Verbindung nicht aenderbar
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'row-fav';
+      paint(btn, isFav(entry));
+      btn.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        toggle(entry, btn);
+      });
+      const meta = row.querySelector('.explorer-row-meta');
+      if (meta && meta.nextSibling) row.insertBefore(btn, meta.nextSibling); else row.appendChild(btn);
+    }
+
+    /** Letzter Eintrag der obersten Ebene. */
+    function entryRow() {
+      const count = server ? null : Object.keys(local).length;
+      const row = makeRow({
+        icon: starSvg(true),
+        label: 'Favoriten',
+        meta: count ? count + (count === 1 ? ' Eintrag' : ' Einträge') : '',
+        onClick: () => open(),
+      });
+      row.classList.add('fav-entry');
+      return row;
+    }
+
+    function sources() {
+      const list = [];
+      if (AudioArchive.hasShared) list.push('shared');
+      list.push('home');
+      if (AudioArchive.isIncoming(view.source)) list.push(view.source);
+      return list;
+    }
+
+    async function open() {
+      if (searchApi && searchApi.active()) searchApi.clear();
+      isActive = true;
+      loading = true;
+      note = '';
+      document.getElementById('audioarchive').classList.add('aa-favorites');
+      header.hidden = false;
+      render();
+      let list = [];
+      if (server) {
+        if (offlineMode) {
+          try {
+            list = JSON.parse(localStorage.getItem(CACHE_KEY) || '[]');
+          } catch (e) {
+            list = [];
+          }
+          note = 'ohne Verbindung: Stand der letzten Anzeige';
+        } else {
+          for (const source of sources()) {
+            try {
+              const url = new URL(AudioArchive.api('favorites') + '?' + AudioArchive.sourceQuery(source), location.href).href;
+              const res = await fetch(url, { credentials: 'same-origin' });
+              if (!res.ok) continue;
+              const data = await res.json();
+              // Dieselbe Datei ueber zwei Quellen (gemeinsamer Ordner liegt in
+              // den eigenen Dateien): nur einmal zeigen, die erste Quelle gilt
+              (data.results || []).forEach((e) => {
+                if (e.id && list.some((x) => x.id === e.id)) return;
+                list.push({ ...e, source });
+              });
+            } catch (e) { /* Quelle ueberspringen */ }
+          }
+          try {
+            localStorage.setItem(CACHE_KEY, JSON.stringify(list));
+          } catch (e) { /* nicht kritisch */ }
+        }
+      } else {
+        list = Object.values(local)
+          .sort((a, b) => (a.type === b.type ? 0 : a.type === 'dir' ? -1 : 1)
+            || String(a.path).localeCompare(String(b.path), 'de', { numeric: true }));
+      }
+      if (!isActive) return;
+      list.forEach((e) => {
+        e.key = (e.source || 'shared') + '|' + e.path;
+        if (server) e.fav = true;
+      });
+      results = list;
+      loading = false;
+      render();
+    }
+
+    function render() {
+      listContainer.innerHTML = '';
+      libraryStatus.hidden = false;
+      if (loading) {
+        libraryStatus.textContent = 'Lade Favoriten \u2026';
+        return;
+      }
+      if (results.length === 0) {
+        libraryStatus.textContent = 'Noch keine Favoriten. Tippe in der Liste auf den Stern \u2606 neben einem Ordner oder einer Aufnahme.';
+        return;
+      }
+      libraryStatus.textContent = results.length + (results.length === 1 ? ' Favorit' : ' Favoriten') + (note ? ' (' + note + ')' : '');
+      const files = results.filter((e) => e.type === 'file');
+      results.forEach((entry) => {
+        const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/'))) : sourceLabel(entry.source);
+        if (entry.type === 'dir') {
+          const r = makeRow({
+            icon: folderIcon(),
+            label: prettyFolderName(entry.name),
+            sub: where,
+            meta: folderMeta(entry),
+            onClick: () => {
+              close(false);
+              navigate(entry.path, entry.source);
+            },
+          });
+          decorate(r, entry);
+          listContainer.appendChild(r);
+          return;
+        }
+        const index = files.indexOf(entry);
+        const isPlaying = Player.getCurrentKey() === entry.key;
+        const support = Player.formatSupport(entry);
+        const r = makeRow({
+          icon: isPlaying && support.playable ? playingIcon() : fileIcon(),
+          label: entry.name,
+          sub: where,
+          meta: rowMeta(entry, isPlaying),
+          onClick: () => Player.playFolder(files, index, 'Favoriten'),
+        });
+        r.dataset.key = entry.key;
+        if (!support.playable) r.classList.add('is-unsupported');
+        if (isPlaying) r.classList.add('active');
+        decorate(r, entry);
+        listContainer.appendChild(r);
+      });
+    }
+
+    function close(rerender) {
+      if (!isActive) return;
+      isActive = false;
+      header.hidden = true;
+      document.getElementById('audioarchive').classList.remove('aa-favorites');
+      libraryStatus.hidden = true;
+      if (rerender) {
+        renderBreadcrumb();
+        loadLibrary(view.path, view.source);
+      }
+    }
+
+    return { enabled, active: () => isActive, open, render, close, decorate, entryRow };
+  })();
+  favApi = Favorites;
+
   function renderBreadcrumb() {
     breadcrumbEl.innerHTML = '';
 
@@ -1976,6 +2247,12 @@
     `;
     row.addEventListener('click', onClick);
     return row;
+  }
+
+  /** Stern fuer Favoriten (ab 0.24.0): gefuellt oder als Umriss. */
+  function starSvg(filled) {
+    return '<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" fill="' + (filled ? 'currentColor' : 'none') + '" '
+      + 'stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><path d="M12 3.2l2.7 5.6 6.1.8-4.5 4.2 1.1 6.1L12 17l-5.4 2.9 1.1-6.1-4.5-4.2 6.1-.8z"/></svg>';
   }
 
   function folderIcon() {
@@ -2700,6 +2977,13 @@
           onSelect: () => {},
         });
         treeEl.appendChild(sharesNode.li);
+      }
+      // Favoriten ganz unten (ab 0.24.0, Wunsch: "Favoritenordner nach unten")
+      if (favApi && favApi.enabled()) {
+        const favNode = createNode('favorites', '', 'Favoriten', false, starSvg(true), true, {
+          onSelect: () => favApi.open(),
+        });
+        treeEl.appendChild(favNode.li);
       }
       built = true;
     }
@@ -3877,6 +4161,9 @@
         updateModernThumb();
         syncSections();
         usShowBackground(data.hasBackground === true);
+        // Favoriten persoenlich ein/aus (ab 0.24.0)
+        document.getElementById('us-features').hidden = data.favoritesOffered !== true;
+        document.getElementById('us-favorites').checked = data.favorites !== false;
       } catch (err) {
         usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
       }
@@ -3908,6 +4195,9 @@
       // Benutzerdefinierte Werte immer mitsichern - auch wenn gerade eine
       // andere Gestaltung gewaehlt ist, bleiben sie so fuer spaeter erhalten
       if (us.editor) payload.style = us.editor.get();
+      if (!document.getElementById('us-features').hidden) {
+        payload.favorites = document.getElementById('us-favorites').checked;
+      }
       try {
         await usRequest('user/settings', {
           method: 'POST',

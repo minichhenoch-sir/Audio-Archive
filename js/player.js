@@ -2336,6 +2336,11 @@ const Player = (() => {
       return best ? { ...best } : null;
     },
 
+    /** Kurze Meldung ueber der Player-Leiste (ab 0.24.0, fuer app.js). */
+    showMessage(text) {
+      showToast(text);
+    },
+
     /** Gemerkte Stelle eines Titels (Sekunden, 0 = keine). */
     savedPosition(track) {
       return savedPosition(track);

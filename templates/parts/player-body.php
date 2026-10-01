@@ -55,6 +55,7 @@ if ($_['backgroundUrl'] !== '') {
      data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
      data-shared-label="<?php echo $escape($_['sharedLabel'] ?? ''); ?>"
+     data-favorites="<?php echo $escape($_['favorites'] ?? ''); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
      data-header-subtitle="<?php echo $escape($_['headerSubtitle']); ?>"
      data-service-worker="<?php echo $escape($_['serviceWorkerUrl']); ?>"
@@ -193,6 +194,11 @@ if ($_['backgroundUrl'] !== '') {
         <legend>Benutzerdefiniert</legend>
         <p class="panel-hint">Farben, Ecken, Glas, Schrift und Hintergrund frei einstellen. Die Seite zeigt Änderungen sofort, gespeichert wird mit „Übernehmen“.</p>
         <div id="us-editor"></div>
+      </fieldset>
+
+      <fieldset class="panel-group" id="us-features" hidden>
+        <legend>Funktionen</legend>
+        <label class="panel-choice"><input type="checkbox" id="us-favorites"> Favoriten (Stern) anzeigen</label>
       </fieldset>
 
       <fieldset class="panel-group">

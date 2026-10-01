@@ -80,6 +80,9 @@ class Admin implements ISettings {
             'sharedLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SHARED_LABEL, ''
             ),
+            'featureFavorites' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true
+            ),
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
             ),

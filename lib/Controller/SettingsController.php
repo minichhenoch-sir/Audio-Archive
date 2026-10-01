@@ -89,6 +89,7 @@ class SettingsController extends Controller {
         ?string $sortDefault = null,
         ?int $rememberDays = null,
         ?string $sharedLabel = null,
+        ?bool $featureFavorites = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -300,6 +301,9 @@ class SettingsController extends Controller {
                 Application::APP_ID, Application::SETTING_SHARED_LABEL,
                 self::shorten(trim(strip_tags($sharedLabel)), 60)
             );
+        }
+        if ($featureFavorites !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, $featureFavorites);
         }
         if ($sortDefault !== null) {
             $this->appConfig->setValueString(

@@ -18,7 +18,10 @@ use OCP\AppFramework\Http\DataResponse;
 use OCP\Files\File;
 use OCP\Files\Folder;
 use OCP\IAppConfig;
+use OCP\IConfig;
 use OCP\IRequest;
+use OCP\ITagManager;
+use OCP\IUserSession;
 
 /**
  * Liefert den Inhalt EINES Ordners als JSON.
@@ -38,8 +41,135 @@ class ListController extends Controller {
         private IAppConfig $appConfig,
         private ContentScope $scope,
         private CoverFinder $covers,
+        private ITagManager $tagManager,
+        private IUserSession $userSession,
+        private IConfig $config,
     ) {
         parent::__construct($appName, $request);
+    }
+
+    // ------------------------------------------------------------------
+    // Favoriten (ab 0.24.0, Vikunja #3)
+    //
+    // Angemeldete Nutzer: echte Nextcloud-Favoriten - derselbe Stern wie in
+    // "Dateien" (dort sichtbar, soweit die Datei in den eigenen Dateien des
+    // Nutzers liegt). Ohne Konto (Links) merkt sich das Geraet die
+    // Favoriten selbst, siehe app.js. Abschaltbar in der Verwaltung und je
+    // Nutzer.
+    // ------------------------------------------------------------------
+
+    /** Sind Favoriten fuer diesen Aufruf eingeschaltet? */
+    public function favoritesEnabled(): bool {
+        if (!$this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true)) {
+            return false;
+        }
+        $user = $this->userSession->getUser();
+        return $user === null
+            || $this->config->getUserValue($user->getUID(), Application::APP_ID, Application::USER_FAVORITES, '1') !== '0';
+    }
+
+    /** @return array<int, true>|null Kennungen der Nextcloud-Favoriten, null = nicht angemeldet */
+    private function favoriteIds(string $s): ?array {
+        if ($s !== '' || $this->userSession->getUser() === null || !$this->favoritesEnabled()) {
+            return null;
+        }
+        try {
+            $tags = $this->tagManager->load('files');
+            $ids = $tags !== null ? $tags->getFavorites() : [];
+        } catch (\Throwable $e) {
+            return [];
+        }
+        return is_array($ids) ? array_fill_keys(array_map('intval', $ids), true) : [];
+    }
+
+    /**
+     * Favoriten der Quelle (angemeldet): Ordner und Aufnahmen, die als
+     * Favorit markiert sind und in dieser Quelle liegen.
+     */
+    #[NoAdminRequired]
+    #[NoCSRFRequired]
+    public function favorites(string $source = AudioFolder::SOURCE_SHARED): DataResponse {
+        $scope = $this->scope->resolve($source, '');
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
+        }
+        $ids = $this->favoriteIds('');
+        if ($ids === null) {
+            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+        $root = $scope['root'];
+        $dirs = [];
+        $files = [];
+        $covers = [];
+        foreach (array_keys($ids) as $id) {
+            if (count($dirs) + count($files) >= 500) {
+                break;
+            }
+            try {
+                $node = method_exists($root, 'getFirstNodeById') ? $root->getFirstNodeById($id) : ($root->getById($id)[0] ?? null);
+            } catch (\Throwable $e) {
+                $node = null;
+            }
+            if ($node === null || $node->getPath() === $root->getPath()) {
+                continue;
+            }
+            $relative = $this->audioFolder->relativePath($root, $node);
+            if ($relative === '' || str_starts_with($node->getName(), '.')) {
+                continue;
+            }
+            if ($node instanceof Folder) {
+                // Nur Ordner mit Aufnahmen - sonst stuenden hier alle
+                // Nextcloud-Favoriten wie "Dokumente"
+                $budget = 300;
+                if ($this->firstWithAudio([$node], $budget) === null) {
+                    continue;
+                }
+                $dirs[] = ['type' => 'dir', 'name' => $node->getName(), 'path' => $relative,
+                    'count' => null, 'added' => self::folderAdded($node), 'fav' => true, 'id' => $node->getId()];
+            } elseif ($node instanceof File && $this->audioFolder->isAllowedFile($node)) {
+                $parent = $node->getParent();
+                $pid = $parent->getId();
+                $covers[$pid] ??= false;
+                $entry = $this->fileEntry($node, $parent, $root, $relative, $covers[$pid]);
+                $entry['fav'] = true;
+                // Kennung: dieselbe Datei kann ueber zwei Quellen erreichbar sein
+                $entry['id'] = $node->getId();
+                $files[] = $entry;
+            }
+        }
+        usort($dirs, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
+        usort($files, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
+        return new DataResponse(['results' => array_merge($dirs, $files)]);
+    }
+
+    /** Stern setzen oder entfernen (angemeldet). */
+    #[NoAdminRequired]
+    public function setFavorite(string $path = '', string $source = AudioFolder::SOURCE_SHARED, bool $on = true): DataResponse {
+        if ($this->userSession->getUser() === null) {
+            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+        if (!$this->favoritesEnabled()) {
+            return new DataResponse(['error' => 'Favoriten sind abgeschaltet.'], Http::STATUS_FORBIDDEN);
+        }
+        $scope = $this->scope->resolve($source, '');
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
+        }
+        $node = $this->audioFolder->resolveIn($scope['root'], $path);
+        if ($node === null || trim($path, '/') === ''
+            || !($node instanceof Folder || $this->audioFolder->isAllowedFile($node))) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+        try {
+            $tags = $this->tagManager->load('files');
+            if ($tags === null) {
+                throw new \RuntimeException('Tags nicht verfuegbar');
+            }
+            $ok = $on ? $tags->addToFavorites($node->getId()) : $tags->removeFromFavorites($node->getId());
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => 'Favorit konnte nicht gespeichert werden.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+        return new DataResponse(['fav' => $on, 'ok' => (bool)$ok]);
     }
 
     /**
@@ -67,6 +197,8 @@ class ListController extends Controller {
         }
 
         $relative = $this->audioFolder->relativePath($root, $node);
+        // Nextcloud-Favoriten des Nutzers (ab 0.24.0), null = keine
+        $favIds = $this->favoriteIds($s);
 
         $dirs = [];
         $files = [];
@@ -91,6 +223,7 @@ class ListController extends Controller {
                     'count' => $scope['countFolders'] ? $this->audioFolder->countRecursive($child) : null,
                     // Datum fuer Anzeige und Sortierung (ab 0.22.0, Vikunja #30)
                     'added' => self::folderAdded($child),
+                    'fav' => $favIds !== null && isset($favIds[$child->getId()]),
                 ];
                 continue;
             }
@@ -100,7 +233,9 @@ class ListController extends Controller {
             }
 
             /** @var File $child */
-            $files[] = $this->fileEntry($child, $node, $root, $childRelative, $folderCover);
+            $entry = $this->fileEntry($child, $node, $root, $childRelative, $folderCover);
+            $entry['fav'] = $favIds !== null && isset($favIds[$child->getId()]);
+            $files[] = $entry;
         }
 
         usort($dirs, static fn ($a, $b) => strnatcasecmp($a['name'], $b['name']));

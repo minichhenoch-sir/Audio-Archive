@@ -30,6 +30,9 @@ return [
         ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
         // Suche in der ganzen Quelle (ab 0.22.0)
         ['name' => 'list#search', 'url' => '/api/search', 'verb' => 'GET'],
+        // Favoriten (ab 0.24.0)
+        ['name' => 'list#favorites', 'url' => '/api/favorites', 'verb' => 'GET'],
+        ['name' => 'list#setFavorite', 'url' => '/api/favorite', 'verb' => 'POST'],
 
         // Anmeldung an der oeffentlichen Seite
         ['name' => 'publicAuth#login', 'url' => '/api/public/login', 'verb' => 'POST'],

@@ -202,6 +202,16 @@
 
     <!-- ============ Funktionen ============ -->
     <h3>Funktionen</h3>
+    <p>
+        <input type="checkbox" id="aa-feature-favorites" class="checkbox">
+        <label for="aa-feature-favorites">Favoriten (Stern) anbieten</label>
+    </p>
+    <p class="settings-hint">
+        Angemeldete Nutzer markieren mit echten Nextcloud-Favoriten (der Stern
+        erscheint auch in „Dateien“, soweit die Datei in ihren eigenen Dateien
+        liegt). Hörer über einen Link speichern Favoriten auf ihrem Gerät. Jeder
+        angemeldete Nutzer kann den Stern für sich unter „Darstellung“ abschalten.
+    </p>
     <div class="aa-field">
         <label for="aa-sort-default">Sortierung der Liste (Vorgabe)</label>
         <select id="aa-sort-default">

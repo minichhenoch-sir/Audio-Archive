@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.23.0)
+# Audio Archive – Nextcloud-App (0.24.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1304,4 +1304,29 @@ Container neu starten; keine Datenbankänderung.
 
 PHP, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung.
+
+---
+
+## 0.24.0: Favoriten
+
+- **Stern in jeder Zeile** (Ordner und Aufnahmen) markiert Favoriten.
+  Angemeldete Nutzer setzen damit echte **Nextcloud-Favoriten** – der Stern
+  erscheint auch in „Dateien“, soweit die Datei in ihren eigenen Dateien
+  liegt. Hörer über einen Link (ohne Konto) speichern ihre Favoriten auf dem
+  Gerät, getrennt je Link.
+- **Ansicht „Favoriten“** ganz unten: als letzter Eintrag der obersten Ebene
+  und – angemeldet – unten im Ordnerbaum. Sie zeigt Ordner und Aufnahmen aus
+  allen Quellen mit ihrem Ordner darunter; Antippen spielt bzw. öffnet,
+  der Stern entfernt. Ordner ohne Aufnahmen (andere Nextcloud-Favoriten wie
+  „Dokumente“) werden nicht gezeigt; dieselbe Datei aus zwei Quellen nur
+  einmal. Ohne Verbindung zeigt sie den Stand der letzten Anzeige
+  (angemeldet) bzw. die Gerätefavoriten.
+- **Abschaltbar:** Verwaltung → Funktionen → „Favoriten (Stern) anbieten“
+  (Vorgabe: an); jeder angemeldete Nutzer zusätzlich für sich unter
+  „Darstellung“ → Funktionen.
+- Neue Routen `api/favorites` (lesen) und `api/favorite` (setzen).
+
+PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung (Favoriten liegen in
+Nextclouds eigener Tabelle).
 

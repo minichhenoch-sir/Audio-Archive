@@ -29,6 +29,10 @@ class Application extends App implements IBootstrap {
     public const SETTING_REMEMBER_SECRET = 'remember_secret';
     /** Anzeigename des gemeinsamen Ordners; leer = Vorgabe (ab 0.23.0) */
     public const SETTING_SHARED_LABEL = 'shared_label';
+    /** Favoriten anbieten (ab 0.24.0, Vorgabe: ja) */
+    public const SETTING_FEATURE_FAVORITES = 'feature_favorites';
+    /** Persoenlich: Favoriten ausblenden ('0'), Nutzer-Einstellung (ab 0.24.0) */
+    public const USER_FAVORITES = 'favorites';
     public const SETTING_HEADER_TITLE = 'header_title';
     public const SETTING_HEADER_SUBTITLE = 'header_subtitle';
     public const SETTING_THEME_ACCENT = 'theme_accent';
