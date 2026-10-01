@@ -47,6 +47,80 @@ const Player = (() => {
 
   const SEEK_STEP = 15; // Sekunden
 
+  // ------------------------------------------------------------------
+  // Audioformate (ab 0.21.0)
+  //
+  // Neben MP3 zeigt die App alle Formate, die verbreitete Browser selbst
+  // abspielen. Umgewandelt wird nichts. Ob DIESER Browser ein Format kann,
+  // sagt er selbst (canPlayType) - AIFF etwa nur Safari. Titel, die er
+  // nicht kann, werden beim Weiterspielen uebersprungen; tippt man sie an,
+  // erscheint ein Hinweis statt endloser Ladeversuche.
+  // ------------------------------------------------------------------
+  const FORMAT_TYPES = {
+    mp3: ['audio/mpeg'],
+    m4a: ['audio/mp4', 'audio/x-m4a'],
+    m4b: ['audio/mp4', 'audio/x-m4a'],
+    aac: ['audio/aac', 'audio/mp4'],
+    ogg: ['audio/ogg'],
+    oga: ['audio/ogg'],
+    opus: ['audio/ogg; codecs=opus', 'audio/opus'],
+    webm: ['audio/webm'],
+    weba: ['audio/webm'],
+    wav: ['audio/wav', 'audio/wave', 'audio/x-wav'],
+    flac: ['audio/flac', 'audio/x-flac'],
+    aif: ['audio/aiff', 'audio/x-aiff'],
+    aiff: ['audio/aiff', 'audio/x-aiff'],
+    aifc: ['audio/aiff', 'audio/x-aiff'],
+    caf: ['audio/x-caf'],
+  };
+  /** Formate, die praktisch nur Apple-Geraete (Safari) abspielen. */
+  const APPLE_ONLY = ['aif', 'aiff', 'aifc', 'caf'];
+  const formatCache = {};
+  /** Titel, die trotz "maybe" nicht dekodiert werden konnten (z. B. ALAC in Chrome). */
+  const undecodable = new Set();
+  /** Zuletzt vom Nutzer angetippter Titel: der wird nie von selbst uebersprungen. */
+  let tappedKey = '';
+
+  function extensionOf(track) {
+    const name = (track && (track.file || track.path)) || '';
+    const m = /\.([a-z0-9]+)$/i.exec(name);
+    return m ? m[1].toLowerCase() : '';
+  }
+
+  /** Kurzname des Formats fuer Anzeigen ("AIFF", "M4A" ...). */
+  function formatLabel(track) {
+    return extensionOf(track).toUpperCase();
+  }
+
+  /** Kann dieser Browser den Titel abspielen? Unbekannt = ja. */
+  function formatPlayable(track) {
+    if (track && undecodable.has(track.path + '|' + (track.source || ''))) return false;
+    const ext = extensionOf(track);
+    if (ext === '' || ext === 'mp3' || !FORMAT_TYPES[ext]) return true;
+    if (!(ext in formatCache)) {
+      formatCache[ext] = FORMAT_TYPES[ext].some((type) => {
+        try {
+          return audio.canPlayType(type) !== '';
+        } catch (e) {
+          return true;
+        }
+      });
+    }
+    return formatCache[ext];
+  }
+
+  /** Hinweistext fuer ein Format, das dieser Browser nicht kann. */
+  function formatHint(track) {
+    const ext = extensionOf(track);
+    const label = formatLabel(track);
+    if (track && undecodable.has(track.path + '|' + (track.source || ''))) {
+      return 'Diese ' + label + '-Datei kann dieser Browser nicht abspielen';
+    }
+    return APPLE_ONLY.includes(ext)
+      ? label + ' spielt nur Safari (iPhone, iPad, Mac) ab'
+      : label + ' kann dieser Browser nicht abspielen';
+  }
+
   let onTrackChange = null;     // Callback: Titel gewechselt (Liste aktualisieren)
   let onQueueEnd = null;        // Callback: Ordner fertig -> naechster Ordner (app.js)
   let onPlayStateChange = null; // Callback: Play/Pause gewechselt (Animation in der Liste)
@@ -558,6 +632,7 @@ const Player = (() => {
    */
   function estimateSeconds(track) {
     const ASSUMED_BITRATE_BYTES_PER_SEC = 128000 / 8; // 128 kbit/s
+    if (track && track.duration > 0) return track.duration; // ab 0.21.0: WAV/FLAC sind viel groesser
     if (!track || !track.size) return 0;
     return track.size / ASSUMED_BITRATE_BYTES_PER_SEC;
   }
@@ -705,6 +780,28 @@ const Player = (() => {
     // Pause des Nutzers
     reloading = autoplay;
 
+    if (!formatPlayable(track)) {
+      // Nicht abspielbar: anzeigen, aber nichts laden (ab 0.21.0)
+      shouldPlay = false;
+      reloading = false;
+      audio.removeAttribute('src');
+      audio.load();
+      setMarqueeText(els.title, trackTitle(track));
+      setMarqueeText(els.context, formatHint(track));
+      els.timeCurrent.textContent = formatTime(0);
+      els.timeDuration.textContent = '–:––';
+      els.seek.value = 0;
+      showCover(track);
+      els.bar.hidden = false;
+      updateMarquees();
+      updatePlayerBarSpace();
+      updatePlayPauseIcon();
+      setMediaSessionPlaybackState('paused');
+      showToast(formatHint(track));
+      if (typeof onTrackChange === 'function') onTrackChange(track, currentIndex);
+      return;
+    }
+
     audio.src = streamUrlFor(track);
     setMarqueeText(els.title, trackTitle(track));
     setMarqueeText(els.context, trackContext(track));
@@ -848,7 +945,8 @@ const Player = (() => {
         playlist = next.tracks;
         preparedNext = null;
         showToast('Weiter mit: ' + (next.label || 'nächster Ordner'));
-        loadTrack(0, true);
+        const start = playableIndex(0, 1);
+        loadTrack(start === -1 ? 0 : start, true);
         if (typeof next.onStart === 'function') next.onStart();
         return;
       }
@@ -1009,7 +1107,7 @@ const Player = (() => {
       ['Wiedergabe', [
         ['Dauer', formatDuration(t.duration || track.duration || audio.duration)],
         ['Qualität', technical.join(' · ')],
-        ['Format', pick(t.format, 'MP3')],
+        ['Format', pick(t.format, formatLabel(track))],
       ]],
       ['Datei', [
         ['Name', pick(f.name, track.file, track.name)],
@@ -1189,7 +1287,10 @@ const Player = (() => {
     shouldPlay = false;
     els.bar.classList.add('is-failed');
     setMarqueeText(els.title, 'Wiedergabe fehlgeschlagen');
-    setMarqueeText(els.context, 'Zum erneuten Versuch auf Play tippen');
+    const failedTrack = playlist[currentIndex];
+    setMarqueeText(els.context, !loadedOnce && failedTrack && extensionOf(failedTrack) !== 'mp3'
+      ? 'Format ' + formatLabel(failedTrack) + ' evtl. nicht unterstützt – Play: neuer Versuch'
+      : 'Zum erneuten Versuch auf Play tippen');
     updateMarquees();
     updatePlayPauseIcon();
     setMediaSessionPlaybackState('paused');
@@ -1299,6 +1400,35 @@ const Player = (() => {
     }
     // 2 = Netzwerk, 3 = Dekodierung (oft Folge eines abgerissenen Stroms),
     // 4 = Quelle nicht ladbar (so meldet Chrome einen gescheiterten Abruf)
+    //
+    // Ab 0.21.0: Scheitert ein Nicht-MP3-Titel, bevor er je geladen war,
+    // kurz nachsehen, ob der Server die Datei liefert. Wenn ja, liegt es am
+    // Format (der Browser sagte nur "vielleicht") - dann hilft kein
+    // Nachladen, sondern ein klarer Hinweis bzw. der naechste Titel.
+    if ((code === 3 || code === 4) && !loadedOnce && extensionOf(track) !== 'mp3' && !undecodable.has(track.path + '|' + (track.source || ''))) {
+      const key = trackKey(track);
+      const wanted = shouldPlay;
+      fetch(streamUrlFor(track), { headers: { Range: 'bytes=0-1' }, credentials: 'same-origin', cache: 'no-store' })
+        .then((response) => {
+          if (trackKey(playlist[currentIndex]) !== key) return;
+          if (!response.ok) {
+            recover();
+            return;
+          }
+          undecodable.add(track.path + '|' + (track.source || ''));
+          resetRecovery();
+          const next = wanted && key !== tappedKey ? playableIndex(currentIndex + 1, 1) : -1;
+          if (next !== -1) {
+            showToast(formatHint(track) + ' – übersprungen');
+            loadTrack(next, true);
+          } else {
+            loadTrack(currentIndex, false); // zeigt den Hinweis an
+          }
+          if (typeof onTrackChange === 'function') onTrackChange(playlist[currentIndex], currentIndex);
+        })
+        .catch(() => recover());
+      return;
+    }
     recover();
   });
 
@@ -1397,7 +1527,7 @@ const Player = (() => {
   /** Naechster abspielbarer Titel ab from (einschliesslich), -1 wenn keiner. */
   function playableIndex(from, step) {
     for (let i = from; i >= 0 && i < playlist.length; i += step) {
-      if (!knownUnavailable(playlist[i])) return i;
+      if (!knownUnavailable(playlist[i]) && formatPlayable(playlist[i])) return i;
     }
     return -1;
   }
@@ -1922,6 +2052,20 @@ const Player = (() => {
   });
 
   return {
+    /** Kann dieser Browser das Format abspielen? Und wenn nicht: warum (ab 0.21.0). */
+    formatSupport(track) {
+      const playable = formatPlayable(track);
+      const short = APPLE_ONLY.includes(extensionOf(track)) ? 'nur Safari' : 'hier nicht abspielbar';
+      const ext = extensionOf(track);
+      return {
+        playable,
+        hint: playable ? '' : formatHint(track),
+        short: playable ? '' : short,
+        // Kurzname fuer die Zeile; bei MP3 (dem Normalfall) leer
+        label: ext === 'mp3' ? '' : ext.toUpperCase(),
+      };
+    },
+
     /**
      * Startet eine neue "Playlist" (= Inhalt eines Kategorie-Ordners) ab einem
      * bestimmten Titel-Index. tracks: [{name, path}], label: Anzeigekontext.
@@ -1932,12 +2076,24 @@ const Player = (() => {
         showToast('Diese Aufnahme ist nicht offline gespeichert');
         return;
       }
+      // Format, das dieser Browser nicht kann: Hinweis, laufende
+      // Wiedergabe bleibt unberuehrt (ab 0.21.0)
+      if (tracks[startIndex] && !formatPlayable(tracks[startIndex]) && currentIndex >= 0 && !audio.paused) {
+        showToast(formatHint(tracks[startIndex]));
+        return;
+      }
       playlist = tracks;
+      tappedKey = trackKey(tracks[startIndex]);
       loadTrack(startIndex, true);
       refreshStoredUrls();
     },
 
     resume() {
+      // Format, das dieser Browser nicht kann: nur den Hinweis wiederholen
+      if (playlist[currentIndex] && !formatPlayable(playlist[currentIndex])) {
+        showToast(formatHint(playlist[currentIndex]));
+        return;
+      }
       shouldPlay = true;
       if (pendingRecovery) {
         const reload = pendingRecovery;

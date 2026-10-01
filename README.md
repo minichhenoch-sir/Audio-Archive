@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.20.1)
+# Audio Archive – Nextcloud-App (0.21.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1172,3 +1172,51 @@ auf Nextcloud 35.0.1.
 
 Nur eine PHP-Datei (Migration) geändert – nach dem Einspielen Container neu
 starten.
+
+---
+
+## 0.21.0: Weitere Audioformate
+
+Bisher zeigte und spielte die App nur MP3. Jetzt erscheinen alle Formate,
+die verbreitete Browser selbst abspielen – **ohne Umwandlung** auf dem
+Server:
+
+| Endung | Format | Hinweis |
+|---|---|---|
+| mp3 | MP3 | überall |
+| m4a, m4b, aac | AAC, Apple Lossless (ALAC) | AAC überall; ALAC je nach Browser |
+| ogg, oga, opus | Ogg Vorbis, Opus | ältere Safari-Versionen nicht |
+| flac | FLAC | überall |
+| wav | WAV | überall |
+| webm, weba | WebM | ältere Safari-Versionen nicht |
+| aif, aiff, aifc, caf | AIFF, Core Audio | nur Safari (iPhone, iPad, Mac) |
+
+Ob ein Gerät ein Format kann, entscheidet dessen Browser; die App fragt ihn
+(siehe unten) und rät nicht.
+
+- **Angaben wie bei MP3:** Länge, Titel/Künstler/Album, Info-Ansicht
+  (Jahr, Genre, Titelnummer, Kommentar, Qualität, Format) und eingebettetes
+  Cover werden auch aus FLAC, Ogg/Opus, M4A, WAV und AIFF gelesen – ohne
+  zusätzliche Programme auf dem Server (neu: `lib/Service/AudioProbe.php`).
+  Bei WebM, AAC-Rohstrom und CAF ermittelt der Browser die Länge erst beim
+  Abspielen; die Liste zeigt dort die Dateigröße.
+- **Formatkürzel in der Liste:** Bei allen Dateien außer MP3 steht rechts
+  klein das Format („0:42 · FLAC“). So sind gleichnamige Aufnahmen in
+  verschiedenen Formaten unterscheidbar.
+- **Was der Browser nicht kann**, steht blass in der Liste („nur Safari“
+  bzw. „hier nicht abspielbar“). Antippen zeigt einen Hinweis statt endloser
+  Ladeversuche; eine laufende Wiedergabe wird dabei nicht unterbrochen. Beim
+  Weiterspielen (Titelende, Weiter-Taste, nächster Ordner) werden solche
+  Titel übersprungen.
+- **Erst beim Abspielen erkannt:** Sagt der Browser „vielleicht“, kann die
+  Datei aber nicht dekodieren (z. B. Apple Lossless in Firefox), prüft die
+  App kurz, ob der Server die Datei liefert. Wenn ja, liegt es am Format:
+  Hinweis bzw. Sprung zum nächsten Titel statt 30 Sekunden Nachladen.
+- Der Server liefert jede Datei mit dem passenden Medientyp aus
+  (`audio/flac`, `audio/ogg` …), Spulen per Byte-Bereich wie bei MP3.
+- Vorausladen plant mit der echten Länge statt mit einer MP3-Schätzung –
+  große WAV/FLAC-Dateien sprengen den Puffer nicht mehr.
+
+PHP, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung.
+

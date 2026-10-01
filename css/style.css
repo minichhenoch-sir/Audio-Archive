@@ -603,6 +603,15 @@ body.has-bg-image #audioarchive .explorer-row.active {
   background: var(--aa-surface-press, rgba(255, 250, 242, 0.95));
 }
 
+/* Format, das dieser Browser nicht abspielt (ab 0.21.0): sichtbar, aber blass */
+#audioarchive .explorer-row.is-unsupported .explorer-row-icon,
+#audioarchive .explorer-row.is-unsupported .explorer-row-label {
+  opacity: 0.5;
+}
+#audioarchive .explorer-row.is-unsupported .explorer-row-meta {
+  font-style: italic;
+}
+
 /*
  * Nur die gerade laufende Zeile bekommt den Glas-/Blur-Effekt - dadurch
  * hebt sie sich deutlich von den uebrigen Zeilen ab, und es ist immer nur

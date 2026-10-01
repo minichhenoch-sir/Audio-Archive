@@ -9,6 +9,9 @@ use OCP\ICacheFactory;
 
 /**
  * Liest Spieldauer und ID3-Tags (Kuenstler, Album, Titel) aus mp3-Dateien.
+ * Die uebrigen Formate (FLAC, Ogg, M4A, WAV, AIFF ...) liest ab 0.21.0 der
+ * AudioProbe; ein dort eingebetteter ID3-Block (WAV/AIFF) laeuft wieder
+ * durch die ID3-Routinen hier.
  *
  * Uebernommen aus der eigenstaendigen Fassung, aber auf Datei-STROEME
  * umgestellt: In Nextcloud liegen Dateien nicht zwingend als Pfad im
@@ -27,7 +30,10 @@ class MetadataReader {
 
     private ICache $cache;
 
-    public function __construct(ICacheFactory $cacheFactory) {
+    public function __construct(
+        ICacheFactory $cacheFactory,
+        private AudioProbe $probe,
+    ) {
         $this->cache = $cacheFactory->createDistributed('audioarchive_meta_');
     }
 
@@ -68,13 +74,30 @@ class MetadataReader {
 
         try {
             $size = (int)$file->getSize();
-            $result['duration'] = $this->readDuration($fh, $size);
+            $probe = $this->probe->probe($fh, $size);
+            if ($probe['container'] === null) {
+                $result['duration'] = $this->readDuration($fh, $size);
 
-            $tags = $this->readTags($fh, $size);
-            $result['artist'] = $tags['artist'];
-            $result['album'] = $tags['album'];
-            $result['title'] = $tags['title'];
-            $result['cover'] = $this->findEmbeddedCover($fh) !== null;
+                $tags = $this->readTags($fh, $size);
+                $result['artist'] = $tags['artist'];
+                $result['album'] = $tags['album'];
+                $result['title'] = $tags['title'];
+                $result['cover'] = $this->findEmbeddedCover($fh) !== null;
+            } else {
+                $tags = $probe['tags'];
+                $hasCover = $probe['cover'] !== null;
+                $id3 = $this->id3Stream($fh, $probe['id3']);
+                if ($id3 !== null) {
+                    $tags += array_filter($this->readTags($id3, (int)$probe['id3']['length']), static fn ($v) => $v !== null);
+                    $hasCover = $hasCover || $this->findEmbeddedCover($id3) !== null;
+                    fclose($id3);
+                }
+                $result['duration'] = $probe['duration'];
+                $result['artist'] = $tags['artist'] ?? null;
+                $result['album'] = $tags['album'] ?? null;
+                $result['title'] = $tags['title'] ?? null;
+                $result['cover'] = $hasCover;
+            }
         } catch (\Throwable $e) {
             // Beschaedigte Datei: Dann bleibt es bei den Standardwerten.
         } finally {
@@ -333,10 +356,32 @@ class MetadataReader {
 
         try {
             $size = (int)$file->getSize();
-            $result = array_merge($result, $this->readExtendedTags($fh, $size));
-            $audio = $this->readAudioInfo($fh, $size);
-            foreach ($audio as $k => $v) {
-                $result[$k] = $v;
+            $probe = $this->probe->probe($fh, $size);
+            if ($probe['container'] === null) {
+                $result = array_merge($result, $this->readExtendedTags($fh, $size));
+                $audio = $this->readAudioInfo($fh, $size);
+                foreach ($audio as $k => $v) {
+                    $result[$k] = $v;
+                }
+            } else {
+                $tags = $probe['tags'];
+                $id3 = $this->id3Stream($fh, $probe['id3']);
+                if ($id3 !== null) {
+                    $extended = $this->readExtendedTags($id3, (int)$probe['id3']['length']);
+                    $tags += array_filter($extended, static fn ($v) => $v !== null);
+                    fclose($id3);
+                }
+                if (isset($tags['genre'])) {
+                    $tags['genre'] = $this->genreName($tags['genre']);
+                }
+                foreach ($tags as $k => $v) {
+                    if (array_key_exists($k, $result)) {
+                        $result[$k] = $v;
+                    }
+                }
+                foreach (['duration', 'bitrate', 'sampleRate', 'channels', 'format'] as $k) {
+                    $result[$k] = $probe[$k];
+                }
             }
         } catch (\Throwable $e) {
             // Beschaedigte Datei: was bis dahin gelesen wurde, bleibt
@@ -630,6 +675,27 @@ class MetadataReader {
             return null;
         }
         try {
+            $probe = $this->probe->probe($fh, (int)$file->getSize());
+            if ($probe['container'] !== null) {
+                $cover = $probe['cover'];
+                if (is_array($cover) && isset($cover['data'])) {
+                    return ['mime' => $cover['mime'], 'data' => $cover['data']];
+                }
+                if (is_array($cover)) {
+                    if ($cover['length'] > self::MAX_COVER_BYTES) {
+                        return null;
+                    }
+                    $data = $this->probe->readAt($fh, $cover['offset'], $cover['length']);
+                    return strlen($data) === $cover['length'] ? ['mime' => $cover['mime'], 'data' => $data] : null;
+                }
+                // WAV/AIFF: Bild im eingebetteten ID3-Block
+                $id3 = $this->id3Stream($fh, $probe['id3']);
+                if ($id3 === null) {
+                    return null;
+                }
+                fclose($fh);
+                $fh = $id3;
+            }
             $info = $this->findEmbeddedCover($fh);
             if ($info === null) {
                 return null;
@@ -651,6 +717,31 @@ class MetadataReader {
         } finally {
             fclose($fh);
         }
+    }
+
+    /**
+     * Kopiert einen in WAV/AIFF eingebetteten ID3v2-Block in einen eigenen
+     * Strom, damit die ID3-Routinen ihn wie eine mp3 von vorn lesen koennen.
+     *
+     * @param resource $fh
+     * @param array{offset: int, length: int}|null $range
+     * @return resource|null
+     */
+    private function id3Stream($fh, ?array $range) {
+        if ($range === null || $range['length'] < 10 || $range['length'] > self::MAX_COVER_BYTES + 1024 * 1024) {
+            return null;
+        }
+        $data = $this->probe->readAt($fh, $range['offset'], $range['length']);
+        if (substr($data, 0, 3) !== 'ID3') {
+            return null;
+        }
+        $mem = fopen('php://temp', 'w+b');
+        if ($mem === false) {
+            return null;
+        }
+        fwrite($mem, $data);
+        rewind($mem);
+        return $mem;
     }
 
     /** Groesstes Cover, das ausgeliefert wird (Schutz vor defekten Angaben). */

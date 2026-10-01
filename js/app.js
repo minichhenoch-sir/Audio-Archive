@@ -1419,12 +1419,19 @@
       const fileIndex = folderFiles.findIndex((f) => f.path === entry.path);
       const isActive = Player.getCurrentKey() === entry.key;
 
+      // Formate, die dieser Browser nicht kann (z. B. AIFF ausser Safari),
+      // bleiben sichtbar, aber blass mit kurzem Hinweis (ab 0.21.0)
+      const support = Player.formatSupport(entry);
       const row = makeRow({
-        icon: isActive ? playingIcon() : fileIcon(),
+        icon: isActive && support.playable ? playingIcon() : fileIcon(),
         label: entry.name,
-        meta: isActive ? 'L\u00e4uft gerade' : trackMeta(entry),
+        meta: rowMeta(entry, isActive),
         onClick: () => Player.playFolder(folderFiles, fileIndex, folderLabel),
       });
+      if (!support.playable) {
+        row.classList.add('is-unsupported');
+        row.title = support.hint;
+      }
       // Download-Knopf nur, wenn der Admin das Herunterladen freigegeben hat
       // und eine Verbindung besteht (offline gaebe es nichts zu holen).
       if (features.download && !offlineMode) {
@@ -1576,6 +1583,17 @@
       return `${h}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
     return `${m}:${String(sec).padStart(2, '0')}`;
+  }
+
+  /**
+   * Text rechts in einer Aufnahme-Zeile (ab 0.21.0 gemeinsam fuer Aufbau
+   * und Aktualisierung): "Laeuft gerade", sonst Laenge bzw. Groesse, bei
+   * Nicht-MP3 mit Formatkuerzel; nicht abspielbare Formate mit Hinweis.
+   */
+  function rowMeta(entry, isActive) {
+    const support = Player.formatSupport(entry);
+    if (isActive && support.playable) return 'L\u00e4uft gerade';
+    return [support.playable ? trackMeta(entry) : support.short, support.label].filter(Boolean).join(' \u00b7 ');
   }
 
   /** Anzeigetext rechts in der Zeile: bevorzugt die Laenge, sonst die Groesse. */
@@ -1887,19 +1905,27 @@
       // Zeile pausiert/läuft: steuert nur die Animation der Equalizer-Balken
       row.classList.toggle('paused', isActive && !playing);
 
+      const entry = currentEntries.find((e) => e.key === row.dataset.key);
+      const metaEl = row.querySelector('.explorer-row-meta');
+
+      // Erst beim Abspielen erkannt, dass der Browser die Datei nicht
+      // dekodieren kann (ab 0.21.0): Zeile nachtraeglich blass stellen
+      const support = entry ? Player.formatSupport(entry) : { playable: true, hint: '' };
+      if (row.classList.contains('is-unsupported') === support.playable) {
+        row.classList.toggle('is-unsupported', !support.playable);
+        row.title = support.hint;
+        if (metaEl && entry) metaEl.textContent = rowMeta(entry, isActive);
+      }
+
       if (isActive === wasActive) return; // Icon/Text müssen nicht neu gesetzt werden
 
       row.classList.toggle('active', isActive);
 
       const iconEl = row.querySelector('.explorer-row-icon');
-      const metaEl = row.querySelector('.explorer-row-meta');
-      const entry = currentEntries.find((e) => e.key === row.dataset.key);
 
-      if (iconEl) iconEl.innerHTML = isActive ? playingIcon() : fileIcon();
+      if (iconEl) iconEl.innerHTML = isActive && support.playable ? playingIcon() : fileIcon();
       if (metaEl) {
-        metaEl.textContent = isActive
-          ? 'L\u00e4uft gerade'
-          : (entry ? trackMeta(entry) : '');
+        metaEl.textContent = entry ? rowMeta(entry, isActive) : '';
       }
     });
   }

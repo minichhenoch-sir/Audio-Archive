@@ -106,7 +106,7 @@ class StreamController extends Controller {
          */
         if ($range === null) {
             $response = new RangeStreamResponse($handle, $size);
-            $response->addHeader('Content-Type', 'audio/mpeg');
+            $response->addHeader('Content-Type', AudioFolder::mimeFor($node->getName()));
             $response->addHeader('Content-Length', (string)$size);
             $response->addHeader('Accept-Ranges', 'bytes');
             $response->addHeader('Content-Disposition', $disposition);
@@ -126,7 +126,7 @@ class StreamController extends Controller {
 
         $response = new RangeStreamResponse($handle, $end - $start + 1);
         $response->setStatus(Http::STATUS_PARTIAL_CONTENT);
-        $response->addHeader('Content-Type', 'audio/mpeg');
+        $response->addHeader('Content-Type', AudioFolder::mimeFor($node->getName()));
         $response->addHeader('Content-Length', (string)($end - $start + 1));
         $response->addHeader('Content-Range', 'bytes ' . $start . '-' . $end . '/' . $size);
         $response->addHeader('Accept-Ranges', 'bytes');

@@ -21,8 +21,30 @@ use OCP\IUserSession;
  */
 class AudioFolder {
 
-    /** Endungen, die als Aufnahme gelten. */
-    public const ALLOWED_EXTENSIONS = ['mp3'];
+    /**
+     * Endungen, die als Aufnahme gelten, mit ihrem Medientyp (ab 0.21.0).
+     *
+     * Aufgenommen ist, was mindestens ein verbreiteter Browser selbst
+     * abspielt. Umgewandelt wird nichts: Kann ein Browser ein Format nicht
+     * (z. B. AIFF ausserhalb von Safari), sagt die Oberflaeche das.
+     */
+    public const AUDIO_TYPES = [
+        'mp3' => 'audio/mpeg',
+        'm4a' => 'audio/mp4',
+        'm4b' => 'audio/mp4',
+        'aac' => 'audio/aac',
+        'ogg' => 'audio/ogg',
+        'oga' => 'audio/ogg',
+        'opus' => 'audio/ogg',
+        'webm' => 'audio/webm',
+        'weba' => 'audio/webm',
+        'wav' => 'audio/wav',
+        'flac' => 'audio/flac',
+        'aif' => 'audio/aiff',
+        'aiff' => 'audio/aiff',
+        'aifc' => 'audio/aiff',
+        'caf' => 'audio/x-caf',
+    ];
 
     /** Quellen: der gemeinsame Ordner des Administrators, die eigenen Dateien. */
     public const SOURCE_SHARED = 'shared';
@@ -155,7 +177,13 @@ class AudioFolder {
             return false;
         }
         $ext = strtolower(pathinfo($node->getName(), PATHINFO_EXTENSION));
-        return in_array($ext, self::ALLOWED_EXTENSIONS, true);
+        return isset(self::AUDIO_TYPES[$ext]);
+    }
+
+    /** Medientyp fuer die Auslieferung (Content-Type) anhand der Endung. */
+    public static function mimeFor(string $name): string {
+        $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+        return self::AUDIO_TYPES[$ext] ?? 'application/octet-stream';
     }
 
     /**
