@@ -46,6 +46,21 @@
             bisherige Link nicht mehr – auch nicht in bereits installierten Apps.
         </p>
     </div>
+    <div class="aa-field">
+        <label for="aa-remember-days">Angemeldet bleiben</label>
+        <select id="aa-remember-days">
+            <option value="0">Aus – Passwort bei jedem Öffnen</option>
+            <option value="7">7 Tage</option>
+            <option value="15">15 Tage</option>
+            <option value="30">30 Tage</option>
+            <option value="90">90 Tage</option>
+        </select>
+        <p class="settings-hint">
+            Wie lange ein Gerät nach richtiger Passworteingabe angemeldet bleibt –
+            für diesen Link und alle Freigaben mit Passwort. Wird das Passwort
+            geändert, muss es überall neu eingegeben werden.
+        </p>
+    </div>
     <div class="aa-row" id="aa-public-url-row" hidden>
         <input type="text" id="aa-public-url" readonly>
         <button type="button" id="aa-public-copy">Link kopieren</button>
@@ -94,6 +109,15 @@
     <div class="aa-field">
         <label for="aa-subtitle">Zusatzzeile (optional)</label>
         <input type="text" id="aa-subtitle">
+    </div>
+    <div class="aa-field">
+        <label for="aa-shared-label">Name des gemeinsamen Ordners</label>
+        <input type="text" id="aa-shared-label" maxlength="60" placeholder="Gemeinsame Aufnahmen">
+        <p class="settings-hint">
+            So heißt der Quellordner oben im Pfad und in der Seitenleiste – für
+            angemeldete Nutzer und auf dem öffentlichen Link. Leer = „Gemeinsame
+            Aufnahmen“ bzw. auf dem Link „Aufnahmen“.
+        </p>
     </div>
     <div class="aa-field">
         <label>Gestaltung (Vorgabe für alle)</label>

@@ -35,14 +35,16 @@ class PublicAuthController extends Controller {
     #[NoCSRFRequired]
     #[BruteForceProtection(action: 'audioarchivePublicLogin')]
     public function login(string $token = '', string $password = ''): DataResponse {
+        // rememberUntil (ab 0.23.0): bis wann der Zugang gemerkt ist - die
+        // App ueberspringt dann auch ohne Verbindung die Passwortabfrage
         if ($this->guard->tryPublicLogin($token, $password)) {
-            return new DataResponse(['success' => true]);
+            return new DataResponse(['success' => true, 'rememberUntil' => $this->guard->rememberedUntil()]);
         }
 
         // Kein Administrator-Link? Dann eine Freigabe eines Nutzers.
         $share = $this->shares->findActive($token);
         if ($share !== null && $this->shares->tryLogin($share, $password)) {
-            return new DataResponse(['success' => true]);
+            return new DataResponse(['success' => true, 'rememberUntil' => $this->shares->rememberedUntil()]);
         }
 
         $response = new DataResponse(

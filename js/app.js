@@ -29,6 +29,8 @@
   let currentEntries = [];
   // Suche (ab 0.22.0) - wird weiter unten angelegt, siehe "Suche"
   let searchApi = null;
+  // Weiterhoeren-Karte (ab 0.23.0), siehe "Weiterhoeren"
+  let resumeApi = null;
   // Sortierung der Liste (ab 0.22.0), siehe "Datum und Sortierung"
   const SORT_KEY = 'audioarchive_sort';
   let sortMode = AudioArchive.sortDefault === 'newest' ? 'newest' : 'name';
@@ -621,6 +623,7 @@
     history.replaceState({ view }, '');
     loadLibrary('', view.source);
     Tree.init();
+    if (resumeApi) resumeApi.show();
   }
 
   // ------------------------------------------------------------------
@@ -636,7 +639,7 @@
     if (searchApi && searchApi.active()) searchApi.clear();
     view = { source, path: newPath };
     history.pushState({ view }, '');
-    loadLibrary(newPath, source);
+    return loadLibrary(newPath, source);
   }
 
   function startSource() {
@@ -696,9 +699,11 @@
   /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
   function sourceLabel(source) {
     if (AudioArchive.isIncoming(source)) return Incoming.label(source);
-    return source === 'home' ? 'Meine Dateien' : (AudioArchive.loggedIn && !AudioArchive.isPublic()
-      ? 'Gemeinsame Aufnahmen'
-      : 'Aufnahmen');
+    if (source === 'home') return 'Meine Dateien';
+    // Vom Administrator gewaehlter Name (ab 0.23.0) - nicht bei Freigaben,
+    // die zeigen den Namen ihres Ordners
+    if (AudioArchive.sharedLabel && !AudioArchive.apiToken) return AudioArchive.sharedLabel;
+    return AudioArchive.loggedIn && !AudioArchive.isPublic() ? 'Gemeinsame Aufnahmen' : 'Aufnahmen';
   }
 
   // ------------------------------------------------------------------
@@ -1242,6 +1247,11 @@
 
       if (storedAuth()) {
         enterOfflineMode();
+        // Zugang ist noch gemerkt: ohne Abfrage zu den gespeicherten Aufnahmen
+        if (rememberedOffline() && hasOfflineContent()) {
+          showMain();
+          return;
+        }
       } else if (hasOfflineContent()) {
         offlineHint(
           'Es sind Aufnahmen gespeichert, aber die Offline-Anmeldung ist noch nicht '
@@ -1249,6 +1259,27 @@
         );
       }
       showLogin();
+    }
+  }
+
+  // "Angemeldet bleiben" (ab 0.23.0, Vikunja #36): Der Server merkt sich
+  // den Zugang per Cookie; die App merkt sich das Ablaufdatum, damit auch
+  // ohne Verbindung keine Passwortabfrage kommt.
+  const REMEMBER_KEY = 'audioarchive_remember_' + (AudioArchive.publicToken || 'user');
+
+  function setRememberUntil(until) {
+    try {
+      if (until > 0) localStorage.setItem(REMEMBER_KEY, String(until));
+      else localStorage.removeItem(REMEMBER_KEY);
+    } catch (e) { /* ohne Speicher: dann eben mit Abfrage */ }
+  }
+
+  function rememberedOffline() {
+    try {
+      const until = parseInt(localStorage.getItem(REMEMBER_KEY) || '0', 10);
+      return until * 1000 > Date.now();
+    } catch (e) {
+      return false;
     }
   }
 
@@ -1299,6 +1330,7 @@
       if (res.ok && data.success) {
         // Fuer die spaetere Anmeldung ohne Verbindung merken
         await rememberPasswordForOffline(entered);
+        setRememberUntil(Number(data.rememberUntil) || 0);
         loginPassword.value = '';
         showMain();
       } else {
@@ -1327,6 +1359,7 @@
   // Logout
   // ------------------------------------------------------------------
   logoutBtn.addEventListener('click', async () => {
+    setRememberUntil(0);
     try {
       await fetch(AudioArchive.logoutUrl(), { method: 'POST', credentials: 'same-origin' });
     } catch (err) {
@@ -1783,6 +1816,94 @@
     return { active, render, clear };
   })();
   searchApi = Search;
+
+  // ------------------------------------------------------------------
+  // Weiterhoeren (ab 0.23.0, Vikunja #35)
+  //
+  // Beim Oeffnen bietet eine Karte ueber der Liste die zuletzt gehoerte,
+  // nicht zu Ende gehoerte Aufnahme an. Antippen oeffnet ihren Ordner und
+  // spielt sie ab der gemerkten Stelle (die merkt sich player.js).
+  // ------------------------------------------------------------------
+  const Resume = (() => {
+    const DISMISS_KEY = 'audioarchive_resume_dismissed';
+    const card = document.createElement('div');
+    card.className = 'resume-card';
+    card.hidden = true;
+    const searchRow = document.querySelector('#audioarchive .search-row');
+    searchRow.parentNode.insertBefore(card, searchRow);
+    let entry = null;
+
+    const fmt = (s) => {
+      const t = Math.max(0, Math.round(s || 0));
+      const h = Math.floor(t / 3600);
+      const m = Math.floor((t % 3600) / 60);
+      const sec = String(t % 60).padStart(2, '0');
+      return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+    };
+
+    function dismissedKey(e) {
+      return e.source + '|' + e.path + '|' + e.at;
+    }
+
+    function show() {
+      entry = Player.lastSession();
+      let dismissed = '';
+      try {
+        dismissed = localStorage.getItem(DISMISS_KEY) || '';
+      } catch (e) { /* egal */ }
+      if (!entry || Player.getCurrentKey() || dismissed === dismissedKey(entry)
+        || Date.now() - entry.at > 60 * 24 * 3600 * 1000) {
+        card.hidden = true;
+        return;
+      }
+      const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/'))) : sourceLabel(entry.source);
+      card.innerHTML = '';
+      const go = document.createElement('button');
+      go.type = 'button';
+      go.className = 'resume-go';
+      go.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>'
+        + '<span class="resume-text"><span class="resume-label">Weiterhören</span>'
+        + '<span class="resume-title"></span><span class="resume-where"></span></span>';
+      go.querySelector('.resume-title').textContent = (entry.title && entry.title.trim()) || entry.name;
+      go.querySelector('.resume-where').textContent = 'bei ' + fmt(entry.t) + ' von ' + fmt(entry.d) + ' · ' + where;
+      go.addEventListener('click', () => start());
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'resume-close';
+      close.setAttribute('aria-label', 'Ausblenden');
+      close.title = 'Ausblenden';
+      close.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+      close.addEventListener('click', () => {
+        try {
+          localStorage.setItem(DISMISS_KEY, dismissedKey(entry));
+        } catch (e) { /* egal */ }
+        card.hidden = true;
+      });
+      card.append(go, close);
+      card.hidden = false;
+    }
+
+    async function start() {
+      const e = entry;
+      if (!e) return;
+      card.hidden = true;
+      const folder = e.path.includes('/') ? e.path.slice(0, e.path.lastIndexOf('/')) : '';
+      if (view.source !== e.source || view.path !== folder) {
+        await navigate(folder, e.source);
+      }
+      const files = sortEntries(currentEntries).filter((x) => x.type === 'file');
+      const index = files.findIndex((x) => x.path === e.path);
+      if (index === -1) {
+        libraryStatus.hidden = false;
+        libraryStatus.textContent = 'Die zuletzt gehörte Aufnahme ist nicht mehr vorhanden.';
+        return;
+      }
+      Player.playFolder(files, index, folder === '' ? sourceLabel(e.source) : prettyPath(folder));
+    }
+
+    return { show, hide() { card.hidden = true; } };
+  })();
+  resumeApi = Resume;
 
   function renderBreadcrumb() {
     breadcrumbEl.innerHTML = '';
@@ -2277,7 +2398,10 @@
 
   // Titelwechsel (Autoplay, Sperrbildschirm-"Nächster Titel") und
   // Play/Pause spiegeln sich beide in der Liste wider.
-  Player.onTrackChange(updateActiveRow);
+  Player.onTrackChange((...args) => {
+    if (resumeApi) resumeApi.hide();
+    updateActiveRow(...args);
+  });
   Player.onPlayStateChange(updateActiveRow);
 
   // ------------------------------------------------------------------

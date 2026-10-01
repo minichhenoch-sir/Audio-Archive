@@ -48,6 +48,27 @@ const Player = (() => {
   const SEEK_STEP = 15; // Sekunden
 
   // ------------------------------------------------------------------
+  // Weiterhoeren (ab 0.23.0, Vikunja #35)
+  //
+  // Je Aufnahme merkt sich das Geraet die Stelle, an der zuletzt gehoert
+  // wurde (ab 15 s; die letzten 20 s gelten als fertig gehoert). Beim
+  // erneuten Abspielen geht es dort weiter; app.js bietet beim Oeffnen die
+  // zuletzt gehoerte Aufnahme an. Getrennt je Link, damit gleich benannte
+  // Pfade verschiedener Freigaben sich nicht vermischen.
+  // ------------------------------------------------------------------
+  const POS_KEY = 'audioarchive_positions';
+  const POS_MAX = 300;
+  const POS_MIN = 15;
+  const POS_TAIL = 20;
+  const POS_SCOPE = (typeof AudioArchive !== 'undefined' && (AudioArchive.apiToken || AudioArchive.publicToken)) || 'user';
+  let positions = {};
+  try {
+    const stored = JSON.parse(localStorage.getItem(POS_KEY) || '{}');
+    if (stored && typeof stored === 'object') positions = stored;
+  } catch (e) { /* ohne Speicher: nur fuer diese Sitzung */ }
+  let lastPosSave = 0;
+
+  // ------------------------------------------------------------------
   // Audioformate (ab 0.21.0)
   //
   // Neben MP3 zeigt die App alle Formate, die verbreitete Browser selbst
@@ -820,6 +841,8 @@ const Player = (() => {
 
   function loadTrack(index, autoplay = true) {
     if (index < 0 || index >= playlist.length) return;
+    // Stelle des bisherigen Titels sichern (ab 0.23.0)
+    rememberPosition(true);
     currentIndex = index;
     const track = playlist[index];
 
@@ -851,6 +874,14 @@ const Player = (() => {
       showToast(formatHint(track));
       if (typeof onTrackChange === 'function') onTrackChange(track, currentIndex);
       return;
+    }
+
+    // Weiterhoeren (ab 0.23.0): an der gemerkten Stelle beginnen
+    const startAt = savedPosition(track);
+    if (startAt > 0) {
+      resumeAt = startAt;
+      resumePlay = false;
+      showToast('Weiter bei ' + formatTime(startAt) + ' – zum Anfang: Balken nach links');
     }
 
     audio.src = streamUrlFor(track);
@@ -893,6 +924,7 @@ const Player = (() => {
   });
 
   audio.addEventListener('pause', () => {
+    rememberPosition(true);
     // Vom System angehalten (Kopfhoerer ab, Anruf, ...): nicht weiterversuchen.
     // Das Neuladen selbst und das Titelende zaehlen nicht als Pause.
     if (!reloading && !audio.ended && !audio.error) shouldPlay = false;
@@ -925,6 +957,7 @@ const Player = (() => {
     // Letzte Sicherung: Sollten die Angaben nach einem Wechsel noch nicht
     // sitzen, werden sie hier nachgereicht.
     refreshMediaSession();
+    rememberPosition(false);
     /*
      * WICHTIG: Hier bewusst KEIN updatePositionState()!
      * 'timeupdate' feuert rund 4x pro Sekunde. Jeder setPositionState()-Aufruf
@@ -956,6 +989,7 @@ const Player = (() => {
 
   // Kritisch: Beim Ende automatisch den nächsten Titel im selben Ordner starten
   audio.addEventListener('ended', () => {
+    rememberPosition(true); // zu Ende gehoert: gemerkte Stelle entfaellt
     // Ohne Verbindung nicht gespeicherte Titel ueberspringen (ab 0.18.3)
     const nextIndex = playableIndex(currentIndex + 1, 1);
     if (nextIndex !== -1) {
@@ -1320,6 +1354,57 @@ const Player = (() => {
   function trackKey(track) {
     return track ? (track.source || 'shared') + '|' + track.path : '';
   }
+
+  function posKey(track) {
+    return POS_SCOPE + '#' + trackKey(track);
+  }
+
+  function savePositions() {
+    try {
+      localStorage.setItem(POS_KEY, JSON.stringify(positions));
+    } catch (e) { /* voll oder gesperrt: nicht kritisch */ }
+  }
+
+  function savedPosition(track) {
+    const entry = track ? positions[posKey(track)] : null;
+    return entry && entry.t > 0 ? entry.t : 0;
+  }
+
+  /** Stelle des laufenden Titels merken; force = sofort statt hoechstens alle 5 s. */
+  function rememberPosition(force) {
+    const track = playlist[currentIndex];
+    if (!track || resumeAt !== null || !isFinite(audio.duration) || audio.duration <= 0) return;
+    const now = Date.now();
+    if (!force && now - lastPosSave < 5000) return;
+    lastPosSave = now;
+    const t = audio.currentTime;
+    const d = audio.duration;
+    const key = posKey(track);
+    if (t < POS_MIN || t > d - POS_TAIL) {
+      if (positions[key]) {
+        delete positions[key];
+        savePositions();
+      }
+      return;
+    }
+    positions[key] = {
+      t: Math.round(t), d: Math.round(d), at: now,
+      name: track.name || '', title: track.title || '', file: track.file || '',
+      path: track.path, source: track.source || 'shared',
+    };
+    const keys = Object.keys(positions);
+    if (keys.length > POS_MAX) {
+      keys.sort((a, b) => positions[a].at - positions[b].at)
+        .slice(0, keys.length - POS_MAX)
+        .forEach((k) => delete positions[k]);
+    }
+    savePositions();
+  }
+
+  window.addEventListener('pagehide', () => rememberPosition(true));
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'hidden') rememberPosition(true);
+  });
 
   /** Alles verwerfen, was noch zum vorherigen Titel gehoert. */
   function resetRecovery() {
@@ -2238,6 +2323,22 @@ const Player = (() => {
 
     getCurrentPath() {
       return currentIndex >= 0 ? playlist[currentIndex].path : null;
+    },
+
+    /** Zuletzt gehoerte, nicht zu Ende gehoerte Aufnahme dieses Links (ab 0.23.0). */
+    lastSession() {
+      let best = null;
+      Object.keys(positions).forEach((k) => {
+        if (!k.startsWith(POS_SCOPE + '#')) return;
+        const e = positions[k];
+        if (e && (!best || e.at > best.at)) best = e;
+      });
+      return best ? { ...best } : null;
+    },
+
+    /** Gemerkte Stelle eines Titels (Sekunden, 0 = keine). */
+    savedPosition(track) {
+      return savedPosition(track);
     },
 
     /**

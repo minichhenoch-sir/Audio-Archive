@@ -79,7 +79,15 @@ class ShareService {
         private ISecureRandom $secureRandom,
         private IUserManager $userManager,
         private IGroupManager $groupManager,
+        private RememberLogin $remember,
     ) {
+    }
+
+    /** Ablauf des zuletzt gemerkten Zugangs (Unix-Zeit), 0 = nicht gemerkt (ab 0.23.0). */
+    private int $rememberedUntil = 0;
+
+    public function rememberedUntil(): int {
+        return $this->rememberedUntil;
     }
 
     /** Duerfen angemeldete Nutzer Freigaben anlegen? (Vorgabe: ja) */
@@ -437,7 +445,17 @@ class ShareService {
             return true;
         }
         $tokens = $this->session->get(self::SESSION_KEY);
-        return is_array($tokens) && in_array($share['token'], $tokens, true);
+        if (is_array($tokens) && in_array($share['token'], $tokens, true)) {
+            return true;
+        }
+        // Gemerkter Zugang aus einer frueheren Sitzung (ab 0.23.0)
+        if ($this->remember->isRemembered('share', $share['token'], (string)$share['passwordHash'])) {
+            $tokens = is_array($tokens) ? $tokens : [];
+            $tokens[] = $share['token'];
+            $this->session->set(self::SESSION_KEY, $tokens);
+            return true;
+        }
+        return false;
     }
 
     public function tryLogin(array $share, string $password): bool {
@@ -453,10 +471,12 @@ class ShareService {
             $tokens[] = $share['token'];
         }
         $this->session->set(self::SESSION_KEY, $tokens);
+        $this->rememberedUntil = $this->remember->remember('share', $share['token'], (string)$share['passwordHash']);
         return true;
     }
 
     public function logout(array $share): void {
+        $this->remember->forget('share', $share['token']);
         $tokens = $this->session->get(self::SESSION_KEY);
         if (!is_array($tokens)) {
             return;

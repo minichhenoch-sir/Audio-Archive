@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\AppIcon;
 use OCA\AudioArchive\Service\BackgroundImage;
+use OCA\AudioArchive\Service\RememberLogin;
 use OCA\AudioArchive\Service\ShareService;
 use OCA\AudioArchive\Service\StyleTokens;
 use OCP\AppFramework\Controller;
@@ -86,6 +87,8 @@ class SettingsController extends Controller {
         ?string $betaLinkLabel = null,
         ?string $publicCoverIcon = null,
         ?string $sortDefault = null,
+        ?int $rememberDays = null,
+        ?string $sharedLabel = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -286,6 +289,18 @@ class SettingsController extends Controller {
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, $featureOffline
             );
         }
+        if ($rememberDays !== null) {
+            $this->appConfig->setValueInt(
+                Application::APP_ID, Application::SETTING_REMEMBER_DAYS,
+                in_array($rememberDays, RememberLogin::ALLOWED_DAYS, true) ? $rememberDays : 0
+            );
+        }
+        if ($sharedLabel !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_SHARED_LABEL,
+                self::shorten(trim(strip_tags($sharedLabel)), 60)
+            );
+        }
         if ($sortDefault !== null) {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
@@ -430,5 +445,13 @@ class SettingsController extends Controller {
             Application::APP_ID . '.publicPlayer.index',
             ['token' => $token]
         );
+    }
+
+    /** Kuerzt auf hoechstens $max Zeichen, ohne ein UTF-8-Zeichen zu zerschneiden. */
+    private static function shorten(string $s, int $max): string {
+        if (function_exists('mb_substr')) {
+            return mb_substr($s, 0, $max, 'UTF-8');
+        }
+        return preg_match('/^.{0,' . $max . '}/us', $s, $m) ? $m[0] : substr($s, 0, $max);
     }
 }

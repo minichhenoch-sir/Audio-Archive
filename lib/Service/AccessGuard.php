@@ -31,7 +31,15 @@ class AccessGuard {
         private ISession $session,
         private IUserSession $userSession,
         private IHasher $hasher,
+        private RememberLogin $remember,
     ) {
+    }
+
+    /** Ablauf des zuletzt gemerkten Zugangs (Unix-Zeit), 0 = nicht gemerkt. */
+    private int $rememberedUntil = 0;
+
+    public function rememberedUntil(): int {
+        return $this->rememberedUntil;
     }
 
     public function isPublicEnabled(): bool {
@@ -84,11 +92,14 @@ class AccessGuard {
         }
 
         $this->session->set(self::SESSION_KEY, $token);
+        // "Angemeldet bleiben" (ab 0.23.0), sofern eingeschaltet
+        $this->rememberedUntil = $this->remember->remember('admin', $token, $hash);
         return true;
     }
 
     public function publicLogout(): void {
         $this->session->remove(self::SESSION_KEY);
+        $this->remember->forget('admin', $this->publicToken());
     }
 
     /** Darf der aktuelle Aufrufer die Aufnahmen sehen bzw. hoeren? */
@@ -107,7 +118,15 @@ class AccessGuard {
         }
 
         $fromSession = (string)$this->session->get(self::SESSION_KEY);
-        return $fromSession !== '' && hash_equals($token, $fromSession);
+        if ($fromSession !== '' && hash_equals($token, $fromSession)) {
+            return true;
+        }
+        // Gemerkter Zugang aus einer frueheren Sitzung (ab 0.23.0)
+        if ($this->remember->isRemembered('admin', $token, $this->publicPasswordHash())) {
+            $this->session->set(self::SESSION_KEY, $token);
+            return true;
+        }
+        return false;
     }
 
     /**

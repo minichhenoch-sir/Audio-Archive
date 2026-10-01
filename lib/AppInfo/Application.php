@@ -23,6 +23,12 @@ class Application extends App implements IBootstrap {
     public const SETTING_PUBLIC_COVER_ICON = 'public_cover_icon';
     /** Vorgabe fuer die Sortierung der Liste: 'name' oder 'newest' (ab 0.22.0) */
     public const SETTING_SORT_DEFAULT = 'sort_default';
+    /** "Angemeldet bleiben" fuer Links mit Passwort, in Tagen; 0 = aus (ab 0.23.0) */
+    public const SETTING_REMEMBER_DAYS = 'remember_days';
+    /** Geheimer Schluessel fuer die Signatur der gemerkten Zugaenge (ab 0.23.0) */
+    public const SETTING_REMEMBER_SECRET = 'remember_secret';
+    /** Anzeigename des gemeinsamen Ordners; leer = Vorgabe (ab 0.23.0) */
+    public const SETTING_SHARED_LABEL = 'shared_label';
     public const SETTING_HEADER_TITLE = 'header_title';
     public const SETTING_HEADER_SUBTITLE = 'header_subtitle';
     public const SETTING_THEME_ACCENT = 'theme_accent';

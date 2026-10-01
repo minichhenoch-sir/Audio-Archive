@@ -194,6 +194,10 @@ class PlayerPage {
             // Startseite der Nextcloud fuer den Knopf "Zu Nextcloud" in der
             // Seitenleiste (ab 0.21.1, Vikunja #26)
             'nextcloudUrl' => $this->urlGenerator->linkToDefaultPageUrl(),
+            // Name des gemeinsamen Ordners (ab 0.23.0, Vikunja #37); leer = Vorgabe
+            'sharedLabel' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_SHARED_LABEL, ''
+            ),
             // Vorgabe fuer die Sortierung der Liste (ab 0.22.0, Vikunja #30)
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'

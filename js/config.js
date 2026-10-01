@@ -33,6 +33,7 @@ const AudioArchive = (() => {
     standaloneUrl: el.dataset.standaloneUrl || '',
     nextcloudUrl: el.dataset.nextcloudUrl || '',
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
+    sharedLabel: (el.dataset.sharedLabel || '').trim(),
     headerTitle: el.dataset.headerTitle || '',
     headerSubtitle: el.dataset.headerSubtitle || '',
     serviceWorker: el.dataset.serviceWorker || '',

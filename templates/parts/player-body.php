@@ -54,6 +54,7 @@ if ($_['backgroundUrl'] !== '') {
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
+     data-shared-label="<?php echo $escape($_['sharedLabel'] ?? ''); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
      data-header-subtitle="<?php echo $escape($_['headerSubtitle']); ?>"
      data-service-worker="<?php echo $escape($_['serviceWorkerUrl']); ?>"

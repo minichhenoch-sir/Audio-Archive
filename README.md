@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.22.0)
+# Audio Archive – Nextcloud-App (0.23.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1278,5 +1278,30 @@ Container neu starten; keine Datenbankänderung.
   sagt die Anzeige „nicht alles durchsucht“.
 
 PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung.
+
+---
+
+## 0.23.0: Weiterhören, angemeldet bleiben, Name des gemeinsamen Ordners
+
+- **Weiterhören:** Jedes Gerät merkt sich je Aufnahme die Stelle, an der
+  zuletzt gehört wurde (ab 15 Sekunden; die letzten 20 Sekunden gelten als
+  zu Ende gehört). Beim erneuten Abspielen geht es dort weiter – ein kurzer
+  Hinweis sagt, ab wo. Beim Öffnen der App steht die zuletzt gehörte
+  Aufnahme oben als Karte „Weiterhören“ (mit Stelle, Länge und Ordner);
+  Antippen öffnet den Ordner und spielt ab der Stelle, das × blendet die
+  Karte aus. Getrennt je Link, gespeichert nur im Browser.
+- **Angemeldet bleiben:** Verwaltung → Öffentlicher Zugang → „Angemeldet
+  bleiben“ (aus, 7, 15, 30 oder 90 Tage). Gilt für den Link der Verwaltung
+  und alle Freigaben mit Passwort. Nach richtiger Passworteingabe merkt sich
+  der Browser den Zugang in einem signierten Cookie (`aa_remember`, nur für
+  den Server lesbar). Ändert sich das Passwort oder der Link, ist der
+  gemerkte Zugang sofort ungültig; „Abmelden“ löscht ihn. Ohne Verbindung
+  überspringt die App die Passwortabfrage bis zum selben Datum.
+- **Name des gemeinsamen Ordners** (Verwaltung → Darstellung): ersetzt
+  „Gemeinsame Aufnahmen“ bzw. auf dem Link „Aufnahmen“ im Pfad und in der
+  Seitenleiste. Leer = wie bisher.
+
+PHP, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung.
 

@@ -416,6 +416,83 @@ body.has-bg-image #audioarchive .explorer-row.active {
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ===================== WEITERHOEREN (ab 0.23.0) ===================== */
+
+#audioarchive .resume-card {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 12px;
+  border-radius: calc(18px * var(--aa-rf, 1));
+  background: var(--glass-row-bg);
+  border: 1px solid var(--glass-light-border);
+  box-shadow: var(--glass-light-shadow);
+  color: var(--color-ink);
+  overflow: hidden;
+}
+#audioarchive .resume-card[hidden] { display: none; }
+#audioarchive .resume-go {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 6px 12px 16px;
+  margin: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+#audioarchive .resume-go svg {
+  flex: none;
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+}
+#audioarchive .resume-text { display: flex; flex-direction: column; min-width: 0; }
+#audioarchive .resume-label {
+  font-size: calc(0.72 * var(--aa-rem));
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+}
+#audioarchive .resume-title {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#audioarchive .resume-where {
+  font-size: calc(0.78 * var(--aa-rem));
+  color: var(--color-ink-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#audioarchive .resume-close {
+  flex: none;
+  width: 44px;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--color-ink-soft);
+  cursor: pointer;
+}
+#audioarchive.aa-searching .resume-card { display: none; }
+#audioarchive.aa-design-nextcloud .resume-card {
+  background: var(--aa-nc-bg, #fff);
+  border: 1px solid var(--aa-nc-border);
+  box-shadow: none;
+  color: var(--aa-nc-text);
+}
+#audioarchive.aa-design-nextcloud .resume-label,
+#audioarchive.aa-design-nextcloud .resume-go svg { color: var(--aa-nc-primary); }
+#audioarchive.aa-design-nextcloud .resume-where,
+#audioarchive.aa-design-nextcloud .resume-close { color: var(--aa-nc-text-soft); }
+
 /* ===================== SUCHE UND SORTIERUNG (ab 0.22.0) ===================== */
 
 #audioarchive .search-row {

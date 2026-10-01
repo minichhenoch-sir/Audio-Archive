@@ -74,6 +74,12 @@ class Admin implements ISettings {
             'hasCoverImage' => $this->backgroundImage->exists(BackgroundImage::ADMIN_COVER),
             'coverImageVersion' => $this->backgroundImage->version(BackgroundImage::ADMIN_COVER),
             'coverIcons' => AppIcon::COVER_ICONS,
+            'rememberDays' => $this->appConfig->getValueInt(
+                Application::APP_ID, Application::SETTING_REMEMBER_DAYS, 0
+            ),
+            'sharedLabel' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_SHARED_LABEL, ''
+            ),
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
             ),

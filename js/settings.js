@@ -53,6 +53,8 @@
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
+  const rememberDays = el('aa-remember-days');
+  const sharedLabel = el('aa-shared-label');
   const status = el('aa-status');
 
   // ---------- Startwerte einsetzen ----------
@@ -142,6 +144,8 @@
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
+  rememberDays.value = String([0, 7, 15, 30, 90].includes(state.rememberDays) ? state.rememberDays : 0);
+  sharedLabel.value = state.sharedLabel || '';
 
   if (state.sourceFolderOwner) {
     folderOwner.textContent =
@@ -373,6 +377,8 @@
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
+      rememberDays: parseInt(rememberDays.value, 10) || 0,
+      sharedLabel: sharedLabel.value,
       betaEnabled: betaEnabled.checked,
       betaText: betaText.value,
       betaLinkUrl: betaLinkUrl.value,
