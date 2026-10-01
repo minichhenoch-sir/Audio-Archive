@@ -1105,6 +1105,17 @@ body.has-bg-image #audioarchive .explorer-row.active {
   margin-top: 6px;
 }
 
+/* Vollbild: Kuenstler und Album je in einer eigenen Zeile (ab 0.21.1) */
+#audioarchive .player-bar.is-expanded .player-track-context .context-sep { display: none; }
+#audioarchive .player-bar.is-expanded .player-track-context .context-part {
+  display: block;
+  white-space: normal;
+}
+#audioarchive .player-bar.is-expanded .player-track-context .context-album {
+  margin-top: 2px;
+  opacity: 0.8;
+}
+
 #audioarchive .player-bar.is-expanded .player-expand-btn { display: none; }
 
 #audioarchive .player-bar.is-expanded .player-progress,
@@ -1500,6 +1511,30 @@ body.has-bg-image #audioarchive .explorer-row.active {
 }
 
 #audioarchive .tree-item:hover { background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.10); }
+
+/* Kurzanleitung "Als App installieren" (ab 0.21.1) */
+#audioarchive .install-help-steps {
+  margin: 8px 0 6px;
+  padding-left: 1.4em;
+  line-height: 1.45;
+}
+#audioarchive .install-help-steps li { margin: 4px 0; }
+
+/* Knopf "Zu Nextcloud" unter dem Ordnerbaum (ab 0.21.1) */
+#audioarchive .sidebar-nextcloud {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--glass-light-border);
+  color: inherit;
+  text-decoration: none;
+  border-radius: calc(10px * var(--aa-rf, 1));
+  min-height: calc(36px * var(--aa-density, 1));
+}
+#audioarchive .sidebar-nextcloud[hidden] { display: none; }
+#audioarchive .sidebar-nextcloud:hover { background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.10); }
 
 #audioarchive .tree-item.is-active {
   background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.20);
@@ -2502,6 +2537,39 @@ html.aa-standalone:has(.aa-design-nextcloud) {
   font-size: calc(0.78 * var(--aa-rem));
   color: var(--color-cream-soft);
 }
+
+/* Weiter/Zurueck-Tasten am Geraet (ab 0.21.1) */
+#audioarchive .player-hwkeys { margin: 4px 0 12px; }
+#audioarchive .player-hwkeys-hint {
+  margin: 0 0 8px;
+  font-size: calc(0.78 * var(--aa-rem));
+  color: var(--color-cream-soft);
+}
+#audioarchive .player-hwkeys-row { display: flex; gap: 8px; flex-wrap: wrap; }
+#audioarchive .player-hwkeys-btn {
+  flex: 1 1 auto;
+  min-height: 38px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: calc(0.86 * var(--aa-rem));
+  cursor: pointer;
+}
+#audioarchive .player-hwkeys-btn.is-on {
+  background: var(--color-accent, #b9793f);
+  border-color: transparent;
+  color: #fff;
+  font-weight: 600;
+}
+#audioarchive.aa-design-nextcloud .player-hwkeys-btn { border-color: var(--aa-nc-border); }
+#audioarchive.aa-design-nextcloud .player-hwkeys-btn.is-on {
+  background: var(--aa-nc-primary);
+  color: var(--aa-nc-primary-text);
+}
+#audioarchive.aa-design-nextcloud .player-hwkeys-hint { color: var(--aa-nc-text-soft); }
 
 /* ---------- Nextcloud-Gestaltung ---------- */
 #audioarchive.aa-design-nextcloud .player-repeat-btn.is-on { color: var(--aa-nc-primary); }

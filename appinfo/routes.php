@@ -39,6 +39,8 @@ return [
         ['name' => 'settings#setAdmin', 'url' => '/settings/admin', 'verb' => 'POST'],
         ['name' => 'settings#uploadBackground', 'url' => '/settings/background', 'verb' => 'POST'],
         ['name' => 'settings#removeBackground', 'url' => '/settings/background/remove', 'verb' => 'POST'],
+        ['name' => 'settings#uploadCover', 'url' => '/settings/coverimage', 'verb' => 'POST'],
+        ['name' => 'settings#removeCover', 'url' => '/settings/coverimage/remove', 'verb' => 'POST'],
 
         // Freigaben durch Nutzer (ab 0.12)
         ['name' => 'share#index', 'url' => '/api/shares', 'verb' => 'GET'],
@@ -72,6 +74,8 @@ return [
 
         // Ausgabe des Hintergrundbilds - auch fuer die oeffentliche Seite
         ['name' => 'asset#background', 'url' => '/background', 'verb' => 'GET'],
+        // Cover-Ersatzbild des Administrator-Links (ab 0.21.1)
+        ['name' => 'asset#adminCover', 'url' => '/coverimage/admin', 'verb' => 'GET'],
         // Persoenliches Bild, nur fuer den jeweiligen Nutzer
         ['name' => 'asset#userBackground', 'url' => '/background/user', 'verb' => 'GET'],
 

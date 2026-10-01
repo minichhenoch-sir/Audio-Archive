@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.21.0)
+# Audio Archive – Nextcloud-App (0.21.1)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1218,5 +1218,36 @@ Ob ein Gerät ein Format kann, entscheidet dessen Browser; die App fragt ihn
   große WAV/FLAC-Dateien sprengen den Puffer nicht mehr.
 
 PHP, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung.
+
+---
+
+## 0.21.1: Kleine Verbesserungen aus den Rückmeldungen
+
+- **Künstler und Album je in einer Zeile** im Vollbild-Player über der
+  Steuerung; leere Angaben entfallen. Die kleine Leiste bleibt einzeilig.
+- **„Zu Nextcloud“** unten in der Seitenleiste (angemeldet): führt zur
+  Startseite der Nextcloud – wichtig vor allem in der installierten App.
+- **„App installieren“ auf geteilten Links immer sichtbar.** Bietet der
+  Browser die Installation selbst an, startet sie direkt; sonst erscheint
+  eine kurze Anleitung passend zum Gerät (iPhone/iPad, Android, Mac-Safari,
+  Rechner). Innerhalb von Nextcloud unverändert.
+- **Bild bei Aufnahmen ohne Cover für den Administrator-Link:** Verwaltung
+  → Öffentlicher Zugang. Gleiche Auswahl wie bei Freigaben (sechs Zeichen
+  oder eigenes Bild, PNG/JPEG/WebP). Eigene Ansichten zeigen weiterhin das
+  Standard-Zeichen.
+- **Mehr Bildformate als Ordner-Cover:** zusätzlich BMP, AVIF, TIFF, HEIC/
+  HEIF, JPEG XL, JPEG 2000, PSD und TGA. Sie werden für den Player in WebP
+  umgewandelt (höchstens 1200 px, abgelegt im AppData-Bereich, die Datei des
+  Nutzers bleibt unverändert). BMP und AVIF gehen mit GD, die übrigen
+  brauchen **Imagick** auf dem Server (im offiziellen Nextcloud-Abbild
+  enthalten). Ohne passendes Werkzeug wird das Bild übergangen. Liegen
+  `cover.tif` und `cover.jpg` nebeneinander, gewinnt das JPEG.
+- **Tasten an Auto, Kopfhörer und Sperrbildschirm:** Im Vollbild unter
+  „Angaben“ wählbar, was Weiter/Zurück tun – „Titel wechseln“ (Vorgabe,
+  wie bisher) oder „15 s spulen“ (mit derselben Bremse gegen Dauerspulen).
+  Gilt je Gerät.
+
+PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung.
 

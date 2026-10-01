@@ -31,6 +31,7 @@ const AudioArchive = (() => {
     openAccess: el.dataset.openAccess === '1',
     requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
+    nextcloudUrl: el.dataset.nextcloudUrl || '',
     headerTitle: el.dataset.headerTitle || '',
     headerSubtitle: el.dataset.headerSubtitle || '',
     serviceWorker: el.dataset.serviceWorker || '',

@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\Appearance;
+use OCA\AudioArchive\Service\AppIcon;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\ShareService;
 use OCA\AudioArchive\Service\StyleTokens;
@@ -83,6 +84,7 @@ class SettingsController extends Controller {
         ?string $betaText = null,
         ?string $betaLinkUrl = null,
         ?string $betaLinkLabel = null,
+        ?string $publicCoverIcon = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -254,6 +256,13 @@ class SettingsController extends Controller {
             );
         }
 
+        // Bild bei Aufnahmen ohne Cover fuer den Administrator-Link (ab 0.21.1)
+        if ($publicCoverIcon !== null) {
+            $icon = ($publicCoverIcon === AppIcon::COVER_CUSTOM || in_array($publicCoverIcon, AppIcon::COVER_ICONS, true))
+                ? $publicCoverIcon : '';
+            $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_PUBLIC_COVER_ICON, $icon);
+        }
+
         if ($backgroundNextcloud !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_BACKGROUND_NEXTCLOUD, $backgroundNextcloud
@@ -338,6 +347,33 @@ class SettingsController extends Controller {
      * kommt der Inhalt ueber $_FILES und nicht ueber die Parameter.
      */
     public function uploadBackground(): DataResponse {
+        $response = $this->storeUpload(BackgroundImage::ADMIN);
+        return $response ?? new DataResponse(['hasBackground' => true]);
+    }
+
+    /**
+     * Eigenes Cover-Ersatzbild des Administrator-Links (ab 0.21.1). Gilt
+     * erst mit der Auswahl "Eigenes Bild" (publicCoverIcon = 'custom').
+     */
+    public function uploadCover(): DataResponse {
+        $response = $this->storeUpload(BackgroundImage::ADMIN_COVER);
+        if ($response !== null) {
+            return $response;
+        }
+        return new DataResponse([
+            'hasCoverImage' => true,
+            'coverImageUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.adminCover')
+                . '?v=' . $this->backgroundImage->version(BackgroundImage::ADMIN_COVER),
+        ]);
+    }
+
+    public function removeCover(): DataResponse {
+        $this->backgroundImage->remove(BackgroundImage::ADMIN_COVER);
+        return new DataResponse(['hasCoverImage' => false]);
+    }
+
+    /** Gemeinsamer Teil der Bild-Uploads: null = gespeichert, sonst Fehlerantwort. */
+    private function storeUpload(string $key): ?DataResponse {
         $file = $_FILES['file'] ?? null;
 
         if (!is_array($file) || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
@@ -345,7 +381,7 @@ class SettingsController extends Controller {
         }
 
         try {
-            $error = $this->backgroundImage->store((string)$file['tmp_name'], (int)$file['size']);
+            $error = $this->backgroundImage->store((string)$file['tmp_name'], (int)$file['size'], $key);
         } catch (\Throwable $e) {
             /*
              * Die Meldung wird mitgegeben, weil diesen Endpunkt nur
@@ -363,7 +399,7 @@ class SettingsController extends Controller {
             return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
         }
 
-        return new DataResponse(['hasBackground' => true]);
+        return null;
     }
 
     public function removeBackground(): DataResponse {

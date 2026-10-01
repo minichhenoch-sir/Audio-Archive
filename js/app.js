@@ -62,11 +62,75 @@
   const installBtn = document.getElementById('install-btn');
   let installPrompt = null;
 
+  /*
+   * Geteilte Links (ab 0.21.1, Vikunja #27): Der Knopf steht IMMER da.
+   * Bietet der Browser die Installation selbst an, startet er sie; sonst
+   * (iPhone/Safari, Firefox, bereits abgelehnt ...) erscheint eine kurze
+   * Anleitung passend zum Geraet. Innerhalb von Nextcloud bleibt es wie
+   * bisher.
+   */
+  const installHelp = document.getElementById('install-help');
+  const alwaysOfferInstall = AudioArchive.isPublic() && !runsAsInstalledApp && !!installHelp;
+
+  function installSteps() {
+    const ua = navigator.userAgent || '';
+    const isIOS = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    const isAndroid = /Android/i.test(ua);
+    const isFirefox = /Firefox|FxiOS/i.test(ua);
+    const isSafariMac = !isIOS && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua);
+    if (isIOS) {
+      return [
+        'Unten (iPad: oben) auf <strong>Teilen</strong> tippen – das Quadrat mit dem Pfeil nach oben.',
+        '<strong>„Zum Home-Bildschirm“</strong> wählen (evtl. etwas nach unten wischen).',
+        'Oben rechts auf <strong>„Hinzufügen“</strong> tippen.',
+      ];
+    }
+    if (isAndroid) {
+      return [
+        'Oben rechts das <strong>Menü</strong> öffnen (drei Punkte ⋮).',
+        isFirefox ? '<strong>„Installieren“</strong> wählen.'
+          : '<strong>„App installieren“</strong> bzw. <strong>„Zum Startbildschirm hinzufügen“</strong> wählen.',
+        'Mit <strong>„Installieren“</strong> bestätigen.',
+      ];
+    }
+    if (isSafariMac) {
+      return [
+        'Oben im Menü <strong>Ablage</strong> öffnen.',
+        '<strong>„Zum Dock hinzufügen …“</strong> wählen und bestätigen.',
+      ];
+    }
+    if (isFirefox) {
+      return [
+        'Firefox kann am Rechner keine Apps installieren.',
+        'Am einfachsten in <strong>Chrome</strong> oder <strong>Edge</strong> öffnen – oder die Seite als Lesezeichen speichern.',
+      ];
+    }
+    return [
+      'In der Adressleiste rechts auf das <strong>Installieren-Symbol</strong> klicken (Bildschirm mit Pfeil).',
+      'Fehlt das Symbol: im Browser-Menü <strong>„App installieren“</strong> bzw. <strong>„Installieren“</strong> wählen.',
+    ];
+  }
+
+  function showInstallHelp() {
+    const list = document.getElementById('install-help-steps');
+    list.innerHTML = installSteps().map((step) => '<li>' + step + '</li>').join('');
+    installHelp.hidden = false;
+    installHelp.scrollIntoView({ block: 'nearest' });
+  }
+
+  if (installHelp) {
+    document.getElementById('install-help-close').addEventListener('click', () => {
+      installHelp.hidden = true;
+    });
+  }
+
   if (installBtn) {
     if (AudioArchive.isEmbedded()) {
       installBtn.href = AudioArchive.standaloneUrl;
       installBtn.hidden = false;
     } else if (!runsAsInstalledApp) {
+      if (alwaysOfferInstall) installBtn.hidden = false;
+
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         installPrompt = event;
@@ -75,10 +139,15 @@
 
       installBtn.addEventListener('click', async (event) => {
         event.preventDefault();
-        if (!installPrompt) return;
+        if (!installPrompt) {
+          if (alwaysOfferInstall) {
+            if (installHelp.hidden) showInstallHelp(); else installHelp.hidden = true;
+          }
+          return;
+        }
         const prompt = installPrompt;
         installPrompt = null;
-        installBtn.hidden = true;
+        installBtn.hidden = !alwaysOfferInstall;
         prompt.prompt();
         try {
           await prompt.userChoice;
@@ -90,6 +159,7 @@
       window.addEventListener('appinstalled', () => {
         installPrompt = null;
         installBtn.hidden = true;
+        if (installHelp) installHelp.hidden = true;
       });
     }
   }
@@ -2259,6 +2329,13 @@
         if (!enabled) return;
         sidebar.hidden = false;
         toggleBtn.hidden = false;
+        // "Zu Nextcloud" (ab 0.21.1): vor allem in der installierten App
+        // gibt es sonst keinen Weg zur uebrigen Nextcloud
+        const ncLink = document.getElementById('nextcloud-link');
+        if (ncLink && AudioArchive.nextcloudUrl) {
+          ncLink.href = AudioArchive.nextcloudUrl;
+          ncLink.hidden = false;
+        }
         toggleBtn.addEventListener('click', () => setOpen(!root.classList.contains('aa-sidebar-open')));
         backdrop.addEventListener('click', () => setOpen(false));
         build();

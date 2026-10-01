@@ -26,12 +26,22 @@ class CoverFinder {
 
     /** Uebliche Namen - haben Vorrang, wenn mehrere Bilder im Ordner liegen. */
     private const NAMES = ['cover', 'folder', 'front', 'album', 'albumart'];
+    /** Zeigt jeder Browser direkt an. */
     private const EXTENSIONS = ['jpg', 'jpeg', 'png', 'webp', 'gif'];
+    /**
+     * Weitere Bildformate (ab 0.21.1, Vikunja #1): Sie werden fuer den Player
+     * umgewandelt (CoverConverter). BMP ist unkomprimiert und AVIF zeigt
+     * nicht jedes System auf dem Sperrbildschirm - beide werden deshalb
+     * ebenfalls umgewandelt, wenn moeglich, sonst so ausgeliefert.
+     */
+    private const CONVERT_EXTENSIONS = ['bmp', 'avif', 'tif', 'tiff', 'heic', 'heif', 'jxl', 'jp2', 'psd', 'tga'];
+    private const PASSTHROUGH_MIMES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/bmp', 'image/x-ms-bmp', 'image/avif'];
     private const MAX_BYTES = 16 * 1024 * 1024;
 
     public function __construct(
         private MetadataReader $metadata,
         private AudioFolder $audioFolder,
+        private CoverConverter $converter,
     ) {
     }
 
@@ -59,7 +69,9 @@ class CoverFinder {
                     continue;
                 }
                 $ext = substr($lower, $dot + 1);
-                if (!in_array($ext, self::EXTENSIONS, true)) {
+                $native = in_array($ext, self::EXTENSIONS, true);
+                if (!$native && !(in_array($ext, self::CONVERT_EXTENSIONS, true)
+                    && ($ext === 'bmp' || $ext === 'avif' || $this->converter->canConvert($ext)))) {
                     continue;
                 }
                 if ($node->getSize() <= 0 || $node->getSize() > self::MAX_BYTES) {
@@ -67,9 +79,12 @@ class CoverFinder {
                 }
                 $rank = array_search(substr($lower, 0, $dot), self::NAMES, true);
                 if ($rank !== false) {
-                    $preferred[$rank] ??= $node;
+                    // Bei gleichem Namen ("cover.tif" und "cover.jpg")
+                    // gewinnt das direkt anzeigbare Bild
+                    $slot = $rank * 2 + ($native ? 0 : 1);
+                    $preferred[$slot] ??= $node;
                 } else {
-                    $others[$name] = $node;
+                    $others[($native ? '0' : '1') . $name] = $node;
                 }
             }
         } catch (\Throwable $e) {
@@ -111,13 +126,23 @@ class CoverFinder {
         if ($image === null) {
             return null;
         }
+        $ext = strtolower(pathinfo($image->getName(), PATHINFO_EXTENSION));
+        if (in_array($ext, self::CONVERT_EXTENSIONS, true)) {
+            $converted = $this->converter->convert($image);
+            if ($converted !== null) {
+                return $converted + ['mtime' => (int)$image->getMTime()];
+            }
+        }
         try {
             $data = $image->getContent();
         } catch (\Throwable $e) {
             return null;
         }
         $mime = (string)(new \finfo(FILEINFO_MIME_TYPE))->buffer($data);
-        if (!in_array($mime, ['image/jpeg', 'image/png', 'image/webp', 'image/gif'], true)) {
+        if ($mime === 'image/x-ms-bmp') {
+            $mime = 'image/bmp';
+        }
+        if (!in_array($mime, self::PASSTHROUGH_MIMES, true)) {
             return null;
         }
         return ['mime' => $mime, 'data' => $data, 'mtime' => (int)$image->getMTime()];

@@ -202,17 +202,6 @@ const Player = (() => {
     return (track.title && track.title.trim()) || track.name;
   }
 
-  /**
-   * Zweite Zeile unter dem Titel: Kuenstler und Album aus den ID3-Tags.
-   * Fehlen beide, bleibt die Zeile leer - der Ordnerpfad wird hier bewusst
-   * NICHT mehr angezeigt.
-   */
-  function trackContext(track) {
-    return [track.artist, track.album]
-      .filter((v) => v && v.trim())
-      .join(' \u00b7 ');
-  }
-
   // ------------------------------------------------------------------
   // Laufschrift (ab 0.15.4)
   //
@@ -224,6 +213,33 @@ const Player = (() => {
   // mit "…" (nur CSS, siehe style.css).
   // ------------------------------------------------------------------
   const MARQUEE_SPEED = 30; // Punkte pro Sekunde - gut mitlesbar
+
+  /**
+   * Zusatzzeile mit Kuenstler und Album (ab 0.21.1, Vikunja #31): In der
+   * kleinen Leiste wie bisher "Kuenstler · Album" in einer Zeile, im
+   * Vollbild per CSS je Angabe eine eigene Zeile (Trenner ausgeblendet).
+   * Leere Angaben entfallen.
+   */
+  function setContextLine(track) {
+    const parts = [['artist', track.artist], ['album', track.album]]
+      .filter(([, v]) => v && v.trim());
+    const inner = document.createElement('span');
+    inner.className = 'marquee-inner';
+    parts.forEach(([kind, value], i) => {
+      if (i > 0) {
+        const sep = document.createElement('span');
+        sep.className = 'context-sep';
+        sep.textContent = ' \u00b7 ';
+        inner.appendChild(sep);
+      }
+      const part = document.createElement('span');
+      part.className = 'context-part context-' + kind;
+      part.textContent = value.trim();
+      inner.appendChild(part);
+    });
+    els.context.replaceChildren(inner);
+    updateMarquee(els.context);
+  }
 
   function setMarqueeText(el, text) {
     const inner = document.createElement('span');
@@ -455,6 +471,29 @@ const Player = (() => {
     return rows;
   }
 
+  /*
+   * Weiter/Zurueck-Tasten am Geraet (ab 0.21.1, Vikunja #22).
+   *
+   * Autoradio, CarPlay, Kopfhoerer und Sperrbildschirm schicken bei den
+   * Pfeiltasten "naechster/voriger Titel". Ob kurz getippt oder gehalten,
+   * erfaehrt eine Web-App nicht. Deshalb waehlbar, je Geraet gemerkt:
+   *   'track' - Titel wechseln (bisheriges Verhalten, Vorgabe)
+   *   'seek'  - 15 s vor- bzw. zurueckspulen (mit derselben Bremse gegen
+   *             Dauerspulen wie die Spultasten)
+   */
+  const HW_KEYS_KEY = 'audioarchive_hw_keys';
+  let hwKeys = 'track';
+  try {
+    if (localStorage.getItem(HW_KEYS_KEY) === 'seek') hwKeys = 'seek';
+  } catch (e) { /* ohne Speicher: Vorgabe */ }
+
+  function setHwKeys(mode) {
+    hwKeys = mode === 'seek' ? 'seek' : 'track';
+    try {
+      localStorage.setItem(HW_KEYS_KEY, hwKeys);
+    } catch (e) { /* nur fuer diese Sitzung */ }
+  }
+
   function registerMediaActions() {
     if (!('mediaSession' in navigator)) return;
     // Jeder andere Befehl beendet eine laufende Spul-Serie
@@ -470,8 +509,20 @@ const Player = (() => {
     const actions = {
       play: other('play', () => Player.resume()),
       pause: other('pause', () => Player.pause()),
-      previoustrack: other('previoustrack', () => Player.prev()),
-      nexttrack: other('nexttrack', () => Player.next()),
+      previoustrack: (details) => {
+        if (hwKeys === 'seek') {
+          logMediaAction('previoustrack', externalSeek(-1, SEEK_STEP));
+          return;
+        }
+        other('previoustrack', () => Player.prev())(details);
+      },
+      nexttrack: (details) => {
+        if (hwKeys === 'seek') {
+          logMediaAction('nexttrack', externalSeek(1, SEEK_STEP));
+          return;
+        }
+        other('nexttrack', () => Player.next())(details);
+      },
       seekbackward: seek('seekbackward', -1),
       seekforward: seek('seekforward', 1),
       seekto: other('seekto', (details) => {
@@ -804,7 +855,7 @@ const Player = (() => {
 
     audio.src = streamUrlFor(track);
     setMarqueeText(els.title, trackTitle(track));
-    setMarqueeText(els.context, trackContext(track));
+    setContextLine(track);
     showCover(track);
     els.bar.hidden = false;
     updateMarquees();
@@ -1143,6 +1194,42 @@ const Player = (() => {
       p.textContent = note;
       els.details.appendChild(p);
     }
+    els.details.appendChild(hwKeysChooser());
+  }
+
+  /** Auswahl fuer die Pfeiltasten am Geraet (ab 0.21.1), unter den Angaben. */
+  function hwKeysChooser() {
+    const box = document.createElement('div');
+    box.className = 'player-hwkeys';
+    const h = document.createElement('h3');
+    h.className = 'player-details-heading';
+    h.textContent = 'Tasten an Auto, Kopfhörer und Sperrbildschirm';
+    const hint = document.createElement('p');
+    hint.className = 'player-hwkeys-hint';
+    hint.textContent = 'Was sollen die Weiter- und Zurück-Tasten tun? Gilt nur für dieses Gerät.';
+    const row = document.createElement('div');
+    row.className = 'player-hwkeys-row';
+    row.setAttribute('role', 'radiogroup');
+    [['track', 'Titel wechseln'], ['seek', '15 s spulen']].forEach(([mode, label]) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'player-hwkeys-btn' + (hwKeys === mode ? ' is-on' : '');
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', hwKeys === mode ? 'true' : 'false');
+      btn.textContent = label;
+      btn.addEventListener('click', () => {
+        setHwKeys(mode);
+        row.querySelectorAll('.player-hwkeys-btn').forEach((b) => {
+          const on = b === btn;
+          b.classList.toggle('is-on', on);
+          b.setAttribute('aria-checked', on ? 'true' : 'false');
+        });
+        showToast(mode === 'seek' ? 'Weiter/Zurück am Gerät: 15 s spulen' : 'Weiter/Zurück am Gerät: Titel wechseln');
+      });
+      row.appendChild(btn);
+    });
+    box.append(h, hint, row);
+    return box;
   }
 
   async function loadDetails() {
@@ -1301,7 +1388,7 @@ const Player = (() => {
       els.bar.classList.remove('is-failed');
       if (track) {
         setMarqueeText(els.title, trackTitle(track));
-        setMarqueeText(els.context, trackContext(track));
+        setContextLine(track);
         updateMarquees();
       }
       recoveries = 0;

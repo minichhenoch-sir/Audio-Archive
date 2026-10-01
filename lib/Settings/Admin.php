@@ -10,6 +10,7 @@ use OCP\AppFramework\Services\IInitialState;
 use OCP\IAppConfig;
 use OCP\IURLGenerator;
 use OCA\AudioArchive\Service\Appearance;
+use OCA\AudioArchive\Service\AppIcon;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCP\Settings\ISettings;
 use OCP\Util;
@@ -66,6 +67,13 @@ class Admin implements ISettings {
                 Application::APP_ID, Application::SETTING_HEADER_SUBTITLE, ''
             ),
             'hasBackground' => $this->backgroundImage->exists(),
+            // Cover-Ersatz des Administrator-Links (ab 0.21.1)
+            'publicCoverIcon' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_PUBLIC_COVER_ICON, ''
+            ),
+            'hasCoverImage' => $this->backgroundImage->exists(BackgroundImage::ADMIN_COVER),
+            'coverImageVersion' => $this->backgroundImage->version(BackgroundImage::ADMIN_COVER),
+            'coverIcons' => AppIcon::COVER_ICONS,
             'betaEnabled' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ),

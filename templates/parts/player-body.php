@@ -52,6 +52,7 @@ if ($_['backgroundUrl'] !== '') {
      data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
+     data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
      data-header-subtitle="<?php echo $escape($_['headerSubtitle']); ?>"
      data-service-worker="<?php echo $escape($_['serviceWorkerUrl']); ?>"
@@ -145,6 +146,13 @@ if ($_['backgroundUrl'] !== '') {
   <!-- Ordnerbaum (nur angemeldet): gemeinsamer Ordner und eigene Dateien -->
   <nav id="sidebar" class="sidebar" aria-label="Ordner" hidden>
     <ul id="tree" class="tree" role="tree"></ul>
+    <!-- Zurueck zur Nextcloud-Oberflaeche (ab 0.21.1, Vikunja #26) -->
+    <a id="nextcloud-link" class="sidebar-nextcloud" href="#" hidden>
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M15 18l-6-6 6-6"/>
+      </svg>
+      <span>Zu Nextcloud</span>
+    </a>
   </nav>
   <div id="sidebar-backdrop" class="sidebar-backdrop" hidden></div>
 
@@ -215,6 +223,16 @@ if ($_['backgroundUrl'] !== '') {
       <div class="panel-row panel-actions">
         <button type="button" class="panel-button panel-button--primary" id="us-save">Übernehmen</button>
         <button type="button" class="panel-button" id="us-cancel">Schließen</button>
+      </div>
+    </section>
+
+    <!-- Kurzanleitung "App installieren" fuer geteilte Links (ab 0.21.1, Vikunja #27) -->
+    <section id="install-help" class="panel install-help" hidden>
+      <h2 class="panel-title">Als App installieren</h2>
+      <ol id="install-help-steps" class="install-help-steps"></ol>
+      <p class="panel-hint">Danach startet der Player wie eine App vom Startbildschirm – auch ohne Browserleiste.</p>
+      <div class="panel-row panel-actions">
+        <button type="button" class="panel-button" id="install-help-close">Schließen</button>
       </div>
     </section>
 

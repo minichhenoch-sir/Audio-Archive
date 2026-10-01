@@ -65,6 +65,9 @@ class BackgroundImage {
      * Schluessel fuer das eigene Cover-Ersatzbild einer Freigabe (ab 0.20).
      * Gleiche Ablage und gleiche Pruefung wie die Hintergrundbilder.
      */
+    /** Eigenes Cover-Ersatzbild des Administrator-Links (ab 0.21.1). */
+    public const ADMIN_COVER = 'cover-admin';
+
     public static function shareCoverKey(int $shareId): string {
         return 'cover-share-' . $shareId;
     }

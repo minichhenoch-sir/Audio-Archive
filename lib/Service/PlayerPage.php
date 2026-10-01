@@ -164,7 +164,10 @@ class PlayerPage {
             ),
             // Bild fuer Aufnahmen ohne Cover (ab 0.20): Auswahl der Freigabe,
             // sonst die Vorgabe (Archiv-Liste mit Lautsprecher)
-            ...$this->appearance->shareCover($share),
+            // Administrator-Link: eigene Wahl in der Verwaltung (ab 0.21.1)
+            ...(($share === null && $publicToken !== '')
+                ? $this->appearance->adminCover()
+                : $this->appearance->shareCover($share)),
             'appleIconUrl' => $this->appIcon->url(
                 $barColor, 'apple-180', false,
                 (string)$this->appManager->getAppVersion(Application::APP_ID)
@@ -188,6 +191,9 @@ class PlayerPage {
             'standaloneUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.page.standalone'
             ),
+            // Startseite der Nextcloud fuer den Knopf "Zu Nextcloud" in der
+            // Seitenleiste (ab 0.21.1, Vikunja #26)
+            'nextcloudUrl' => $this->urlGenerator->linkToDefaultPageUrl(),
             'headerTitle' => $values['title'],
             'headerSubtitle' => $values['subtitle'],
             'themeBar' => $values['themeBar'],

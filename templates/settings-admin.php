@@ -50,6 +50,19 @@
         <input type="text" id="aa-public-url" readonly>
         <button type="button" id="aa-public-copy">Link kopieren</button>
     </div>
+    <div class="aa-field">
+        <label>Bild bei Aufnahmen ohne Cover</label>
+        <p class="settings-hint">
+            Gilt für diesen Link. Die eigenen Ansichten der Nutzer zeigen
+            weiterhin das Standard-Zeichen; Freigaben wählen ihr Bild selbst.
+        </p>
+        <div class="aa-cover-choices" id="aa-cover-choices" role="radiogroup" aria-label="Bild bei Aufnahmen ohne Cover"></div>
+        <div class="aa-row" id="aa-cover-upload-row" hidden>
+            <input type="file" id="aa-cover-file" accept="image/png,image/jpeg,image/webp">
+            <button type="button" id="aa-cover-remove" hidden>Bild entfernen</button>
+        </div>
+        <p class="settings-hint" id="aa-cover-state"></p>
+    </div>
 
     <!-- ============ Freigaben durch Nutzer ============ -->
     <h3>Freigaben durch Nutzer</h3>

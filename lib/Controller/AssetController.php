@@ -136,6 +136,13 @@ class AssetController extends Controller {
         return $this->imageResponse(BackgroundImage::ADMIN, true);
     }
 
+    /** Eigenes Cover-Ersatzbild des Administrator-Links (ab 0.21.1). */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function adminCover(): Response {
+        return $this->imageResponse(BackgroundImage::ADMIN_COVER, true);
+    }
+
     /**
      * Gibt ein gespeichertes Bild aus.
      *

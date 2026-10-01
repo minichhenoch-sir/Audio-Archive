@@ -219,6 +219,110 @@
     }
   });
 
+  // ---------- Bild bei Aufnahmen ohne Cover (Administrator-Link, ab 0.21.1) ----------
+  const coverChoices = el('aa-cover-choices');
+  const coverUploadRow = el('aa-cover-upload-row');
+  const coverFile = el('aa-cover-file');
+  const coverRemove = el('aa-cover-remove');
+  const coverState = el('aa-cover-state');
+  const COVER_LABELS = {
+    speaker: 'Standard', badge: 'Lautsprecher rund', box: 'Box',
+    phones: 'Kopfhörer', play: 'Abspielen', mic: 'Mikrofon',
+  };
+  const coverIcons = Array.isArray(state.coverIcons) && state.coverIcons.length
+    ? state.coverIcons : Object.keys(COVER_LABELS);
+  let coverIcon = state.publicCoverIcon || '';
+  let hasCoverImage = state.hasCoverImage === true;
+  let coverImageUrl = hasCoverImage
+    ? OC.generateUrl('/apps/' + APP_ID + '/coverimage/admin') + '?v=' + encodeURIComponent(state.coverImageVersion || '')
+    : '';
+
+  function coverPreviewUrl(key) {
+    const hex = (bar.value || '#291c12').replace('#', '').toLowerCase();
+    return OC.generateUrl('/apps/' + APP_ID + '/icon/' + hex + '/cover' + key + '-512');
+  }
+
+  function renderCoverChoices() {
+    coverChoices.textContent = '';
+    const current = coverIcon === '' ? 'speaker' : coverIcon;
+    const options = coverIcons.map((key) => ({ key, label: COVER_LABELS[key] || key, url: coverPreviewUrl(key) }));
+    options.push({ key: 'custom', label: 'Eigenes Bild', url: coverImageUrl });
+    options.forEach((opt) => {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'aa-cover-choice' + (opt.key === current ? ' is-selected' : '');
+      btn.setAttribute('role', 'radio');
+      btn.setAttribute('aria-checked', opt.key === current ? 'true' : 'false');
+      const pic = document.createElement('span');
+      pic.className = 'aa-cover-preview';
+      if (opt.url) {
+        const img = document.createElement('img');
+        img.src = opt.url;
+        img.alt = '';
+        pic.appendChild(img);
+      } else {
+        pic.textContent = '+';
+      }
+      const label = document.createElement('span');
+      label.textContent = opt.label;
+      btn.append(pic, label);
+      btn.addEventListener('click', () => {
+        coverIcon = opt.key === 'speaker' ? '' : opt.key;
+        renderCoverChoices();
+      });
+      coverChoices.appendChild(btn);
+    });
+    coverUploadRow.hidden = current !== 'custom';
+    coverRemove.hidden = !hasCoverImage;
+    coverState.textContent = current !== 'custom' ? ''
+      : (hasCoverImage ? 'Eigenes Bild ist hochgeladen. Gilt nach „Speichern“.'
+        : 'Bitte ein Bild hochladen (PNG, JPEG oder WebP, am besten quadratisch).');
+  }
+  renderCoverChoices();
+  bar.addEventListener('change', renderCoverChoices);
+
+  coverFile.addEventListener('change', async () => {
+    const file = coverFile.files[0];
+    if (!file) return;
+    coverState.textContent = 'Lade hoch …';
+    const form = new FormData();
+    form.append('file', file);
+    try {
+      const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/coverimage'), {
+        method: 'POST',
+        headers: { requesttoken: OC.requestToken },
+        body: form,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        coverState.textContent = data.error || 'Hochladen fehlgeschlagen.';
+        return;
+      }
+      hasCoverImage = true;
+      coverImageUrl = data.coverImageUrl || '';
+      coverIcon = 'custom';
+      renderCoverChoices();
+    } catch (err) {
+      coverState.textContent = 'Verbindung fehlgeschlagen.';
+    } finally {
+      coverFile.value = '';
+    }
+  });
+
+  coverRemove.addEventListener('click', async () => {
+    try {
+      await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/coverimage/remove'), {
+        method: 'POST',
+        headers: { requesttoken: OC.requestToken },
+      });
+      hasCoverImage = false;
+      coverImageUrl = '';
+      renderCoverChoices();
+    } catch (err) {
+      coverState.textContent = 'Entfernen fehlgeschlagen.';
+    }
+  });
+
   // ---------- Ordnerauswahl ----------
   el('aa-folder-pick').addEventListener('click', () => {
     // Nextclouds eigener Dateidialog. Ist er nicht verfügbar (ältere oder
@@ -270,6 +374,7 @@
       betaText: betaText.value,
       betaLinkUrl: betaLinkUrl.value,
       betaLinkLabel: betaLinkLabel.value,
+      publicCoverIcon: coverIcon,
     };
 
     // Leeres Feld bedeutet: Passwort unverändert lassen

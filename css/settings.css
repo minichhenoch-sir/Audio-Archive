@@ -117,3 +117,45 @@
     color: var(--color-text-maxcontrast);
     vertical-align: middle;
 }
+
+/* Bild bei Aufnahmen ohne Cover fuer den Administrator-Link (ab 0.21.1) */
+#audioarchive-settings .aa-cover-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 8px 0;
+}
+#audioarchive-settings .aa-cover-choice {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  width: 96px;
+  padding: 8px;
+  margin: 0;
+  border: 2px solid var(--color-border, #ddd);
+  border-radius: var(--border-radius-large, 10px);
+  background: var(--color-main-background, #fff);
+  font-size: 0.85em;
+  cursor: pointer;
+}
+#audioarchive-settings .aa-cover-choice.is-selected {
+  border-color: var(--color-primary-element, #0082c9);
+}
+#audioarchive-settings .aa-cover-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--color-background-dark, #eee);
+  font-size: 1.6em;
+  color: var(--color-text-maxcontrast, #777);
+}
+#audioarchive-settings .aa-cover-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}

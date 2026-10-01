@@ -369,6 +369,29 @@ class Appearance {
         return ['coverIcon' => AppIcon::COVER_CUSTOM, 'coverUrl' => $url . '?v=' . $this->backgroundImage->version($key)];
     }
 
+    /**
+     * Bild bei Aufnahmen ohne Cover fuer den Administrator-Link (ab 0.21.1,
+     * Vikunja #18). Gleiche Auswahl wie bei Freigaben: ein mitgeliefertes
+     * Zeichen oder ein eigenes Bild; ohne Wahl die Vorgabe.
+     *
+     * @return array{coverIcon: string, coverUrl: string}
+     */
+    public function adminCover(): array {
+        $default = ['coverIcon' => AppIcon::DEFAULT_COVER, 'coverUrl' => ''];
+        $icon = $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_PUBLIC_COVER_ICON, '');
+        if ($icon === '') {
+            return $default;
+        }
+        if ($icon !== AppIcon::COVER_CUSTOM) {
+            return in_array($icon, AppIcon::COVER_ICONS, true) ? ['coverIcon' => $icon, 'coverUrl' => ''] : $default;
+        }
+        if (!$this->backgroundImage->exists(BackgroundImage::ADMIN_COVER)) {
+            return $default;
+        }
+        $url = $this->urlGenerator->linkToRoute(Application::APP_ID . '.asset.adminCover');
+        return ['coverIcon' => AppIcon::COVER_CUSTOM, 'coverUrl' => $url . '?v=' . $this->backgroundImage->version(BackgroundImage::ADMIN_COVER)];
+    }
+
     /** Adresse des Administrator-Bildes, sofern es in dieser Gestaltung gilt. */
     public function adminBackgroundUrl(string $design): string {
         if (!$this->backgroundImage->exists()) {
