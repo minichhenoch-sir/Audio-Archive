@@ -834,7 +834,7 @@
 
   // Welche Funktionen der Admin freigegeben hat. Bis die Einstellungen
   // geladen sind, gelten die Standardwerte.
-  const features = { offline: true, download: false };
+  const features = { offline: true, download: false, folderDownload: false };
 
   function lsGet(key) {
     try { return JSON.parse(localStorage.getItem(key) || 'null'); } catch (e) { return null; }
@@ -1459,6 +1459,7 @@
       if (data.features) {
         features.offline = data.features.offline !== false;
         features.download = data.features.download === true;
+        features.folderDownload = data.features.folderDownload === true;
       }
 
       renderBreadcrumb();
@@ -3128,6 +3129,7 @@
     const enabled = AudioArchive.canShare && !AudioArchive.isPublic();
     const actions = document.getElementById('folder-actions');
     const shareBtn = document.getElementById('share-btn');
+    const zipBtn = document.getElementById('zip-btn');
     const panel = document.getElementById('share-panel');
 
     // Nach dem Oeffnen aus "Meine Freigaben": diese Freigabe bearbeiten,
@@ -3512,7 +3514,9 @@
       const functions = group('Funktionen');
       const offline = checkbox('Offline speichern erlauben', isNew ? true : st.featureOffline);
       const download = checkbox('Herunterladen als Datei erlauben', isNew ? false : st.featureDownload);
-      functions.append(offline.wrap, download.wrap);
+      // Unterordner als ZIP (ab 0.25.0) - die oberste Ebene der Freigabe nie
+      const folderDownload = checkbox('Unterordner als ZIP herunterladen erlauben', isNew ? false : st.featureFolderDownload === true);
+      functions.append(offline.wrap, download.wrap, folderDownload.wrap);
       panel.appendChild(functions);
 
       // Aussehen
@@ -3803,6 +3807,7 @@
           themeBase: ownColors.input.checked ? colorInputs.themeBase.value : '',
           featureOffline: offline.input.checked,
           featureDownload: download.input.checked,
+          featureFolderDownload: folderDownload.input.checked,
           coverIcon: chosenCover,
         };
         if (isInternal && members.value().length === 0) {
@@ -3864,12 +3869,21 @@
       /** Nach jedem Ordnerwechsel: Knopf zeigen/verbergen, Panel schliessen. */
       onFolderLoaded() {
         IncomingBar.update();
-        if (!enabled) return;
+        // Ordner als ZIP (ab 0.25.0): nur Unterordner, nur mit Verbindung
+        const zipOk = features.folderDownload === true && !offlineMode && view.path !== '';
+        zipBtn.hidden = !zipOk;
+        zipBtn.href = zipOk ? AudioArchive.zipUrl(view.path, view.source) : '#';
+        if (!enabled) {
+          shareBtn.hidden = true;
+          actions.hidden = !zipOk;
+          return;
+        }
         // Die eigenen Dateien als Ganzes lassen sich nicht teilen, mit mir
         // geteilte Ordner nicht weiterteilen
         const shareable = !offlineMode && !(view.source === 'home' && view.path === '')
           && !AudioArchive.isIncoming(view.source);
-        actions.hidden = !shareable;
+        shareBtn.hidden = !shareable;
+        actions.hidden = !shareable && !zipOk;
 
         if (pendingShareId !== null) {
           const id = pendingShareId;

@@ -239,6 +239,16 @@
         Blendet je Aufnahme einen Knopf zum Speichern der Datei ein. Die Datei
         lässt sich danach frei weitergeben.
     </p>
+    <p>
+        <input type="checkbox" id="aa-feature-folder-download" class="checkbox">
+        <label for="aa-feature-folder-download">Unterordner als ZIP herunterladen erlauben</label>
+    </p>
+    <p class="settings-hint">
+        Zeigt in jedem Unterordner „Ordner herunterladen (ZIP)“ – mit allen
+        Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich
+        nie als Ganzes herunterladen. Freigaben haben dafür einen eigenen
+        Schalter; die eigenen Dateien eines Nutzers gehen immer.
+    </p>
 
     <!-- ============ Beta-Hinweis ============ -->
     <h3>Beta-Hinweis</h3>

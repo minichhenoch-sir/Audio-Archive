@@ -71,6 +71,7 @@ class ContentScope {
                 'root' => $root,
                 'offline' => $share['settings']['featureOffline'],
                 'download' => $share['settings']['featureDownload'],
+                'folderDownload' => $share['settings']['featureFolderDownload'],
                 'countFolders' => true,
             ];
         }
@@ -91,6 +92,7 @@ class ContentScope {
                 'root' => $root,
                 'offline' => $share['settings']['featureOffline'],
                 'download' => $share['settings']['featureDownload'],
+                'folderDownload' => $share['settings']['featureFolderDownload'],
                 'countFolders' => true,
             ];
         }
@@ -114,6 +116,10 @@ class ContentScope {
             // Die eigenen Dateien darf man immer herunterladen
             'download' => $isHome || $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
+            ),
+            // Unterordner als ZIP (ab 0.25.0): eigene Dateien immer
+            'folderDownload' => $isHome || $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_FEATURE_FOLDER_DOWNLOAD, false
             ),
             /*
              * In den eigenen Dateien wird nicht gezaehlt: Das hiesse, den

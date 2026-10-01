@@ -90,6 +90,7 @@ class SettingsController extends Controller {
         ?int $rememberDays = null,
         ?string $sharedLabel = null,
         ?bool $featureFavorites = null,
+        ?bool $featureFolderDownload = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -301,6 +302,9 @@ class SettingsController extends Controller {
                 Application::APP_ID, Application::SETTING_SHARED_LABEL,
                 self::shorten(trim(strip_tags($sharedLabel)), 60)
             );
+        }
+        if ($featureFolderDownload !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_FOLDER_DOWNLOAD, $featureFolderDownload);
         }
         if ($featureFavorites !== null) {
             $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, $featureFavorites);

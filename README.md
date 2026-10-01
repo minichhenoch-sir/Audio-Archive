@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.24.0)
+# Audio Archive – Nextcloud-App (0.25.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1329,4 +1329,25 @@ Container neu starten; keine Datenbankänderung.
 PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
 Container neu starten; keine Datenbankänderung (Favoriten liegen in
 Nextclouds eigener Tabelle).
+
+---
+
+## 0.25.0: Ordner als ZIP herunterladen
+
+- In jedem **Unterordner** erscheint „Ordner herunterladen (ZIP)“ – mit
+  allen Aufnahmen, Unterordnern und Ordnerbildern (keine versteckten
+  Dateien). Die **oberste Ebene** einer Quelle bzw. Freigabe lässt sich nie
+  als Ganzes herunterladen.
+- **Schalter:** Verwaltung → Funktionen → „Unterordner als ZIP herunterladen
+  erlauben“ (Vorgabe: aus; gilt für den Link der Verwaltung und die
+  gemeinsamen Aufnahmen angemeldeter Nutzer). Jede Freigabe hat dafür einen
+  eigenen Schalter (Funktionen). Die eigenen Dateien eines Nutzers gehen
+  immer.
+- Gepackt wird beim Herunterladen ohne Zwischendatei (Nextclouds
+  `ZipResponse`); höchstens 800 Dateien je ZIP – bei mehr erscheint der
+  Hinweis, einen Unterordner zu wählen. Ohne Verbindung kein Knopf.
+- Neue Route `api/zip`.
+
+PHP, Routen, JavaScript, CSS und `info.xml` geändert – nach dem Einspielen
+Container neu starten; keine Datenbankänderung.
 

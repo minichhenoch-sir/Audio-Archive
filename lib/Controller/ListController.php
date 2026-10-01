@@ -255,6 +255,7 @@ class ListController extends Controller {
             'features' => [
                 'offline' => $scope['offline'],
                 'download' => $scope['download'],
+                'folderDownload' => $scope['folderDownload'] ?? false,
             ],
         ]);
     }

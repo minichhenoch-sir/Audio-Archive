@@ -258,6 +258,13 @@ if ($_['backgroundUrl'] !== '') {
         </svg>
         <span>Diesen Ordner teilen</span>
       </button>
+      <!-- Ordner als ZIP herunterladen (ab 0.25.0) -->
+      <a id="zip-btn" class="share-btn" href="#" download hidden>
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M12 3v12"/><polyline points="7 10 12 15 17 10"/><path d="M5 21h14"/>
+        </svg>
+        <span>Ordner herunterladen (ZIP)</span>
+      </a>
     </div>
 
     <!-- Mit mir geteilter Ordner: von wem, und welches Aussehen gelten soll -->

@@ -14,7 +14,9 @@ use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\DataResponse;
 use OCP\AppFramework\Http\Response;
+use OCP\AppFramework\Http\ZipResponse;
 use OCP\Files\File;
+use OCP\Files\Folder;
 use OCP\IAppConfig;
 use OCP\IRequest;
 use OCP\ISession;
@@ -133,6 +135,96 @@ class StreamController extends Controller {
         $response->addHeader('Content-Disposition', $disposition);
 
         return $response;
+    }
+
+    /** Hoechstens so viele Dateien je ZIP (jede ist beim Packen geoeffnet). */
+    private const ZIP_MAX_FILES = 800;
+
+    /**
+     * Ordner als ZIP herunterladen (ab 0.25.0, Vikunja #29).
+     *
+     * Nur Unterordner - die oberste Ebene einer Quelle bzw. Freigabe nie
+     * (Wunsch: "das Hauptverzeichnis nicht erlauben"). Enthalten sind alle
+     * Aufnahmen samt Unterordnern sowie Ordnerbilder; versteckte Dateien
+     * nicht. Erlaubt je nach Verwaltung bzw. Freigabe ("folderDownload").
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function zip(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): Response {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
+        }
+        if (!($scope['folderDownload'] ?? false)) {
+            return new DataResponse(['error' => 'Das Herunterladen von Ordnern ist nicht erlaubt.'], Http::STATUS_FORBIDDEN);
+        }
+        $node = $this->audioFolder->resolveIn($scope['root'], $path);
+        if (!$node instanceof Folder || trim($path, '/') === '' || $node->getPath() === $scope['root']->getPath()) {
+            return new DataResponse(['error' => 'Nur Unterordner lassen sich herunterladen.'], Http::STATUS_FORBIDDEN);
+        }
+
+        $entries = [];
+        $tooMany = false;
+        $this->collect($node, $node->getName(), $entries, $tooMany, 0);
+        if ($tooMany) {
+            return new DataResponse(
+                ['error' => 'Der Ordner enthält zu viele Dateien – bitte einen Unterordner herunterladen.'],
+                Http::STATUS_REQUEST_ENTITY_TOO_LARGE
+            );
+        }
+        if ($entries === []) {
+            return new DataResponse(['error' => 'Der Ordner enthält keine Aufnahmen.'], Http::STATUS_NOT_FOUND);
+        }
+
+        $this->session->close();
+        $response = new ZipResponse($this->request, $node->getName());
+        foreach ($entries as [$file, $name]) {
+            try {
+                $handle = $file->fopen('r');
+            } catch (\Throwable $e) {
+                continue;
+            }
+            if ($handle === false) {
+                continue;
+            }
+            $response->addResource($handle, $name, (int)$file->getSize(), (int)$file->getMTime());
+        }
+        return $response;
+    }
+
+    /** @param list<array{0: File, 1: string}> $entries */
+    private function collect(Folder $folder, string $prefix, array &$entries, bool &$tooMany, int $depth): void {
+        if ($depth > 12 || $tooMany) {
+            return;
+        }
+        try {
+            $listing = $folder->getDirectoryListing();
+        } catch (\Throwable $e) {
+            return;
+        }
+        foreach ($listing as $child) {
+            $name = $child->getName();
+            if (str_starts_with($name, '.')) {
+                continue;
+            }
+            if ($child instanceof Folder) {
+                $this->collect($child, $prefix . '/' . $name, $entries, $tooMany, $depth + 1);
+                continue;
+            }
+            if (!$child instanceof File) {
+                continue;
+            }
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            $isImage = in_array($ext, ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'tif', 'tiff', 'heic', 'avif'], true);
+            if (!$isImage && !$this->audioFolder->isAllowedFile($child)) {
+                continue;
+            }
+            if (count($entries) >= self::ZIP_MAX_FILES) {
+                $tooMany = true;
+                return;
+            }
+            $entries[] = [$child, $prefix . '/' . $name];
+        }
     }
 
     /**

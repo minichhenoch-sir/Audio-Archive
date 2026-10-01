@@ -54,6 +54,7 @@
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
   const featureFavorites = el('aa-feature-favorites');
+  const featureFolderDownload = el('aa-feature-folder-download');
   const rememberDays = el('aa-remember-days');
   const sharedLabel = el('aa-shared-label');
   const status = el('aa-status');
@@ -146,6 +147,7 @@
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
   featureFavorites.checked = state.featureFavorites !== false;
+  featureFolderDownload.checked = state.featureFolderDownload === true;
   rememberDays.value = String([0, 7, 15, 30, 90].includes(state.rememberDays) ? state.rememberDays : 0);
   sharedLabel.value = state.sharedLabel || '';
 
@@ -380,6 +382,7 @@
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
       featureFavorites: featureFavorites.checked,
+      featureFolderDownload: featureFolderDownload.checked,
       rememberDays: parseInt(rememberDays.value, 10) || 0,
       sharedLabel: sharedLabel.value,
       betaEnabled: betaEnabled.checked,

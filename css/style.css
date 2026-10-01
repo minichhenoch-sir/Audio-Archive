@@ -1890,6 +1890,10 @@ body.has-bg-image #audioarchive .explorer-row.active {
   margin-bottom: 12px;
 }
 
+/* Ordner-Knoepfe nebeneinander; der ZIP-Knopf ist ein Link (ab 0.25.0) */
+#audioarchive .share-btn[hidden] { display: none; }
+#audioarchive a.share-btn { text-decoration: none; }
+
 #audioarchive .share-btn {
   display: inline-flex;
   align-items: center;

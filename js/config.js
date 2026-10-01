@@ -120,6 +120,12 @@ const AudioArchive = (() => {
       return this.api('public/logout') + (data.apiToken ? '?s=' + encodeURIComponent(data.apiToken) : '');
     },
 
+    /** Ordner als ZIP (ab 0.25.0). */
+    zipUrl(path, source) {
+      return new URL(this.api('zip') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path || ''), location.href).href;
+    },
+
     listUrl(path, source) {
       return new URL(this.api('list') + '?' + this.sourceQuery(source)
         + 'path=' + encodeURIComponent(path || ''), location.href).href;

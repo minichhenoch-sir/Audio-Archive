@@ -63,6 +63,8 @@ class ShareService {
         'style' => null,           // Werte fuer 'defined' (ab 0.17), sonst null
         'featureOffline' => true,
         'featureDownload' => false,
+        // Unterordner als ZIP herunterladen (ab 0.25.0)
+        'featureFolderDownload' => false,
         // Bild im Player fuer Aufnahmen ohne Cover (ab 0.20): '' = Vorgabe
         // (Archiv-Liste mit Lautsprecher), sonst ein Schluessel aus
         // AppIcon::COVER_ICONS oder 'custom' (eigenes hochgeladenes Bild)

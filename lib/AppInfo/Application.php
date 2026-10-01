@@ -33,6 +33,8 @@ class Application extends App implements IBootstrap {
     public const SETTING_FEATURE_FAVORITES = 'feature_favorites';
     /** Persoenlich: Favoriten ausblenden ('0'), Nutzer-Einstellung (ab 0.24.0) */
     public const USER_FAVORITES = 'favorites';
+    /** Ordner als ZIP herunterladen erlauben (ab 0.25.0, Vorgabe: nein) */
+    public const SETTING_FEATURE_FOLDER_DOWNLOAD = 'feature_folder_download';
     public const SETTING_HEADER_TITLE = 'header_title';
     public const SETTING_HEADER_SUBTITLE = 'header_subtitle';
     public const SETTING_THEME_ACCENT = 'theme_accent';
