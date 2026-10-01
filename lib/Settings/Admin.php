@@ -24,6 +24,7 @@ class Admin implements ISettings {
         private BackgroundImage $backgroundImage,
         private IAppManager $appManager,
         private Appearance $appearance,
+        private \OCA\AudioArchive\Service\Transcoder $transcoder,
     ) {
     }
 
@@ -80,6 +81,11 @@ class Admin implements ISettings {
             'sharedLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SHARED_LABEL, ''
             ),
+            // Umwandlung in MP3 (ab 0.27.0): nur moeglich, wenn ffmpeg da ist
+            'transcode' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_TRANSCODE, false
+            ),
+            'ffmpegPath' => $this->transcoder->ffmpegPath() ?? '',
             'featureFolderDownload' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_FOLDER_DOWNLOAD, false
             ),

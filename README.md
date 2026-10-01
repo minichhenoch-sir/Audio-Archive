@@ -1,4 +1,4 @@
-# Audio Archive – Nextcloud-App (0.26.0)
+# Audio Archive – Nextcloud-App (0.27.0)
 
 **Schritt 1 ist abgeschlossen:** Die App lässt sich innerhalb von Nextcloud
 als eigene PWA installieren – eigener Service Worker mit Geltungsbereich
@@ -1407,3 +1407,28 @@ PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert (neuer Abschnitt in
 den persönlichen Einstellungen). Keine Datenbankänderung – die neuen Angaben
 liegen in den vorhandenen Einstellungen der Freigabe. Nach dem Einspielen
 Container neu starten.
+
+---
+
+## 0.27.0: Nicht abspielbare Formate in MP3 umwandeln
+
+Vikunja #34 („beim Abspielen umwandeln, wenn das geht“).
+
+- Neuer Schalter in der Verwaltung → Funktionen: **„Nicht abspielbare
+  Formate beim Abspielen in MP3 umwandeln“** (Vorgabe: aus). Nur wählbar,
+  wenn auf dem Server **ffmpeg** gefunden wird (Nextclouds
+  `preview_ffmpeg_path`, sonst `/usr/bin`, `/usr/local/bin`, …); darunter
+  steht, ob ffmpeg vorhanden ist.
+- Kann ein Gerät ein Format nicht (z. B. AIFF außerhalb von Safari, ALAC in
+  Chrome), steht der Titel nicht mehr blass in der Liste. Beim Abspielen
+  startet der Server ffmpeg im Hintergrund, der Player zeigt „… wird für
+  dieses Gerät in MP3 umgewandelt“ und spielt die fertige MP3 ab – mit
+  Spulen. Die Originaldatei bleibt unverändert.
+- Die umgewandelten Fassungen liegen im Temp-Verzeichnis von Nextcloud
+  (`audioarchive-mp3-<instanz>`), gültig solange die Datei unverändert ist;
+  höchstens 2 GB, die am längsten nicht gehörten werden entfernt.
+- Neue Route `api/transcode`; `api/stream` nimmt `mp3=1` (nur Abspielen,
+  kein Herunterladen).
+
+PHP, Routen, JavaScript, Vorlage und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

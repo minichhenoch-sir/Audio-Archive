@@ -22,6 +22,8 @@ return [
         ['name' => 'stream#index', 'url' => '/api/stream', 'verb' => 'GET'],
         // Ordner als ZIP (ab 0.25.0)
         ['name' => 'stream#zip', 'url' => '/api/zip', 'verb' => 'GET'],
+        // Umwandlung in MP3 vorbereiten/abfragen (ab 0.27.0)
+        ['name' => 'stream#transcode', 'url' => '/api/transcode', 'verb' => 'GET'],
         // Cover einer Aufnahme (ab 0.14): eingebettet oder cover.jpg im Ordner
         ['name' => 'cover#index', 'url' => '/api/cover', 'verb' => 'GET'],
         // Ausfuehrliche Angaben zu einer Aufnahme (Info-Ansicht, ab 0.15)

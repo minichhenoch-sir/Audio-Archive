@@ -1466,6 +1466,7 @@
         features.offline = data.features.offline !== false;
         features.download = data.features.download === true;
         features.folderDownload = data.features.folderDownload === true;
+        Player.setTranscode(data.features.transcode === true);
       }
 
       renderBreadcrumb();

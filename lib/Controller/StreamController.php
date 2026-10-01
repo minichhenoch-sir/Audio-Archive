@@ -39,13 +39,14 @@ class StreamController extends Controller {
         private IAppConfig $appConfig,
         private ISession $session,
         private ContentScope $scope,
+        private \OCA\AudioArchive\Service\Transcoder $transcoder,
     ) {
         parent::__construct($appName, $request);
     }
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path, string $download = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): Response {
+    public function index(string $path, string $download = '', string $source = AudioFolder::SOURCE_SHARED, string $s = '', string $mp3 = ''): Response {
         $scope = $this->scope->resolve($source, $s);
         if (is_int($scope)) {
             return new DataResponse(
@@ -60,6 +61,24 @@ class StreamController extends Controller {
         }
 
         $wantsDownload = ($download === '1');
+
+        // Umgewandelte Fassung (ab 0.27.0): nur zum Abspielen, nur wenn fertig
+        if ($mp3 === '1') {
+            if ($wantsDownload || !$this->transcoder->enabled()) {
+                return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], Http::STATUS_NOT_FOUND);
+            }
+            $prepared = $this->transcoder->prepare($node);
+            if ($prepared['state'] !== 'ready') {
+                return new DataResponse(['state' => $prepared['state']], Http::STATUS_CONFLICT);
+            }
+            $handle = @fopen($prepared['path'], 'rb');
+            if ($handle === false) {
+                return new DataResponse(['error' => 'Datei nicht lesbar.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+            }
+            $this->session->close();
+            return $this->send($handle, (int)filesize($prepared['path']), 'audio/mpeg',
+                'inline; filename="' . rawurlencode(pathinfo($node->getName(), PATHINFO_FILENAME) . '.mp3') . '"');
+        }
 
         /*
          * Der Schalter wird auch hier geprueft, nicht nur beim Anzeigen des
@@ -94,11 +113,37 @@ class StreamController extends Controller {
          */
         $this->session->close();
 
-        $size = (int)$node->getSize();
-        $range = $this->parseRange($this->request->getHeader('Range'), $size);
-
         $disposition = ($wantsDownload ? 'attachment' : 'inline')
             . '; filename="' . rawurlencode($node->getName()) . '"';
+        return $this->send($handle, (int)$node->getSize(), AudioFolder::mimeFor($node->getName()), $disposition);
+    }
+
+    /**
+     * Umwandlung in MP3 vorbereiten bzw. ihren Stand abfragen (ab 0.27.0,
+     * Vikunja #34). Antwort: state = ready | working | failed | off.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function transcode(string $path, string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], $scope);
+        }
+        $node = $this->audioFolder->resolveIn($scope['root'], $path);
+        if (!$node instanceof File || !$this->audioFolder->isAllowedFile($node)) {
+            return new DataResponse(['error' => 'Aufnahme nicht gefunden.'], Http::STATUS_NOT_FOUND);
+        }
+        $this->session->close();
+        if (!$this->transcoder->enabled()) {
+            return new DataResponse(['state' => 'off']);
+        }
+        return new DataResponse(['state' => $this->transcoder->prepare($node)['state']]);
+    }
+
+    /** Liefert einen geoeffneten Datenstrom aus - mit Range (Spulen). */
+    private function send($handle, int $size, string $mime, string $disposition): Response {
+        $range = $this->parseRange($this->request->getHeader('Range'), $size);
+
 
         /*
          * Auch ohne Range-Kopf wird bewusst die eigene Antwortklasse
@@ -108,7 +153,7 @@ class StreamController extends Controller {
          */
         if ($range === null) {
             $response = new RangeStreamResponse($handle, $size);
-            $response->addHeader('Content-Type', AudioFolder::mimeFor($node->getName()));
+            $response->addHeader('Content-Type', $mime);
             $response->addHeader('Content-Length', (string)$size);
             $response->addHeader('Accept-Ranges', 'bytes');
             $response->addHeader('Content-Disposition', $disposition);
@@ -128,7 +173,7 @@ class StreamController extends Controller {
 
         $response = new RangeStreamResponse($handle, $end - $start + 1);
         $response->setStatus(Http::STATUS_PARTIAL_CONTENT);
-        $response->addHeader('Content-Type', AudioFolder::mimeFor($node->getName()));
+        $response->addHeader('Content-Type', $mime);
         $response->addHeader('Content-Length', (string)($end - $start + 1));
         $response->addHeader('Content-Range', 'bytes ' . $start . '-' . $end . '/' . $size);
         $response->addHeader('Accept-Ranges', 'bytes');

@@ -249,6 +249,19 @@
         nie als Ganzes herunterladen. Freigaben haben dafür einen eigenen
         Schalter; die eigenen Dateien eines Nutzers gehen immer.
     </p>
+    <p>
+        <input type="checkbox" id="aa-transcode" class="checkbox">
+        <label for="aa-transcode">Nicht abspielbare Formate beim Abspielen in MP3 umwandeln</label>
+    </p>
+    <p class="settings-hint">
+        Manche Formate kann nicht jedes Gerät abspielen – AIFF zum Beispiel nur
+        Safari (iPhone, iPad, Mac). Ist dieser Schalter an, wandelt der Server
+        solche Aufnahmen beim ersten Abspielen in MP3 um. Die Originaldatei
+        bleibt unverändert; die umgewandelte Fassung wird zwischengespeichert
+        (höchstens 2 GB, älteste werden entfernt). Beim ersten Abspielen dauert
+        es je nach Länge etwas. Braucht das Programm ffmpeg auf dem Server.
+    </p>
+    <p class="settings-hint" id="aa-transcode-state"></p>
 
     <!-- ============ Beta-Hinweis ============ -->
     <h3>Beta-Hinweis</h3>

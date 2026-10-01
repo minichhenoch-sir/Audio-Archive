@@ -55,6 +55,7 @@
   const sortDefault = el('aa-sort-default');
   const featureFavorites = el('aa-feature-favorites');
   const featureFolderDownload = el('aa-feature-folder-download');
+  const transcode = el('aa-transcode');
   const rememberDays = el('aa-remember-days');
   const sharedLabel = el('aa-shared-label');
   const status = el('aa-status');
@@ -148,6 +149,12 @@
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
   featureFavorites.checked = state.featureFavorites !== false;
   featureFolderDownload.checked = state.featureFolderDownload === true;
+  // Umwandlung in MP3 (ab 0.27.0): ohne ffmpeg nicht waehlbar
+  transcode.checked = state.transcode === true && !!state.ffmpegPath;
+  transcode.disabled = !state.ffmpegPath;
+  el('aa-transcode-state').textContent = state.ffmpegPath
+    ? 'ffmpeg ist vorhanden (' + state.ffmpegPath + ').'
+    : 'ffmpeg ist auf diesem Server nicht installiert – die Umwandlung ist deshalb nicht möglich.';
   rememberDays.value = String([0, 7, 15, 30, 90].includes(state.rememberDays) ? state.rememberDays : 0);
   sharedLabel.value = state.sharedLabel || '';
 
@@ -383,6 +390,7 @@
       sortDefault: sortDefault.value,
       featureFavorites: featureFavorites.checked,
       featureFolderDownload: featureFolderDownload.checked,
+      transcode: transcode.checked,
       rememberDays: parseInt(rememberDays.value, 10) || 0,
       sharedLabel: sharedLabel.value,
       betaEnabled: betaEnabled.checked,

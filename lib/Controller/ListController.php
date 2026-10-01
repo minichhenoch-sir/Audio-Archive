@@ -44,6 +44,7 @@ class ListController extends Controller {
         private ITagManager $tagManager,
         private IUserSession $userSession,
         private IConfig $config,
+        private \OCA\AudioArchive\Service\Transcoder $transcoder,
     ) {
         parent::__construct($appName, $request);
     }
@@ -256,6 +257,8 @@ class ListController extends Controller {
                 'offline' => $scope['offline'],
                 'download' => $scope['download'],
                 'folderDownload' => $scope['folderDownload'] ?? false,
+                // Umwandlung in MP3 fuer nicht abspielbare Formate (ab 0.27.0)
+                'transcode' => $this->transcoder->enabled(),
             ],
         ]);
     }

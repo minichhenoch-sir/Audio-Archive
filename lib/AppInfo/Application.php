@@ -35,6 +35,8 @@ class Application extends App implements IBootstrap {
     public const USER_FAVORITES = 'favorites';
     /** Ordner als ZIP herunterladen erlauben (ab 0.25.0, Vorgabe: nein) */
     public const SETTING_FEATURE_FOLDER_DOWNLOAD = 'feature_folder_download';
+    // Nicht abspielbare Formate beim Abspielen in MP3 umwandeln (ab 0.27.0, braucht ffmpeg)
+    public const SETTING_TRANSCODE = 'transcode';
     public const SETTING_HEADER_TITLE = 'header_title';
     public const SETTING_HEADER_SUBTITLE = 'header_subtitle';
     public const SETTING_THEME_ACCENT = 'theme_accent';

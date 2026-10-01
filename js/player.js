@@ -113,8 +113,30 @@ const Player = (() => {
     return extensionOf(track).toUpperCase();
   }
 
-  /** Kann dieser Browser den Titel abspielen? Unbekannt = ja. */
+  /*
+   * Umwandlung in MP3 beim Abspielen (ab 0.27.0, Vikunja #34): Kann der
+   * Browser ein Format nicht, wandelt der Server es um - sofern der
+   * Administrator das eingeschaltet hat und ffmpeg vorhanden ist. Das sagt
+   * die Ordnerliste (features.transcode), app.js reicht es durch.
+   */
+  let transcodeOn = false;
+  /** Titel, deren Umwandlung gescheitert ist - die bleiben "nicht abspielbar". */
+  const transcodeFailed = new Set();
+  /** Titel, der gerade in umgewandelter Fassung geladen ist (bzw. wird). */
+  let transcodedKey = '';
+
+  function canTranscode(track) {
+    return transcodeOn && !!track && extensionOf(track) !== 'mp3'
+      && !transcodeFailed.has(track.path + '|' + (track.source || ''));
+  }
+
+  /** Abspielbar - selbst oder ueber die Umwandlung des Servers. */
   function formatPlayable(track) {
+    return nativePlayable(track) || canTranscode(track);
+  }
+
+  /** Kann dieser Browser den Titel selbst abspielen? Unbekannt = ja. */
+  function nativePlayable(track) {
     if (track && undecodable.has(track.path + '|' + (track.source || ''))) return false;
     const ext = extensionOf(track);
     if (ext === '' || ext === 'mp3' || !FORMAT_TYPES[ext]) return true;
@@ -796,7 +818,8 @@ const Player = (() => {
     prefetchController = new AbortController();
     const { signal } = prefetchController;
 
-    const planned = planPrefetch(index);
+    // Nur, was der Browser selbst abspielen kann (Umgewandeltes nicht, ab 0.27.0)
+    const planned = planPrefetch(index).filter((t) => nativePlayable(t));
     trimPrefetchCache(planned.map((t) => streamUrlFor(t)));
 
     // Streng der Reihe nach: Der laufende Titel wird zuerst komplett
@@ -884,9 +907,17 @@ const Player = (() => {
       showToast('Weiter bei ' + formatTime(startAt) + ' – zum Anfang: Balken nach links');
     }
 
-    audio.src = streamUrlFor(track);
+    if (nativePlayable(track)) {
+      transcodedKey = '';
+      audio.src = streamUrlFor(track);
+    } else {
+      startTranscoded(track);
+    }
     setMarqueeText(els.title, trackTitle(track));
     setContextLine(track);
+    if (transcodedKey === trackKey(track) && !audio.getAttribute('src')) {
+      setMarqueeText(els.context, 'Wird für dieses Gerät in MP3 umgewandelt …');
+    }
     showCover(track);
     els.bar.hidden = false;
     updateMarquees();
@@ -912,6 +943,50 @@ const Player = (() => {
     if (typeof onTrackChange === 'function') {
       onTrackChange(track, currentIndex);
     }
+  }
+
+  /**
+   * Umgewandelte Fassung anfordern und laden, sobald der Server fertig ist
+   * (ab 0.27.0). Beim ersten Mal dauert das je nach Laenge der Aufnahme;
+   * danach liegt sie beim Server bereit.
+   */
+  function startTranscoded(track) {
+    const key = trackKey(track);
+    transcodedKey = key;
+    const statusUrl = streamUrlFor(track).replace('/api/stream?', '/api/transcode?');
+    let waited = 0;
+    let told = false;
+    const poll = async () => {
+      if (trackKey(playlist[currentIndex]) !== key) return;
+      let state = 'failed';
+      try {
+        const res = await fetch(statusUrl, { credentials: 'same-origin', cache: 'no-store' });
+        state = res.ok ? ((await res.json()).state || 'failed') : 'failed';
+      } catch (e) {
+        state = 'failed';
+      }
+      if (trackKey(playlist[currentIndex]) !== key) return;
+      if (state === 'ready') {
+        audio.src = streamUrlFor(track) + '&mp3=1';
+        setContextLine(track);
+        if (shouldPlay) audio.play().catch(() => {});
+        return;
+      }
+      if (state === 'working' && waited < 30 * 60) {
+        if (!told) {
+          told = true;
+          showToast(formatLabel(track) + ' wird für dieses Gerät in MP3 umgewandelt – einen Moment …');
+        }
+        waited += 3;
+        window.setTimeout(poll, 3000);
+        return;
+      }
+      transcodeFailed.add(track.path + '|' + (track.source || ''));
+      transcodedKey = '';
+      showToast('Umwandlung nicht möglich – ' + formatHint(track));
+      loadTrack(currentIndex, false); // zeigt den Hinweis an
+    };
+    poll();
   }
 
   audio.addEventListener('seeked', updatePositionState);
@@ -1435,7 +1510,8 @@ const Player = (() => {
     resumePlay = play;
     reloading = true;
     stallSince = 0;
-    const base = streamUrlFor(track);
+    // Umgewandelte Fassung bleibt die umgewandelte (ab 0.27.0)
+    const base = streamUrlFor(track) + (transcodedKey === trackKey(track) ? '&mp3=1' : '');
     reloadCounter++;
     audio.src = base + (base.includes('?') ? '&' : '?') + 'retry=' + reloadCounter;
     audio.load();
@@ -1577,6 +1653,11 @@ const Player = (() => {
     // kurz nachsehen, ob der Server die Datei liefert. Wenn ja, liegt es am
     // Format (der Browser sagte nur "vielleicht") - dann hilft kein
     // Nachladen, sondern ein klarer Hinweis bzw. der naechste Titel.
+    // Umgewandelte Fassung: das ist MP3 - normal nachladen (ab 0.27.0)
+    if (transcodedKey === trackKey(track)) {
+      recover();
+      return;
+    }
     if ((code === 3 || code === 4) && !loadedOnce && extensionOf(track) !== 'mp3' && !undecodable.has(track.path + '|' + (track.source || ''))) {
       const key = trackKey(track);
       const wanted = shouldPlay;
@@ -1589,6 +1670,11 @@ const Player = (() => {
           }
           undecodable.add(track.path + '|' + (track.source || ''));
           resetRecovery();
+          // Kann der Server umwandeln, dann eben die MP3-Fassung (ab 0.27.0)
+          if (canTranscode(track)) {
+            loadTrack(currentIndex, wanted);
+            return;
+          }
           const next = wanted && key !== tappedKey ? playableIndex(currentIndex + 1, 1) : -1;
           if (next !== -1) {
             showToast(formatHint(track) + ' – übersprungen');
@@ -2225,6 +2311,11 @@ const Player = (() => {
 
   return {
     /** Kann dieser Browser das Format abspielen? Und wenn nicht: warum (ab 0.21.0). */
+    /** Umwandlung in MP3 verfuegbar? (aus der Ordnerliste, ab 0.27.0) */
+    setTranscode(on) {
+      transcodeOn = on === true;
+    },
+
     formatSupport(track) {
       const playable = formatPlayable(track);
       const short = APPLE_ONLY.includes(extensionOf(track)) ? 'nur Safari' : 'hier nicht abspielbar';

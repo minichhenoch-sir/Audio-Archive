@@ -91,6 +91,7 @@ class SettingsController extends Controller {
         ?string $sharedLabel = null,
         ?bool $featureFavorites = null,
         ?bool $featureFolderDownload = null,
+        ?bool $transcode = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -302,6 +303,9 @@ class SettingsController extends Controller {
                 Application::APP_ID, Application::SETTING_SHARED_LABEL,
                 self::shorten(trim(strip_tags($sharedLabel)), 60)
             );
+        }
+        if ($transcode !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_TRANSCODE, $transcode);
         }
         if ($featureFolderDownload !== null) {
             $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_FOLDER_DOWNLOAD, $featureFolderDownload);
