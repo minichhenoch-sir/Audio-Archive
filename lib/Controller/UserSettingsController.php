@@ -71,6 +71,11 @@ class UserSettingsController extends Controller {
             'favoritesOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true),
             // Wiederholen-Vorgabe (ab 0.28.0): '' = Vorgabe der Verwaltung
             'repeatDefault' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_REPEAT_DEFAULT, ''),
+            // Kommentare/Bewertung (ab 0.29.0): persoenlich ein/aus, sofern angeboten
+            'comments' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_COMMENTS, '1') !== '0',
+            'rating' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_RATING, '1') !== '0',
+            'commentsOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false),
+            'ratingOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_RATING, true),
         ]);
     }
 
@@ -83,13 +88,20 @@ class UserSettingsController extends Controller {
     #[NoAdminRequired]
     public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
         ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null,
-        ?array $style = null, ?bool $favorites = null, ?string $repeatDefault = null): DataResponse {
+        ?array $style = null, ?bool $favorites = null, ?string $repeatDefault = null,
+        ?bool $comments = null, ?bool $rating = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
         if ($favorites !== null) {
             $this->config->setUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, $favorites ? '1' : '0');
+        }
+        if ($comments !== null) {
+            $this->config->setUserValue($uid, Application::APP_ID, Application::USER_COMMENTS, $comments ? '1' : '0');
+        }
+        if ($rating !== null) {
+            $this->config->setUserValue($uid, Application::APP_ID, Application::USER_RATING, $rating ? '1' : '0');
         }
         if ($repeatDefault !== null) {
             if (in_array($repeatDefault, Application::REPEAT_MODES, true)) {

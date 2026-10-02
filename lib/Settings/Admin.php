@@ -25,6 +25,7 @@ class Admin implements ISettings {
         private IAppManager $appManager,
         private Appearance $appearance,
         private \OCA\AudioArchive\Service\Transcoder $transcoder,
+        private \OCP\IGroupManager $groupManager,
     ) {
     }
 
@@ -94,6 +95,23 @@ class Admin implements ISettings {
             ),
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
+            ),
+            // Kommentare (ab 0.29.0, Vikunja #5)
+            'featureComments' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false
+            ),
+            'featureRating' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_FEATURE_RATING, true
+            ),
+            'publicComments' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_PUBLIC_COMMENTS, false
+            ),
+            'commentNotifyGroup' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_COMMENT_NOTIFY_GROUP, ''
+            ),
+            'groups' => array_map(
+                static fn ($g) => ['id' => $g->getGID(), 'name' => $g->getDisplayName()],
+                $this->groupManager->search('', 200)
             ),
             'searchScope' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SEARCH_SCOPE, 'folder'

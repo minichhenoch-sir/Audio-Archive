@@ -259,6 +259,9 @@ class ListController extends Controller {
                 'folderDownload' => $scope['folderDownload'] ?? false,
                 // Umwandlung in MP3 fuer nicht abspielbare Formate (ab 0.27.0)
                 'transcode' => $this->transcoder->enabled(),
+                // Kommentare und Bewertung (ab 0.29.0, Vikunja #5)
+                'comments' => $scope['comments'] ?? false,
+                'rating' => $scope['rating'] ?? false,
             ],
         ]);
     }

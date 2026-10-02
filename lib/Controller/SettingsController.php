@@ -89,6 +89,10 @@ class SettingsController extends Controller {
         ?string $sortDefault = null,
         ?string $searchScope = null,
         ?string $repeatDefault = null,
+        ?bool $featureComments = null,
+        ?bool $featureRating = null,
+        ?bool $publicComments = null,
+        ?string $commentNotifyGroup = null,
         ?int $rememberDays = null,
         ?string $sharedLabel = null,
         ?bool $featureFavorites = null,
@@ -318,6 +322,23 @@ class SettingsController extends Controller {
         if ($sortDefault !== null) {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
+            );
+        }
+        // ---------- Kommentare (ab 0.29.0) ----------
+        if ($featureComments !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, $featureComments);
+        }
+        if ($featureRating !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_FEATURE_RATING, $featureRating);
+        }
+        if ($publicComments !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_PUBLIC_COMMENTS, $publicComments);
+        }
+        if ($commentNotifyGroup !== null) {
+            $gid = trim($commentNotifyGroup);
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_COMMENT_NOTIFY_GROUP,
+                ($gid !== '' && \OCP\Server::get(\OCP\IGroupManager::class)->groupExists($gid)) ? $gid : ''
             );
         }
         if ($searchScope !== null) {

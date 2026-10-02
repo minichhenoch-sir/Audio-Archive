@@ -1462,3 +1462,39 @@ Vikunja #32, #2, #41.
 PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
 Datenbankänderung (die Link-Einstellung steckt in den vorhandenen
 Einstellungen der Freigabe). Nach dem Einspielen Container neu starten.
+
+---
+
+## 0.29.0: Kommentare zu Aufnahmen
+
+Vikunja #5.
+
+- Neuer Knopf **„Kommentare“** im großen Player (neben „Angaben“). Dort
+  schreibt man Anmerkungen, Änderungswünsche oder Fehler zur laufenden
+  Aufnahme, optional mit **1–5 Sternen**. Man sieht nur seine eigenen
+  Kommentare (mit Datum) und kann sie wieder löschen.
+- Es sind **echte Nextcloud-Dateikommentare** (`ICommentsManager`,
+  objectType `files`): Wer die Datei in „Dateien“ sieht, liest sie in der
+  Seitenleiste unter „Kommentare“ und kann dort antworten. Sterne und – bei
+  Gästen – der Name stehen vorn im Text, zusätzlich in den Metadaten.
+- **Gäste über einen Link** geben ihren Namen an (merkt sich das Gerät).
+  Erkannt werden sie über eine zufällige Kennung je Gerät (gespeichert nur
+  als Hash, actorType `audioarchive_guest`).
+- **Schalter:** Verwaltung → Funktionen „Kommentare zu Aufnahmen erlauben“
+  (Vorgabe: aus), „Bewertung mit 1–5 Sternen“, „Auch Hörer über den
+  öffentlichen Link“; **je Link** „Kommentare zu Aufnahmen erlauben“;
+  **persönlich** unter „Darstellung“ Kommentare bzw. Sterne für die eigene
+  Ansicht ausschalten.
+- **Benachrichtigung:** In der Verwaltung lässt sich eine Nextcloud-Gruppe
+  wählen (z. B. Tontechnik); ihre Mitglieder bekommen eine Nextcloud-
+  Benachrichtigung mit Text und Sternen, Link auf die Datei.
+- Schutz: Schreiben nur mit Kopfzeile `X-AudioArchive: 1`, höchstens 20
+  Kommentare je 10 Minuten für Gäste (60 angemeldet).
+- Im Vollbild dürfen die Knöpfe unter dem Titel jetzt in eine zweite Zeile
+  umbrechen.
+- Neue Routen `api/comments` (GET/POST) und `api/comments/{id}/delete`.
+
+PHP (neu: `CommentController`, `CommentService`, `Notification\Notifier`),
+JavaScript, CSS, Vorlagen und `info.xml` geändert; keine Datenbankänderung
+(Nextclouds eigene Kommentar-Tabelle). Nach dem Einspielen Container neu
+starten.

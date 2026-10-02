@@ -56,6 +56,7 @@ if ($_['backgroundUrl'] !== '') {
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
      data-search-scope="<?php echo $escape($_['searchScope'] ?? 'folder'); ?>"
      data-repeat-default="<?php echo $escape($_['repeatDefault'] ?? 'next'); ?>"
+     data-comments-offered="<?php echo $escape($_['commentsOffered'] ?? ''); ?>"
      data-admin-repeat-default="<?php echo $escape($_['adminRepeatDefault'] ?? 'next'); ?>"
      data-shared-label="<?php echo $escape($_['sharedLabel'] ?? ''); ?>"
      data-favorites="<?php echo $escape($_['favorites'] ?? ''); ?>"
@@ -202,6 +203,9 @@ if ($_['backgroundUrl'] !== '') {
       <fieldset class="panel-group" id="us-features">
         <legend>Funktionen</legend>
         <label class="panel-choice" id="us-favorites-wrap" hidden><input type="checkbox" id="us-favorites"> Favoriten (Stern) anzeigen</label>
+        <!-- Kommentare und Bewertung persoenlich (ab 0.29.0, Vikunja #5) -->
+        <label class="panel-choice" id="us-comments-wrap" hidden><input type="checkbox" id="us-comments"> Kommentare zu Aufnahmen anzeigen</label>
+        <label class="panel-choice" id="us-rating-wrap" hidden><input type="checkbox" id="us-rating"> Bewertung mit Sternen anzeigen</label>
         <!-- Wiederholen-Vorgabe persoenlich (ab 0.28.0, Vikunja #2) -->
         <label class="panel-field">
           <span class="panel-field-label">Wiederholen (Vorgabe)</span>
@@ -338,6 +342,14 @@ if ($_['backgroundUrl'] !== '') {
           </svg>
           <span class="player-action-label">Angaben</span>
         </button>
+        <!-- Kommentare zur Aufnahme (nur im Vollbild, ab 0.29.0, Vikunja #5) -->
+        <button type="button" id="btn-comments" class="player-icon-btn player-info-btn player-comments-btn" aria-label="Kommentare zur Aufnahme"
+                aria-expanded="false" aria-controls="player-comments" title="Kommentare" hidden>
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" aria-hidden="true">
+            <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.4-4.6A8 8 0 1 1 21 12z"/>
+          </svg>
+          <span class="player-action-label">Kommentare</span>
+        </button>
         <!-- Wiederholen: Aus -> naechster Ordner -> Ordner -> Titel (ab 0.15) -->
         <button type="button" id="btn-repeat" class="player-icon-btn player-repeat-btn" data-mode="off"
                 aria-label="Wiederholen: aus" title="Wiederholen: aus">
@@ -363,6 +375,8 @@ if ($_['backgroundUrl'] !== '') {
 
     <!-- Angaben zur Aufnahme, aufklappbar ueber den Info-Knopf -->
     <section id="player-details" class="player-details" hidden aria-label="Angaben zur Aufnahme"></section>
+    <!-- Eigene Kommentare zur Aufnahme (ab 0.29.0) -->
+    <section id="player-comments" class="player-details player-comments" hidden aria-label="Kommentare zur Aufnahme"></section>
 
     <div class="player-progress">
       <span id="player-time-current" class="player-time">0:00</span>

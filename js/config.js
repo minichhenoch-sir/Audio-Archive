@@ -34,6 +34,7 @@ const AudioArchive = (() => {
     nextcloudUrl: el.dataset.nextcloudUrl || '',
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
     // ab 0.28.0 (Vikunja #32/#2)
+    commentsOffered: el.dataset.commentsOffered === '1',
     repeatLabels: {
       off: 'Aus',
       next: 'Danach nächster Ordner',

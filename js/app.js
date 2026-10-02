@@ -1487,6 +1487,7 @@
         features.download = data.features.download === true;
         features.folderDownload = data.features.folderDownload === true;
         Player.setTranscode(data.features.transcode === true);
+        Player.setComments(data.features.comments === true);
       }
 
       renderBreadcrumb();
@@ -3612,6 +3613,14 @@
       functions.append(offline.wrap, download.wrap, folderDownload.wrap);
       // Wiederholen-Vorgabe fuer diesen Link (ab 0.28.0, Vikunja #2)
       const repeat = repeatSelect(st.repeatDefault || '');
+      // Kommentare ueber diese Freigabe (ab 0.29.0, Vikunja #5) - nur, wenn die Verwaltung sie anbietet
+      let comments = null;
+      if (AudioArchive.commentsOffered) {
+        comments = checkbox('Kommentare zu Aufnahmen erlauben', isNew ? false : st.featureComments === true);
+        functions.append(comments.wrap, el('p', 'panel-hint',
+          'Zuhörer können zu einer Aufnahme etwas schreiben (bei Links mit selbst gewähltem Namen). '
+          + 'Die Kommentare stehen in Nextcloud bei der Datei; jeder Zuhörer sieht nur seine eigenen.'));
+      }
       functions.appendChild(field('Wiederholen (Vorgabe)', repeat,
         'So steht der Wiederholen-Knopf beim Öffnen. Die Zuhörer können ihn selbst umstellen.'));
       // Weiterteilen (ab 0.26.0, Vikunja #8) - nur bei Personen und Gruppen;
@@ -3916,6 +3925,7 @@
           featureFolderDownload: folderDownload.input.checked,
           allowReshare: reshare ? reshare.input.checked : false,
           repeatDefault: repeat.value,
+          featureComments: comments ? comments.input.checked : st.featureComments === true,
           coverIcon: chosenCover,
         };
         if (isInternal && members.value().length === 0) {
@@ -4306,6 +4316,11 @@
         const usRepeat = document.getElementById('us-repeat');
         usRepeat.replaceChildren(...repeatDefaultSelect(data.repeatDefault || '', 'Vorgabe der Verwaltung').children);
         usRepeat.value = data.repeatDefault || '';
+        // Kommentare/Bewertung persoenlich (ab 0.29.0, Vikunja #5)
+        document.getElementById('us-comments-wrap').hidden = data.commentsOffered !== true;
+        document.getElementById('us-comments').checked = data.comments !== false;
+        document.getElementById('us-rating-wrap').hidden = !(data.commentsOffered === true && data.ratingOffered !== false);
+        document.getElementById('us-rating').checked = data.rating !== false;
       } catch (err) {
         usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
       }
@@ -4341,6 +4356,12 @@
         payload.favorites = document.getElementById('us-favorites').checked;
       }
       payload.repeatDefault = document.getElementById('us-repeat').value;
+      if (!document.getElementById('us-comments-wrap').hidden) {
+        payload.comments = document.getElementById('us-comments').checked;
+      }
+      if (!document.getElementById('us-rating-wrap').hidden) {
+        payload.rating = document.getElementById('us-rating').checked;
+      }
       try {
         await usRequest('user/settings', {
           method: 'POST',

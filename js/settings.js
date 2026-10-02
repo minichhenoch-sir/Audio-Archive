@@ -54,6 +54,11 @@
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
   const searchScope = el('aa-search-scope');
+  // Kommentare (ab 0.29.0)
+  const featureComments = el('aa-feature-comments');
+  const featureRating = el('aa-feature-rating');
+  const publicComments = el('aa-public-comments');
+  const commentGroup = el('aa-comment-group');
   const repeatDefault = el('aa-repeat-default');
   const featureFavorites = el('aa-feature-favorites');
   const featureFolderDownload = el('aa-feature-folder-download');
@@ -150,6 +155,21 @@
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
   searchScope.value = state.searchScope === 'all' ? 'all' : 'folder';
+  featureComments.checked = state.featureComments === true;
+  featureRating.checked = state.featureRating !== false;
+  publicComments.checked = state.publicComments === true;
+  [{ id: '', name: '– niemanden –' }].concat(state.groups || []).forEach((g) => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name || g.id;
+    commentGroup.appendChild(opt);
+  });
+  commentGroup.value = state.commentNotifyGroup || '';
+  const syncCommentOptions = () => {
+    el('aa-comments-options').classList.toggle('aa-inactive', !featureComments.checked);
+  };
+  featureComments.addEventListener('change', syncCommentOptions);
+  syncCommentOptions();
   repeatDefault.value = ['off', 'next', 'folder', 'one'].includes(state.repeatDefault) ? state.repeatDefault : 'next';
   featureFavorites.checked = state.featureFavorites !== false;
   featureFolderDownload.checked = state.featureFolderDownload === true;
@@ -393,6 +413,10 @@
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
       searchScope: searchScope.value,
+      featureComments: featureComments.checked,
+      featureRating: featureRating.checked,
+      publicComments: publicComments.checked,
+      commentNotifyGroup: commentGroup.value,
       repeatDefault: repeatDefault.value,
       featureFavorites: featureFavorites.checked,
       featureFolderDownload: featureFolderDownload.checked,

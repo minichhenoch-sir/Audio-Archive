@@ -30,7 +30,31 @@ class ContentScope {
         private ShareService $shares,
         private IAppConfig $appConfig,
         private IUserSession $userSession,
+        private \OCP\IConfig $config,
     ) {
+    }
+
+    /**
+     * Kommentare und Bewertung (ab 0.29.0, Vikunja #5): Verwaltung ein,
+     * dazu je nach Zugang die Freigabe bzw. der oeffentliche Link, und -
+     * angemeldet - nicht persoenlich abgeschaltet.
+     *
+     * @return array{comments: bool, rating: bool}
+     */
+    private function commentFlags(bool $allowedHere): array {
+        $on = $allowedHere && $this->appConfig->getValueBool(
+            Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false
+        );
+        $rating = $on && $this->appConfig->getValueBool(
+            Application::APP_ID, Application::SETTING_FEATURE_RATING, true
+        );
+        $uid = $this->userSession->getUser()?->getUID();
+        if ($uid !== null) {
+            $on = $on && $this->config->getUserValue($uid, Application::APP_ID, Application::USER_COMMENTS, '1') !== '0';
+            $rating = $on && $rating
+                && $this->config->getUserValue($uid, Application::APP_ID, Application::USER_RATING, '1') !== '0';
+        }
+        return ['comments' => $on, 'rating' => $rating];
     }
 
     /** Kennung der Quelle einer internen Freigabe: 'in:<id>' -> id, sonst null. */
@@ -73,6 +97,8 @@ class ContentScope {
                 'download' => $share['settings']['featureDownload'],
                 'folderDownload' => $share['settings']['featureFolderDownload'],
                 'countFolders' => true,
+                ...$this->commentFlags(($share['settings']['featureComments'] ?? false) === true),
+                'share' => $share,
             ];
         }
 
@@ -94,6 +120,8 @@ class ContentScope {
                 'download' => $share['settings']['featureDownload'],
                 'folderDownload' => $share['settings']['featureFolderDownload'],
                 'countFolders' => true,
+                ...$this->commentFlags(($share['settings']['featureComments'] ?? false) === true),
+                'share' => $share,
             ];
         }
 
@@ -127,6 +155,11 @@ class ContentScope {
              * durchlaufen.
              */
             'countFolders' => !$isHome,
+            // Angemeldet immer; ueber den Administrator-Link nur, wenn dort erlaubt
+            ...$this->commentFlags($this->userSession->getUser() !== null || $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_PUBLIC_COMMENTS, false
+            )),
+            'share' => null,
         ];
     }
 }

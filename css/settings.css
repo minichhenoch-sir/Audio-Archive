@@ -72,9 +72,11 @@
 }
 
 /* Bei Nextcloud-Gestaltung wirkungslos - sichtbar, aber abgeblendet */
-#audioarchive-settings #aa-custom-design.aa-inactive {
+#audioarchive-settings #aa-custom-design.aa-inactive,
+#audioarchive-settings #aa-comments-options.aa-inactive {
     opacity: 0.45;
 }
+#audioarchive-settings #aa-comments-options { margin-left: 28px; }
 
 /* Uebersicht der Freigaben durch Nutzer */
 #audioarchive-settings .aa-shares {

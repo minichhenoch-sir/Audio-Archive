@@ -34,6 +34,10 @@ return [
         ['name' => 'list#tree', 'url' => '/api/tree', 'verb' => 'GET'],
         // Suche in der ganzen Quelle (ab 0.22.0)
         ['name' => 'list#search', 'url' => '/api/search', 'verb' => 'GET'],
+        // Kommentare zu Aufnahmen (ab 0.29.0, Vikunja #5)
+        ['name' => 'comment#index', 'url' => '/api/comments', 'verb' => 'GET'],
+        ['name' => 'comment#create', 'url' => '/api/comments', 'verb' => 'POST'],
+        ['name' => 'comment#delete', 'url' => '/api/comments/{id}/delete', 'verb' => 'POST', 'requirements' => ['id' => '\\d+']],
         // Favoriten (ab 0.24.0)
         ['name' => 'list#favorites', 'url' => '/api/favorites', 'verb' => 'GET'],
         ['name' => 'list#setFavorite', 'url' => '/api/favorite', 'verb' => 'POST'],

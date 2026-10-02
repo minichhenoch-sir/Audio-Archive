@@ -232,6 +232,10 @@ class PlayerPage {
                 Application::APP_ID, Application::SETTING_SEARCH_SCOPE, 'folder'
             ) === 'all' ? 'all' : 'folder',
             'repeatDefault' => $this->repeatDefault($uid, $share),
+            // Kommentare von der Verwaltung angeboten? (ab 0.29.0) - fuer Link-Formular und Zahnrad
+            'commentsOffered' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false
+            ) ? '1' : '',
             // Fuer die Auswahl "Vorgabe der Verwaltung (…)" in Link-Formular und Zahnrad
             'adminRepeatDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'

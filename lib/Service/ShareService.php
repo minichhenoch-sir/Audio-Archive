@@ -76,6 +76,9 @@ class ShareService {
         // Vorgabe fuer "Wiederholen" auf diesem Link (ab 0.28.0, Vikunja #2):
         // '' = Vorgabe der Verwaltung, sonst 'off', 'next', 'folder', 'one'
         'repeatDefault' => '',
+        // Kommentare zu Aufnahmen ueber diese Freigabe (ab 0.29.0, Vikunja #5);
+        // gilt nur, wenn die Verwaltung Kommentare eingeschaltet hat
+        'featureComments' => false,
         // Weitergeteilt aus dieser internen Freigabe (Kennung), 0 = nein.
         // Wird nur vom Server gesetzt; gilt nur, solange die Ursprungs-
         // freigabe besteht und das Weiterteilen erlaubt.

@@ -223,6 +223,38 @@
             umschalten; seine Wahl merkt sich sein Gerät.
         </p>
     </div>
+    <!-- Kommentare (ab 0.29.0, Vikunja #5) -->
+    <p>
+        <input type="checkbox" id="aa-feature-comments" class="checkbox">
+        <label for="aa-feature-comments">Kommentare zu Aufnahmen erlauben</label>
+    </p>
+    <p class="settings-hint">
+        Im großen Player gibt es dann den Knopf „Kommentare“: Hörer können
+        Anmerkungen, Änderungswünsche oder Fehler zu einer Aufnahme schreiben.
+        Es sind echte Nextcloud-Kommentare – wer die Datei in „Dateien“ sieht,
+        findet sie in der Seitenleiste unter „Kommentare“ und kann dort
+        antworten. In der App sieht jeder nur seine eigenen. Bei geteilten Links
+        entscheidet zusätzlich der Link, angemeldete Nutzer können es unter
+        „Darstellung“ für sich abschalten.
+    </p>
+    <div id="aa-comments-options">
+        <p>
+            <input type="checkbox" id="aa-feature-rating" class="checkbox">
+            <label for="aa-feature-rating">Bewertung mit 1–5 Sternen</label>
+        </p>
+        <p>
+            <input type="checkbox" id="aa-public-comments" class="checkbox">
+            <label for="aa-public-comments">Auch Hörer über den öffentlichen Link (oben) dürfen kommentieren</label>
+        </p>
+        <div class="aa-field">
+            <label for="aa-comment-group">Bei neuen Kommentaren benachrichtigen</label>
+            <select id="aa-comment-group"></select>
+            <p class="settings-hint">
+                Alle Mitglieder dieser Nextcloud-Gruppe (z. B. Tontechnik) bekommen
+                eine Benachrichtigung mit dem Text des Kommentars.
+            </p>
+        </div>
+    </div>
     <div class="aa-field">
         <label for="aa-search-scope">Suchbereich</label>
         <select id="aa-search-scope">

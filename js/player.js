@@ -41,6 +41,8 @@ const Player = (() => {
     btnRepeat: document.getElementById('btn-repeat'),
     repeatLabel: document.getElementById('repeat-label'),
     btnInfo: document.getElementById('btn-info'),
+    btnComments: document.getElementById('btn-comments'),
+    comments: document.getElementById('player-comments'),
     details: document.getElementById('player-details'),
     toast: document.getElementById('player-toast'),
   };
@@ -930,6 +932,7 @@ const Player = (() => {
     updateMediaSession(track);
     startPrefetch(index);
     if (!els.details.hidden) loadDetails();
+    if (!els.comments.hidden) loadComments();
     // Letzter Titel und "danach naechster Ordner": schon mal vorbereiten
     if (repeatMode === 'next' && index === playlist.length - 1) prepareNextFolder();
 
@@ -1363,6 +1366,7 @@ const Player = (() => {
   }
 
   function setDetailsOpen(open) {
+    if (open && !els.comments.hidden) setCommentsOpen(false);
     els.details.hidden = !open;
     els.bar.classList.toggle('show-details', open);
     els.btnInfo.setAttribute('aria-expanded', open ? 'true' : 'false');
@@ -1375,6 +1379,251 @@ const Player = (() => {
   }
 
   els.btnInfo.addEventListener('click', () => setDetailsOpen(els.details.hidden));
+
+  // ------------------------------------------------------------------
+  // Kommentare zur Aufnahme (ab 0.29.0, Vikunja #5)
+  //
+  // Echte Nextcloud-Dateikommentare (siehe CommentService). Hier sieht
+  // jeder nur seine eigenen. Gaeste ueber einen Link werden ueber eine
+  // zufaellige Geraete-Kennung erkannt und geben ihren Namen selbst an.
+  // Ob es Kommentare gibt, meldet die Ordnerliste (features.comments).
+  // ------------------------------------------------------------------
+  let commentsOn = false;
+  let commentsRequest = 0;
+  let memoryDeviceKey = '';
+  const DEVICE_KEY = 'audioarchive_device';
+  const NAME_KEY = 'audioarchive_comment_name';
+
+  function randomKey() {
+    const bytes = new Uint8Array(24);
+    crypto.getRandomValues(bytes);
+    return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  /** Zufaellige Kennung dieses Geraets (nur fuer Gaeste von Bedeutung). */
+  function deviceKey() {
+    try {
+      let key = localStorage.getItem(DEVICE_KEY) || '';
+      if (!/^[A-Za-z0-9_-]{16,128}$/.test(key)) {
+        key = randomKey();
+        localStorage.setItem(DEVICE_KEY, key);
+      }
+      return key;
+    } catch (e) {
+      if (!memoryDeviceKey) memoryDeviceKey = randomKey();
+      return memoryDeviceKey;
+    }
+  }
+
+  function commentsUrl(track, suffix = '') {
+    return new URL(AudioArchive.api('comments' + suffix) + '?' + AudioArchive.sourceQuery(track.source)
+      + 'path=' + encodeURIComponent(track.path) + '&guest=' + encodeURIComponent(deviceKey()), location.href).href;
+  }
+
+  async function commentsRequestJson(url, body) {
+    const headers = { 'X-AudioArchive': '1' };
+    if (AudioArchive.requestToken) headers.requesttoken = AudioArchive.requestToken;
+    if (body) headers['Content-Type'] = 'application/json';
+    const res = await fetch(url, {
+      method: body ? 'POST' : 'GET',
+      credentials: 'same-origin',
+      headers,
+      body: body ? JSON.stringify(body) : undefined,
+    });
+    let data = {};
+    try { data = await res.json(); } catch (e) { /* leer */ }
+    if (!res.ok) {
+      const err = new Error(data.error || ('Fehler ' + res.status));
+      err.status = res.status;
+      throw err;
+    }
+    return data;
+  }
+
+  function starsText(n) {
+    return n > 0 ? '★'.repeat(n) + '☆'.repeat(5 - n) : '';
+  }
+
+  function renderComments(track, state) {
+    const box = els.comments;
+    box.textContent = '';
+    const h = document.createElement('h3');
+    h.className = 'player-details-heading';
+    h.textContent = 'Deine Kommentare zu dieser Aufnahme';
+    box.appendChild(h);
+
+    if (state.note) {
+      const p = document.createElement('p');
+      p.className = 'player-details-note';
+      p.textContent = state.note;
+      box.appendChild(p);
+      if (!state.data) return;
+    }
+    const data = state.data;
+
+    const list = document.createElement('ul');
+    list.className = 'player-comments-list';
+    if (data.comments.length === 0) {
+      const p = document.createElement('p');
+      p.className = 'player-details-note';
+      p.textContent = 'Du hast hier noch nichts geschrieben.';
+      box.appendChild(p);
+    }
+    data.comments.forEach((c) => {
+      const li = document.createElement('li');
+      li.className = 'player-comment';
+      const meta = document.createElement('div');
+      meta.className = 'player-comment-meta';
+      const when = new Date(c.created * 1000).toLocaleString('de-DE', {
+        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit',
+      });
+      meta.textContent = when + (c.rating > 0 ? ' · ' + starsText(c.rating) : '');
+      const del = document.createElement('button');
+      del.type = 'button';
+      del.className = 'player-comment-delete';
+      del.textContent = 'Löschen';
+      del.addEventListener('click', async () => {
+        del.disabled = true;
+        try {
+          await commentsRequestJson(commentsUrl(track, '/' + encodeURIComponent(c.id) + '/delete'), {});
+          loadComments();
+        } catch (err) {
+          del.disabled = false;
+          showToast('Löschen hat nicht geklappt.');
+        }
+      });
+      meta.appendChild(del);
+      li.appendChild(meta);
+      if (c.text) {
+        const text = document.createElement('p');
+        text.className = 'player-comment-text';
+        text.textContent = c.text; // reiner Text
+        li.appendChild(text);
+      }
+      list.appendChild(li);
+    });
+    if (data.comments.length > 0) box.appendChild(list);
+
+    // ----- Neuer Kommentar -----
+    const form = document.createElement('form');
+    form.className = 'player-comment-form';
+    let nameInput = null;
+    if (data.guest) {
+      nameInput = document.createElement('input');
+      nameInput.type = 'text';
+      nameInput.className = 'player-comment-input';
+      nameInput.placeholder = 'Dein Name';
+      nameInput.maxLength = 60;
+      nameInput.autocomplete = 'name';
+      try { nameInput.value = localStorage.getItem(NAME_KEY) || ''; } catch (e) { /* egal */ }
+      form.appendChild(nameInput);
+    }
+    let rating = 0;
+    if (data.rating) {
+      const row = document.createElement('div');
+      row.className = 'player-comment-stars';
+      row.setAttribute('role', 'radiogroup');
+      row.setAttribute('aria-label', 'Bewertung');
+      const paint = () => row.querySelectorAll('button').forEach((b, i) => {
+        b.textContent = i < rating ? '★' : '☆';
+        b.setAttribute('aria-checked', i + 1 === rating ? 'true' : 'false');
+      });
+      for (let i = 1; i <= 5; i++) {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'player-comment-star';
+        b.setAttribute('role', 'radio');
+        b.setAttribute('aria-label', i + ' von 5 Sternen');
+        b.addEventListener('click', () => {
+          rating = rating === i ? 0 : i; // nochmal tippen = keine Bewertung
+          paint();
+        });
+        row.appendChild(b);
+      }
+      paint();
+      form.appendChild(row);
+    }
+    const textarea = document.createElement('textarea');
+    textarea.className = 'player-comment-input';
+    textarea.rows = 3;
+    textarea.maxLength = 900;
+    textarea.placeholder = 'Anmerkung, Änderungswunsch oder Fehler …';
+    form.appendChild(textarea);
+    const error = document.createElement('p');
+    error.className = 'player-comment-error';
+    error.hidden = true;
+    const send = document.createElement('button');
+    send.type = 'submit';
+    send.className = 'player-hwkeys-btn is-on player-comment-send';
+    send.textContent = 'Senden';
+    form.append(error, send);
+    const hint = document.createElement('p');
+    hint.className = 'player-details-note';
+    hint.textContent = 'Hier siehst nur du deine Kommentare. Die Verantwortlichen lesen sie in Nextcloud bei der Datei.';
+    form.appendChild(hint);
+    form.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+      error.hidden = true;
+      const text = textarea.value.trim();
+      if (text === '' && rating === 0) {
+        error.textContent = data.rating ? 'Bitte etwas schreiben oder Sterne vergeben.' : 'Bitte etwas schreiben.';
+        error.hidden = false;
+        return;
+      }
+      const name = nameInput ? nameInput.value.trim() : '';
+      if (nameInput) {
+        try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* egal */ }
+      }
+      send.disabled = true;
+      try {
+        await commentsRequestJson(commentsUrl(track), { text, rating, name });
+        showToast('Danke! Kommentar gespeichert.');
+        loadComments();
+      } catch (err) {
+        send.disabled = false;
+        error.textContent = err.status === 429
+          ? 'Zu viele Kommentare in kurzer Zeit – bitte später noch einmal.'
+          : 'Speichern hat nicht geklappt: ' + err.message;
+        error.hidden = false;
+      }
+    });
+    box.appendChild(form);
+  }
+
+  async function loadComments() {
+    const track = playlist[currentIndex];
+    if (!track || els.comments.hidden) return;
+    const request = ++commentsRequest;
+    renderComments(track, { note: 'Kommentare werden geladen …' });
+    if (!navigator.onLine) {
+      renderComments(track, { note: 'Kommentare gibt es nur mit Internetverbindung.' });
+      return;
+    }
+    try {
+      const data = await commentsRequestJson(commentsUrl(track));
+      if (request === commentsRequest) renderComments(track, { data });
+    } catch (err) {
+      if (request !== commentsRequest) return;
+      renderComments(track, {
+        note: err.status === 403 ? 'Für diese Aufnahme sind Kommentare nicht eingeschaltet.'
+          : 'Kommentare konnten nicht geladen werden.',
+      });
+    }
+  }
+
+  function setCommentsOpen(open) {
+    if (open && !els.details.hidden) setDetailsOpen(false);
+    els.comments.hidden = !open;
+    els.bar.classList.toggle('show-details', open);
+    els.btnComments.setAttribute('aria-expanded', open ? 'true' : 'false');
+    els.btnComments.classList.toggle('is-on', open);
+    if (open) {
+      loadComments();
+      requestAnimationFrame(() => els.comments.scrollIntoView({ block: 'nearest', behavior: 'smooth' }));
+    }
+  }
+
+  els.btnComments.addEventListener('click', () => setCommentsOpen(els.comments.hidden));
 
   // ------------------------------------------------------------------
   // Wiederaufnahme nach Abbruechen (ab 0.15.1, ueberarbeitet in 0.18.3)
@@ -2320,6 +2569,13 @@ const Player = (() => {
     /** Umwandlung in MP3 verfuegbar? (aus der Ordnerliste, ab 0.27.0) */
     setTranscode(on) {
       transcodeOn = on === true;
+    },
+
+    /** Kommentare verfuegbar? (aus der Ordnerliste, ab 0.29.0; die Bewertung meldet die Kommentar-Abfrage) */
+    setComments(on) {
+      commentsOn = on === true;
+      els.btnComments.hidden = !commentsOn;
+      if (!commentsOn && !els.comments.hidden) setCommentsOpen(false);
     },
 
     formatSupport(track) {

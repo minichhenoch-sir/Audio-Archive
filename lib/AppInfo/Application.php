@@ -30,6 +30,22 @@ class Application extends App implements IBootstrap {
     public const REPEAT_MODES = ['off', 'next', 'folder', 'one'];
     /** Persoenliche Vorgabe fuer "Wiederholen", leer = Vorgabe der Verwaltung (ab 0.28.0) */
     public const USER_REPEAT_DEFAULT = 'repeat_default';
+
+    /*
+     * Kommentare zu Aufnahmen (ab 0.29.0, Vikunja #5). Es sind echte
+     * Nextcloud-Dateikommentare (auch in "Dateien" -> Seitenleiste ->
+     * Kommentare). In der App sieht jeder nur seine eigenen.
+     */
+    public const SETTING_FEATURE_COMMENTS = 'feature_comments';
+    /** Bewertung mit 1-5 Sternen zusaetzlich zum Text */
+    public const SETTING_FEATURE_RATING = 'feature_rating';
+    /** Kommentare auch ueber den oeffentlichen Link des Administrators */
+    public const SETTING_PUBLIC_COMMENTS = 'public_comments';
+    /** Nextcloud-Gruppe, die bei neuen Kommentaren benachrichtigt wird ('' = niemand) */
+    public const SETTING_COMMENT_NOTIFY_GROUP = 'comment_notify_group';
+    /** Persoenlich: Kommentare bzw. Bewertung in der eigenen Ansicht ('0' = aus) */
+    public const USER_COMMENTS = 'comments';
+    public const USER_RATING = 'rating';
     /** "Angemeldet bleiben" fuer Links mit Passwort, in Tagen; 0 = aus (ab 0.23.0) */
     public const SETTING_REMEMBER_DAYS = 'remember_days';
     /** Geheimer Schluessel fuer die Signatur der gemerkten Zugaenge (ab 0.23.0) */
@@ -120,6 +136,8 @@ class Application extends App implements IBootstrap {
     }
 
     public function register(IRegistrationContext $context): void {
+        // Benachrichtigung bei neuen Kommentaren (ab 0.29.0)
+        $context->registerNotifierService(\OCA\AudioArchive\Notification\Notifier::class);
     }
 
     public function boot(IBootContext $context): void {
