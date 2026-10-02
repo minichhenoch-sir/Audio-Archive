@@ -23,7 +23,8 @@ use OCP\IUserSession;
  * Farben und das Hintergrundbild. Sie gelten nur fuer seine eigene Ansicht.
  * Leer bedeutet jeweils: Vorgabe des Administrators.
  *
- * Nicht dabei: der Beta-Hinweis. Den schaltet nur der Administrator.
+ * Dazu (ab 0.31.0) ein eigener Text ueber den Aufnahmen. Das BETA-Schild
+ * schaltet nur der Administrator.
  *
  * Alle Methoden verlangen einen angemeldeten Nutzer und - weil ohne
  * NoCSRFRequired - das Anfrage-Token von Nextcloud. Der Administrator kann
@@ -76,6 +77,10 @@ class UserSettingsController extends Controller {
             'rating' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_RATING, '1') !== '0',
             'commentsOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false),
             'ratingOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_RATING, true),
+            // Text ueber den Aufnahmen (ab 0.31.0): eigener und der der Verwaltung (als Platzhalter)
+            'notice' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_NOTICE, ''),
+            'adminNotice' => Application::noticeEnabled($this->appConfig)
+                ? $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_TEXT, '') : '',
         ]);
     }
 
@@ -89,13 +94,21 @@ class UserSettingsController extends Controller {
     public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
         ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null,
         ?array $style = null, ?bool $favorites = null, ?string $repeatDefault = null,
-        ?bool $comments = null, ?bool $rating = null): DataResponse {
+        ?bool $comments = null, ?bool $rating = null, ?string $notice = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
         if ($favorites !== null) {
             $this->config->setUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, $favorites ? '1' : '0');
+        }
+        if ($notice !== null) {
+            $notice = mb_substr(trim($notice), 0, 500);
+            if ($notice !== '') {
+                $this->config->setUserValue($uid, Application::APP_ID, Application::USER_NOTICE, $notice);
+            } else {
+                $this->config->deleteUserValue($uid, Application::APP_ID, Application::USER_NOTICE);
+            }
         }
         if ($comments !== null) {
             $this->config->setUserValue($uid, Application::APP_ID, Application::USER_COMMENTS, $comments ? '1' : '0');

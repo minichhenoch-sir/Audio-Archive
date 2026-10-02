@@ -222,8 +222,11 @@
    * Seite steht sofort richtig da, ohne kurzes Umspringen.
    */
   /**
-   * Zeigt die Beta-Kennzeichnung: ein kleines Zeichen neben dem Titel und
-   * darunter den vom Administrator formulierten Hinweis ueber dem Pfad.
+   * Zeigt das "BETA"-Schild neben dem Titel (nur Administrator) und den
+   * Text ueber den Aufnahmen. Seit 0.31.0 (Vikunja #39) unabhaengig
+   * voneinander; den Text setzt der Administrator, der Nutzer fuer seine
+   * eigene Ansicht oder die Freigabe fuer ihren Link (siehe PlayerPage).
+   * Keine Ueberschrift wie "Hinweis" - der Text steht fuer sich.
    *
    * Der Link wird bewusst NUR mit seiner Beschriftung angezeigt, nicht mit
    * der vollen Adresse - lange Adressen sprengen auf dem Telefon die Zeile.
@@ -233,22 +236,22 @@
   let betaBadge = null;
 
   function applyBetaNotice() {
-    if (!AudioArchive.betaEnabled) return;
-
-    // Kennzeichnung in der Kopfzeile
-    betaBadge = document.createElement('span');
-    betaBadge.className = 'beta-badge';
-    betaBadge.textContent = 'Beta';
-    // In die Ueberschrift hinein, nicht daneben: Als eigenstaendiges
-    // Element neben dem h1 wuerde es in einer eigenen Zeile landen.
-    topbarTitle.appendChild(betaBadge);
+    if (AudioArchive.betaEnabled) {
+      // Kennzeichnung in der Kopfzeile
+      betaBadge = document.createElement('span');
+      betaBadge.className = 'beta-badge';
+      betaBadge.textContent = 'Beta';
+      // In die Ueberschrift hinein, nicht daneben: Als eigenstaendiges
+      // Element neben dem h1 wuerde es in einer eigenen Zeile landen.
+      topbarTitle.appendChild(betaBadge);
+    }
 
     const notice = document.getElementById('beta-notice');
     if (!notice) return;
 
-    const text = AudioArchive.betaText.trim();
-    const url = AudioArchive.betaLinkUrl.trim();
-    const label = AudioArchive.betaLinkLabel.trim() || 'Mehr erfahren';
+    const text = AudioArchive.noticeText.trim();
+    const url = AudioArchive.noticeLinkUrl.trim();
+    const label = AudioArchive.noticeLinkLabel.trim() || 'Mehr erfahren';
 
     if (text === '' && url === '') return;
 
@@ -3645,6 +3648,13 @@
       look.appendChild(field('Titel', title, isInternal ? 'Leer = Name des Ordners. Ein eigener Titel erscheint im Ordnerbaum und oben.' : 'Leer = Name des Ordners'));
       const subtitle = textInput(st.subtitle, '');
       look.appendChild(field('Zusatzzeile (optional)', subtitle));
+      // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39)
+      const notice = el('textarea', 'panel-input');
+      notice.rows = 2;
+      notice.maxLength = 500;
+      notice.value = st.notice || '';
+      look.appendChild(field('Text über den Aufnahmen (optional)', notice,
+        'Steht über der Liste, z. B. ein Gruß oder ein Hinweis. Leer = Text der Verwaltung, falls eingestellt.'));
 
       /*
        * Gestaltung der Freigabe (ab 0.17): dieselben vier wie persoenlich,
@@ -3914,6 +3924,7 @@
         const settings = {
           title: title.value,
           subtitle: subtitle.value,
+          notice: notice.value,
           design: chosenDesign,
           // Werte fuer "Benutzerdefiniert": bei Wahl, und bereits vorhandene
           // bleiben erhalten, wenn voruebergehend anders gewaehlt wird
@@ -4054,7 +4065,8 @@
   //
   // Seit 0.13 alle Oberflaechen-Einstellungen: Gestaltung, Titel,
   // Zusatzzeile, Farben und Hintergrundbild. Sie gelten nur fuer die eigene
-  // Ansicht. Den Beta-Hinweis schaltet nur der Administrator.
+  // Ansicht, dazu der eigene Text ueber den Aufnahmen (ab 0.31.0). Das
+  // BETA-Schild schaltet nur der Administrator.
   // Nach dem Uebernehmen wird die Seite neu geladen: Gestaltung und Bild
   // setzt der Server bereits beim Ausliefern, so steht alles sofort richtig
   // da - auch in der installierten App und im Offline-Start.
@@ -4071,6 +4083,7 @@
     const usBackgroundRemove = document.getElementById('us-background-remove');
     const usTitle = document.getElementById('us-title');
     const usSubtitle = document.getElementById('us-subtitle');
+    const usNotice = document.getElementById('us-notice'); // ab 0.31.0
     const usOwnColors = document.getElementById('us-own-colors');
     const usColors = document.getElementById('us-colors');
     const usModern = document.getElementById('us-modern');
@@ -4299,6 +4312,8 @@
         usTitle.placeholder = admin.title || '';
         usSubtitle.value = values.subtitle || '';
         usSubtitle.placeholder = admin.subtitle || '';
+        usNotice.value = data.notice || '';
+        usNotice.placeholder = data.adminNotice || '';
         const ownColors = !!(values.themeAccent || values.themeBar || values.themeBase);
         usOwnColors.checked = ownColors;
         Object.keys(usColorInputs).forEach((keyName) => {
@@ -4346,6 +4361,7 @@
         design: us.design,
         title: usTitle.value,
         subtitle: usSubtitle.value,
+        notice: usNotice.value,
         themeAccent: usOwnColors.checked ? usColorInputs.themeAccent.value : '',
         themeBar: usOwnColors.checked ? usColorInputs.themeBar.value : '',
         themeBase: usOwnColors.checked ? usColorInputs.themeBase.value : '',

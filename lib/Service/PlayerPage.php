@@ -44,6 +44,35 @@ class PlayerPage {
     }
 
     /** Favoriten fuer diese Seite? Verwaltung ein und - angemeldet - nicht selbst abgeschaltet. */
+    /**
+     * Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), spezifischste Ebene:
+     *   Link-Seite: Text der Freigabe, angemeldet: eigener Text,
+     *   sonst (und beim Administrator-Link) der Text des Administrators,
+     *   sofern er ihn eingeschaltet hat. Ein Link (Adresse) gibt es nur beim
+     *   Text des Administrators.
+     *
+     * @return array{noticeText: string, noticeLinkUrl: string, noticeLinkLabel: string}
+     */
+    private function notice(?string $uid, ?array $shareSettings): array {
+        $own = '';
+        if ($shareSettings !== null) {
+            $own = trim((string)($shareSettings['notice'] ?? ''));
+        } elseif ($uid !== null) {
+            $own = trim($this->config->getUserValue($uid, Application::APP_ID, Application::USER_NOTICE, ''));
+        }
+        if ($own !== '') {
+            return ['noticeText' => $own, 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
+        }
+        if (!Application::noticeEnabled($this->appConfig)) {
+            return ['noticeText' => '', 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
+        }
+        return [
+            'noticeText' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_TEXT, ''),
+            'noticeLinkUrl' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''),
+            'noticeLinkLabel' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''),
+        ];
+    }
+
     private function favoritesOn(?string $uid): bool {
         if (!$this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true)) {
             return false;
@@ -272,24 +301,12 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
-            /*
-             * Beta-Hinweis: seit 0.13 ausschliesslich Sache des
-             * Administrators. Ist er eingeschaltet, erscheint er ueberall -
-             * in der App, auf dem Administrator-Link und auf allen Links der
-             * Nutzer. Nutzer koennen ihn weder ein- noch ausschalten.
-             */
+            // "BETA"-Schild neben dem Titel - nur der Administrator (seit 0.31.0 ohne Text)
             'betaEnabled' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ) ? '1' : '',
-            'betaText' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_BETA_TEXT, ''
-            ),
-            'betaLinkUrl' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''
-            ),
-            'betaLinkLabel' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''
-            ),
+            // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), siehe notice()
+            ...$this->notice($uid, $shareSettings),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
             // dem Grundton bzw. Nextclouds Hintergrund (siehe Appearance).
             'backgroundUrl' => $look['backgroundUrl'],

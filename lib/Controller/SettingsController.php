@@ -82,6 +82,7 @@ class SettingsController extends Controller {
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
         ?bool $betaEnabled = null,
+        ?bool $noticeEnabled = null,
         ?string $betaText = null,
         ?string $betaLinkUrl = null,
         ?string $betaLinkLabel = null,
@@ -362,10 +363,15 @@ class SettingsController extends Controller {
             );
         }
 
-        // ---------- Beta-Hinweis ----------
+        // ---------- BETA-Schild und Text ueber den Aufnahmen ----------
         if ($betaEnabled !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_BETA_ENABLED, $betaEnabled
+            );
+        }
+        if ($noticeEnabled !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_NOTICE_ENABLED, $noticeEnabled
             );
         }
 

@@ -126,12 +126,27 @@ class Application extends App implements IBootstrap {
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 
-    // Beta-Hinweis: Kennzeichnung in der Kopfzeile plus ein frei
-    // formulierbarer Streifen ueber dem Pfad.
+    // "BETA"-Schild neben dem Titel. Bis 0.30 schaltete es auch den
+    // Textstreifen; seit 0.31.0 (Vikunja #39) nur noch das Schild.
     public const SETTING_BETA_ENABLED = 'beta_enabled';
+    /*
+     * Text ueber den Aufnahmen (bis 0.30 "Beta-Hinweis"): Vorgabe des
+     * Administrators. Die Schluessel heissen aus Vertraeglichkeit weiter
+     * beta_*. Angemeldete Nutzer und Freigaben koennen eigenen Text setzen.
+     */
     public const SETTING_BETA_TEXT = 'beta_text';
     public const SETTING_BETA_LINK_URL = 'beta_link_url';
     public const SETTING_BETA_LINK_LABEL = 'beta_link_label';
+    /** Text des Administrators zeigen; ungesetzt = wie beta_enabled bis 0.30 (ab 0.31.0) */
+    public const SETTING_NOTICE_ENABLED = 'notice_enabled';
+    /** Persoenlich: eigener Text ueber den Aufnahmen, leer = Vorgabe (ab 0.31.0) */
+    public const USER_NOTICE = 'notice';
+
+    /** Zeigt der Administrator seinen Text? Ungesetzt: wie das BETA-Schild bis 0.30. */
+    public static function noticeEnabled(\OCP\IAppConfig $appConfig): bool {
+        return $appConfig->getValueBool(self::APP_ID, self::SETTING_NOTICE_ENABLED,
+            $appConfig->getValueBool(self::APP_ID, self::SETTING_BETA_ENABLED, false));
+    }
 
     public function __construct(array $urlParams = []) {
         parent::__construct(self::APP_ID, $urlParams);

@@ -330,22 +330,34 @@
     </p>
     <p class="settings-hint" id="aa-transcode-state"></p>
 
-    <!-- ============ Beta-Hinweis ============ -->
-    <h3>Beta-Hinweis</h3>
-    <p class="settings-hint">
-        Kennzeichnet die App als in Entwicklung: ein „Beta“-Zeichen neben dem
-        Titel und ein Hinweisstreifen über dem Pfad. Nur hier ein- und
-        ausschaltbar – eingeschaltet erscheint er überall: in der App, auf dem
-        öffentlichen Link und auf allen Links der Nutzer.
-    </p>
+    <!-- ============ BETA-Schild (ab 0.31.0 getrennt vom Text, Vikunja #39) ============ -->
+    <h3>BETA-Schild</h3>
     <p>
         <input type="checkbox" id="aa-beta-enabled" class="checkbox">
-        <label for="aa-beta-enabled">Beta-Hinweis anzeigen</label>
+        <label for="aa-beta-enabled">„BETA“-Schild neben dem Titel zeigen</label>
+    </p>
+    <p class="settings-hint">
+        Kennzeichnet die App als in Entwicklung – überall: in der App, auf dem
+        öffentlichen Link und auf allen Links der Nutzer. Ausschalten, sobald
+        die App fertig bzw. öffentlich ist.
+    </p>
+
+    <!-- ============ Text ueber den Aufnahmen ============ -->
+    <h3>Text über den Aufnahmen</h3>
+    <p class="settings-hint">
+        Ein frei formulierbarer Text über der Liste, z.&nbsp;B. ein Gruß, ein
+        Bibelvers oder ein Hinweis. Er erscheint ohne Überschrift. Das hier ist
+        die Vorgabe: Angemeldete Nutzer können für ihre eigene Ansicht (Zahnrad
+        → Texte) und beim Teilen für jeden Link einen eigenen Text setzen.
+    </p>
+    <p>
+        <input type="checkbox" id="aa-notice-enabled" class="checkbox">
+        <label for="aa-notice-enabled">Diesen Text anzeigen</label>
     </p>
     <div class="aa-field">
-        <label for="aa-beta-text">Text im Hinweisstreifen</label>
+        <label for="aa-beta-text">Text</label>
         <input type="text" id="aa-beta-text"
-               placeholder="Diese App wird noch entwickelt. Rückmeldungen sind willkommen.">
+               placeholder="z. B. Herzlich willkommen!">
     </div>
     <div class="aa-field">
         <label for="aa-beta-link-url">Link-Adresse (optional)</label>

@@ -56,9 +56,10 @@ const AudioArchive = (() => {
     backgroundUrl: el.dataset.background || '',
     appVersion: el.dataset.appVersion || '',
     betaEnabled: el.dataset.beta === '1',
-    betaText: el.dataset.betaText || '',
-    betaLinkUrl: el.dataset.betaLinkUrl || '',
-    betaLinkLabel: el.dataset.betaLinkLabel || '',
+    // Text ueber den Aufnahmen (ab 0.31.0; vorher betaText/betaLink*)
+    noticeText: el.dataset.noticeText || '',
+    noticeLinkUrl: el.dataset.noticeLinkUrl || '',
+    noticeLinkLabel: el.dataset.noticeLinkLabel || '',
     themeAccent: el.dataset.themeAccent || '#b9793f',
     themeBar: el.dataset.themeBar || '#291c12',
     themeBase: el.dataset.themeBase || '#a86a3d',

@@ -1512,3 +1512,24 @@ Vikunja #42.
 
 PHP, JavaScript, Vorlagen und `info.xml` geändert; keine Datenbankänderung.
 Nach dem Einspielen Container neu starten (PHP-Dateien geändert).
+
+## 0.31.0: BETA-Schild und Text über den Aufnahmen getrennt
+
+Vikunja #39.
+
+- Das **„BETA“-Schild** neben dem Titel hat in der Verwaltung einen eigenen
+  Schalter („„BETA“-Schild neben dem Titel zeigen“). Es gehört nicht mehr
+  mit dem Textstreifen zusammen und lässt sich ausschalten, sobald die App
+  öffentlich ist.
+- Der bisherige Beta-Hinweis heißt jetzt **„Text über den Aufnahmen“**:
+  frei formulierbar, ohne Überschrift. In der Verwaltung ist er die Vorgabe
+  („Diesen Text anzeigen“, Text, optional Link). Ist der neue Schalter noch
+  nie gespeichert worden, gilt der alte Zustand des Beta-Hinweises weiter.
+- **Angemeldete Nutzer** setzen unter Zahnrad → Texte einen eigenen Text
+  für ihre Ansicht, **beim Teilen** lässt sich je Link ein eigener Text
+  setzen. Leer = Text der Verwaltung (falls eingeschaltet).
+- Neu: Einstellungen `notice_enabled` (Verwaltung), Nutzerwert `notice`,
+  Freigabe-Einstellung `notice`.
+
+PHP, JavaScript, Vorlagen und `info.xml` geändert; keine Datenbankänderung.
+Nach dem Einspielen Container neu starten.

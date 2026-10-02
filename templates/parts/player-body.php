@@ -77,9 +77,9 @@ if ($_['backgroundUrl'] !== '') {
      data-cover-url="<?php echo $escape($_['coverUrl'] ?? ''); ?>"
      data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
      data-beta="<?php echo $escape($_['betaEnabled']); ?>"
-     data-beta-text="<?php echo $escape($_['betaText']); ?>"
-     data-beta-link-url="<?php echo $escape($_['betaLinkUrl']); ?>"
-     data-beta-link-label="<?php echo $escape($_['betaLinkLabel']); ?>"
+     data-notice-text="<?php echo $escape($_['noticeText'] ?? ''); ?>"
+     data-notice-link-url="<?php echo $escape($_['noticeLinkUrl'] ?? ''); ?>"
+     data-notice-link-label="<?php echo $escape($_['noticeLinkLabel'] ?? ''); ?>"
      hidden></div>
 
 <div id="bg-layer" aria-hidden="true"></div>
@@ -224,6 +224,11 @@ if ($_['backgroundUrl'] !== '') {
         <label class="panel-field">
           <span class="panel-field-label">Zusatzzeile</span>
           <input type="text" id="us-subtitle" class="panel-input" maxlength="500">
+        </label>
+        <!-- Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39) -->
+        <label class="panel-field">
+          <span class="panel-field-label">Text über den Aufnahmen</span>
+          <textarea id="us-notice" class="panel-input" rows="2" maxlength="500"></textarea>
           <span class="panel-hint">Leere Felder übernehmen die Vorgabe des Administrators.</span>
         </label>
       </fieldset>
@@ -258,7 +263,7 @@ if ($_['backgroundUrl'] !== '') {
       </div>
     </section>
 
-    <!-- Hinweisstreifen, vom Administrator gefuellt (siehe Einstellungen) -->
+    <!-- Text ueber den Aufnahmen: Administrator, eigener Text oder der des Links (ab 0.31.0) -->
     <div id="beta-notice" class="beta-notice" hidden></div>
 
     <nav id="breadcrumb" class="breadcrumb"></nav>

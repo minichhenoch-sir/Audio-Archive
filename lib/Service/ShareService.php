@@ -56,6 +56,8 @@ class ShareService {
     public const SETTING_DEFAULTS = [
         'title' => '',
         'subtitle' => '',
+        // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39); '' = Text der Verwaltung
+        'notice' => '',
         'design' => '',            // '' = Vorgabe (Administrator bzw. Empfaenger)
         'themeAccent' => '',       // '' = Farben der Vorgabe
         'themeBar' => '',
@@ -674,6 +676,7 @@ class ShareService {
         }
         $out['title'] = mb_substr($out['title'], 0, 200);
         $out['subtitle'] = mb_substr($out['subtitle'], 0, 500);
+        $out['notice'] = mb_substr($out['notice'], 0, 500);
 
         return $out;
     }
