@@ -140,7 +140,8 @@ class ShareController extends Controller {
             $owner = $parent['owner'];
             $settings['viaShare'] = $parent['id'];
         } else {
-            $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+            // 'home', 'shared' oder eine weitere Quelle 'src:<id>' (ab 0.32.0)
+            $source = $this->audioFolder->normalizeOwnSource($source);
             if ($source === AudioFolder::SOURCE_HOME && $path === '') {
                 return new DataResponse(
                     ['error' => 'Die gesamten eigenen Dateien lassen sich nicht teilen – bitte einen Ordner wählen.'],
@@ -148,7 +149,7 @@ class ShareController extends Controller {
                 );
             }
             $folder = $this->folderFor($source, $path);
-            $owner = $source === AudioFolder::SOURCE_HOME ? $uid : $this->audioFolder->sharedOwner();
+            $owner = $source === AudioFolder::SOURCE_HOME ? $uid : $this->audioFolder->ownerOf($source);
             $settings['viaShare'] = 0;
         }
         if ($folder === null) {
@@ -473,6 +474,15 @@ class ShareController extends Controller {
         return $share;
     }
 
+    /** Anzeigename einer Quelle: '' fuer 'home'/'shared' (die App kennt deren Namen). */
+    private function sourceName(string $source): string {
+        $extraId = AudioFolder::extraId($source);
+        if ($extraId === null) {
+            return '';
+        }
+        return $this->audioFolder->extraSource($extraId)['name'] ?? 'Entfernte Quelle';
+    }
+
     /** Ordner einer Quelle, den der Aufrufer in der App sehen darf. */
     private function folderFor(string $source, string $path): ?Folder {
         $incomingId = \OCA\AudioArchive\Service\ContentScope::incomingId($source);
@@ -486,7 +496,7 @@ class ShareController extends Controller {
             $node = $this->audioFolder->resolveIn($root, trim($path, '/'));
             return $node instanceof Folder ? $node : null;
         }
-        $source = $source === AudioFolder::SOURCE_HOME ? AudioFolder::SOURCE_HOME : AudioFolder::SOURCE_SHARED;
+        $source = $this->audioFolder->normalizeOwnSource($source);
         $root = $this->audioFolder->rootFor($source);
         if ($root === null) {
             return null;
@@ -579,6 +589,8 @@ class ShareController extends Controller {
             'members' => $members,
             'creator' => $share['creator'],
             'source' => $share['source'],
+            // Name der Quelle fuer Uebersichten (ab 0.32.0): weitere Quellen tragen ihren Namen
+            'sourceName' => $this->sourceName($share['source']),
             'path' => $share['path'],
             'folderName' => $folder !== null ? $folder->getName() : '',
             'hasPassword' => $share['hasPassword'],

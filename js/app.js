@@ -635,6 +635,12 @@
     // Explorer immer sauber im Hauptordner öffnen: angemeldet zuerst der
     // gemeinsame Ordner, sofern eingerichtet, sonst die eigenen Dateien
     view = { source: startSource(), path: '' };
+    // Sprung aus der Verwaltung: #source=src:<id> (ab 0.32.0)
+    const sourceJump = /^#source=(src:\d{1,9})$/.exec(location.hash);
+    if (sourceJump && AudioArchive.extraSources.some((s) => s.id === sourceJump[1])) {
+      view.source = sourceJump[1];
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     // Ohne Verbindung mit einer Quelle beginnen, fuer die etwas gespeichert ist
     if (offlineMode) {
       const available = offlineSources();
@@ -731,6 +737,7 @@
   /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
   function sourceLabel(source) {
     if (AudioArchive.isIncoming(source)) return Incoming.label(source);
+    if (AudioArchive.isExtra(source)) return AudioArchive.extraName(source);
     if (source === 'home') return 'Meine Dateien';
     // Vom Administrator gewaehlter Name (ab 0.23.0) - nicht bei Freigaben,
     // die zeigen den Namen ihres Ordners
@@ -955,7 +962,8 @@
 
   function indexKey(source, path) {
     if (SHARE_PREFIX) return SHARE_PREFIX + path;
-    if (AudioArchive.isIncoming(source)) return '@@' + source + ':' + path;
+    // Weitere Quellen (ab 0.32.0) wie mit mir geteilte Ordner: '@@src:<id>:<pfad>'
+    if (AudioArchive.isIncoming(source) || AudioArchive.isExtra(source)) return '@@' + source + ':' + path;
     return source === 'home' ? HOME_PREFIX + path : path;
   }
 
@@ -973,6 +981,10 @@
     const incoming = key.match(INCOMING_KEY);
     if (incoming) {
       return { source: 'in:' + incoming[1], path: key.slice(incoming[0].length) };
+    }
+    const extra = key.match(/^@@src:(\d+):/);
+    if (extra) {
+      return { source: 'src:' + extra[1], path: key.slice(extra[0].length) };
     }
     return key.startsWith(HOME_PREFIX)
       ? { source: 'home', path: key.slice(HOME_PREFIX.length) }
@@ -1097,7 +1109,8 @@
           if ((url.searchParams.get('s') || '') !== AudioArchive.apiToken) return;
           path = url.searchParams.get('path');
           const param = url.searchParams.get('source') || '';
-          source = param === 'home' ? 'home' : (AudioArchive.isIncoming(param) ? param : 'shared');
+          source = param === 'home' ? 'home'
+            : ((AudioArchive.isIncoming(param) || AudioArchive.isExtra(param)) ? param : 'shared');
         } catch (e) {
           return;
         }
@@ -2147,6 +2160,7 @@
     function sources() {
       const list = [];
       if (AudioArchive.hasShared) list.push('shared');
+      AudioArchive.extraSources.forEach((s) => list.push(s.id)); // ab 0.32.0
       list.push('home');
       if (AudioArchive.isIncoming(view.source)) list.push(view.source);
       return list;
@@ -3015,9 +3029,12 @@
         // Ohne Verbindung nur Quellen, fuer die etwas gespeichert ist
         const available = offlineSources();
         if (available.has('shared')) roots.push('shared');
+        AudioArchive.extraSources.forEach((s) => { if (available.has(s.id)) roots.push(s.id); });
         if (available.has('home')) roots.push('home');
       } else {
         if (AudioArchive.hasShared) roots.push('shared');
+        // Weitere Quellen des Administrators (ab 0.32.0, Vikunja #8) - je ein eigener Eintrag
+        AudioArchive.extraSources.forEach((s) => roots.push(s.id));
         roots.push('home');
       }
 
@@ -4032,7 +4049,8 @@
       /** Aus "Meine Freigaben": zum Ordner wechseln und die Freigabe oeffnen. */
       openFromList(share) {
         // Weitergeteilt (ab 0.26.0): der Ordner liegt unter "Mit mir geteilt"
-        const source = share.via ? 'in:' + share.via.id : (share.source === 'home' ? 'home' : 'shared');
+        const source = share.via ? 'in:' + share.via.id
+          : (share.source === 'home' ? 'home' : (AudioArchive.isExtra(share.source) ? share.source : 'shared'));
         const path = share.via ? share.via.path : share.path;
         if (share.missing) {
           window.alert(share.via

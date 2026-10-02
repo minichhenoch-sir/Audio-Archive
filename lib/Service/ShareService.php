@@ -112,10 +112,37 @@ class ShareService {
     }
 
     /** Duerfen angemeldete Nutzer Freigaben anlegen? (Vorgabe: ja) */
+    /**
+     * Darf der angemeldete Nutzer Freigaben anlegen (auch weiterteilen)?
+     * Verwaltung: Teilen an, und - seit 0.32.0 (Vikunja #8) - Mitglied einer
+     * der ausgewaehlten Gruppen; keine Gruppe ausgewaehlt = alle.
+     */
     public function sharingAllowed(): bool {
-        return $this->appConfig->getValueBool(
-            Application::APP_ID, Application::SETTING_USER_SHARES, true
-        );
+        if (!$this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_USER_SHARES, true)) {
+            return false;
+        }
+        $groups = $this->shareGroups();
+        if ($groups === []) {
+            return true;
+        }
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return false;
+        }
+        foreach ($groups as $gid) {
+            if ($this->groupManager->isInGroup($user->getUID(), $gid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /** @return list<string> Gruppen, die teilen duerfen (leer = alle) */
+    public function shareGroups(): array {
+        $raw = json_decode($this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_SHARE_GROUPS, '[]'
+        ), true);
+        return is_array($raw) ? array_values(array_filter(array_map('strval', $raw), static fn ($g) => $g !== '')) : [];
     }
 
     // ------------------------------------------------------------------

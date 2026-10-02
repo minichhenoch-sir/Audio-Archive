@@ -389,6 +389,109 @@
     setStatus('Die Dateiauswahl ist nicht verfügbar – bitte den Pfad von Hand eintragen.', true);
   });
 
+  // ---------- Weitere Quellen (ab 0.32.0, Vikunja #8) ----------
+  const extraBox = el('aa-extra-sources');
+
+  function pickFolder(title, done) {
+    if (window.OC && OC.dialogs && typeof OC.dialogs.filepicker === 'function') {
+      OC.dialogs.filepicker(title, done, false, 'httpd/unix-directory', true, OC.dialogs.FILEPICKER_TYPE_CHOOSE);
+      return true;
+    }
+    return false;
+  }
+
+  function addExtraRow(src) {
+    const row = document.createElement('div');
+    row.className = 'aa-extra-row';
+    row.dataset.id = src.id ? String(src.id) : '';
+
+    const name = document.createElement('input');
+    name.type = 'text';
+    name.maxLength = 60;
+    name.placeholder = 'Name, z. B. Kinderstunden';
+    name.value = src.name || '';
+    name.className = 'aa-extra-name';
+
+    const path = document.createElement('input');
+    path.type = 'text';
+    path.readOnly = true;
+    path.placeholder = '/Ordner';
+    path.value = src.path || '';
+    path.className = 'aa-extra-path';
+
+    const pick = document.createElement('button');
+    pick.type = 'button';
+    pick.textContent = 'Auswählen …';
+    pick.addEventListener('click', () => {
+      if (!pickFolder('Ordner für „' + (name.value || 'weitere Quelle') + '“ wählen', (p) => { path.value = p; })) {
+        path.readOnly = false;
+        path.focus();
+      }
+    });
+
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = 'Entfernen';
+    remove.addEventListener('click', () => {
+      row.remove();
+      setStatus('Quelle entfernt – zum Übernehmen „Speichern“ drücken.', false);
+    });
+
+    row.append(name, path, pick);
+    if (src.id) {
+      const open = document.createElement('a');
+      open.className = 'button';
+      open.textContent = 'In der App öffnen';
+      open.href = OC.generateUrl('/apps/' + APP_ID + '/') + '#source=src:' + src.id;
+      open.target = '_blank';
+      open.rel = 'noopener';
+      row.appendChild(open);
+    }
+    row.appendChild(remove);
+    if (src.id && src.found === false) {
+      const warn = document.createElement('p');
+      warn.className = 'settings-hint aa-status--error';
+      warn.textContent = 'Ordner nicht gefunden – die Quelle erscheint nicht in der App.';
+      row.appendChild(warn);
+    }
+    extraBox.appendChild(row);
+    return row;
+  }
+
+  function renderExtraSources(list) {
+    extraBox.innerHTML = '';
+    (list || []).forEach(addExtraRow);
+  }
+  renderExtraSources(state.extraSources);
+  el('aa-extra-add').addEventListener('click', () => {
+    addExtraRow({}).querySelector('.aa-extra-name').focus();
+  });
+
+  function collectExtraSources() {
+    return Array.from(extraBox.querySelectorAll('.aa-extra-row')).map((row) => ({
+      id: parseInt(row.dataset.id || '0', 10) || 0,
+      name: row.querySelector('.aa-extra-name').value,
+      path: row.querySelector('.aa-extra-path').value,
+    }));
+  }
+
+  // ---------- Wer darf teilen (ab 0.32.0) ----------
+  const shareGroupsBox = el('aa-share-groups');
+  const chosenGroups = new Set(state.shareGroups || []);
+  (state.groups || []).forEach((g) => {
+    const label = document.createElement('label');
+    label.className = 'aa-share-group';
+    const box = document.createElement('input');
+    box.type = 'checkbox';
+    box.value = g.id;
+    box.checked = chosenGroups.has(g.id);
+    label.append(box, document.createTextNode(' ' + (g.name || g.id)));
+    shareGroupsBox.appendChild(label);
+  });
+  if (!(state.groups || []).length) {
+    shareGroupsBox.textContent = 'Es gibt noch keine Nextcloud-Gruppen.';
+  }
+
   // ---------- Speichern ----------
   function setStatus(message, isError) {
     status.textContent = message;
@@ -434,6 +537,8 @@
       betaLinkUrl: betaLinkUrl.value,
       betaLinkLabel: betaLinkLabel.value,
       publicCoverIcon: coverIcon,
+      extraSources: collectExtraSources(),
+      shareGroups: Array.from(shareGroupsBox.querySelectorAll('input:checked')).map((b) => b.value),
     };
 
     // Leeres Feld bedeutet: Passwort unverändert lassen
@@ -467,6 +572,9 @@
 
       showPublicUrl(data.publicUrl);
       publicSlug.value = data.publicSlug || '';
+      if (Array.isArray(data.extraSources)) {
+        renderExtraSources(data.extraSources.map((s) => ({ ...s, found: true })));
+      }
       setStatus('Gespeichert.', false);
     } catch (err) {
       setStatus('Verbindung fehlgeschlagen.', true);
@@ -512,7 +620,7 @@
       folderCell.appendChild(link);
       const note = document.createElement('span');
       note.className = 'aa-share-note';
-      note.textContent = (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsamer Ordner: ')
+      note.textContent = (share.sourceName ? share.sourceName + ': ' : (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsamer Ordner: '))
         + (share.path || '/')
         + (share.via ? ' – weitergeteilt aus einer Freigabe von ' + (share.via.creatorName || share.via.creator) : '')
         + (share.missing ? ' – Ordner nicht mehr vorhanden' : '')

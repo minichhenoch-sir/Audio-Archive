@@ -1533,3 +1533,28 @@ Vikunja #39.
 
 PHP, JavaScript, Vorlagen und `info.xml` geändert; keine Datenbankänderung.
 Nach dem Einspielen Container neu starten.
+
+## 0.32.0: Mehrere Quellordner, Gruppen, die teilen dürfen
+
+Vikunja #8 (Teil 2).
+
+- **Weitere Quellen:** Verwaltung → Quellen → „+ Weitere Quelle“ mit Name
+  und Ordner. Jede erscheint in der App für alle angemeldeten Nutzer als
+  eigener Eintrag oben in der Seitenleiste (Quelle `src:<n>`, gespeichert in
+  `extra_sources` als JSON). Funktionen (Offline, Herunterladen, ZIP,
+  Kommentare) wie beim gemeinsamen Ordner. Ohne Anmeldung nur über einen
+  Link der Quelle.
+- **Links einer Quelle** sind gewöhnliche Freigaben (Quelle `src:<n>` in der
+  Spalte `source`): eigenes Passwort, Wunschname, „Angemeldet bleiben“,
+  eigene Gestaltung und Text, beliebig viele. Angelegt in der App über
+  „Diesen Ordner teilen“; „In der App öffnen“ in der Verwaltung springt
+  direkt zur Quelle (`#source=src:<n>`). Übersichten zeigen den Namen der
+  Quelle (`sourceName`).
+- **Wer darf teilen:** Verwaltung → Freigaben durch Nutzer → Gruppen
+  ankreuzen (`share_groups`). Keine Gruppe = alle angemeldeten Nutzer. Gilt
+  für Links, Freigaben an Personen und das Weiterteilen.
+- Entfernte Quelle: verschwindet aus der Seitenleiste, bestehende Links
+  bleiben gültig, bis sie gelöscht werden.
+
+PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

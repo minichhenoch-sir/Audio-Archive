@@ -32,6 +32,53 @@ use OCP\Security\ISecureRandom;
  */
 class SettingsController extends Controller {
 
+    /**
+     * Weitere Quellen speichern (ab 0.32.0). Jeder Eintrag: {id, name, path}.
+     * Neue Eintraege und geaenderte Ordner gehoeren dem speichernden
+     * Administrator (wie beim gemeinsamen Ordner); unveraenderte behalten
+     * ihren Besitzer. Ordner muessen existieren.
+     */
+    private function saveExtraSources(array $input): string {
+        $audioFolder = \OCP\Server::get(\OCA\AudioArchive\Service\AudioFolder::class);
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return 'Nicht angemeldet.';
+        }
+        $existing = [];
+        foreach ($audioFolder->extraSources() as $extra) {
+            $existing[$extra['id']] = $extra;
+        }
+        $nextId = $existing === [] ? 1 : max(array_keys($existing)) + 1;
+        $list = [];
+        foreach ($input as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $path = '/' . trim((string)($item['path'] ?? ''), '/');
+            $name = trim(strip_tags((string)($item['name'] ?? '')));
+            if ($path === '/' && trim((string)($item['path'] ?? '')) === '') {
+                return 'Bitte für jede weitere Quelle einen Ordner wählen' . ($name !== '' ? ' („' . $name . '“)' : '') . '.';
+            }
+            $id = (int)($item['id'] ?? 0);
+            $old = $existing[$id] ?? null;
+            if ($old !== null && $old['path'] === $path) {
+                $owner = $old['owner'];
+            } else {
+                $owner = $user->getUID();
+                if ($audioFolder->folderOf($owner, $path) === null) {
+                    return 'Der Ordner „' . $path . '“ wurde nicht gefunden.';
+                }
+            }
+            if ($old === null) {
+                $id = $nextId++;
+            }
+            $list[] = ['id' => $id, 'name' => $name, 'owner' => $owner, 'path' => $path];
+        }
+        $list = \OCA\AudioArchive\Service\AudioFolder::normalizeExtraSources($list);
+        $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_EXTRA_SOURCES, json_encode($list));
+        return '';
+    }
+
     public function __construct(
         string $appName,
         IRequest $request,
@@ -100,6 +147,8 @@ class SettingsController extends Controller {
         ?bool $featureFavorites = null,
         ?bool $featureFolderDownload = null,
         ?bool $transcode = null,
+        ?array $extraSources = null,
+        ?array $shareGroups = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -136,6 +185,25 @@ class SettingsController extends Controller {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_FOLDER_OWNER, $user->getUID()
             );
+        }
+
+        // ---------- Weitere Quellen (ab 0.32.0, Vikunja #8) ----------
+        if ($extraSources !== null) {
+            $error = $this->saveExtraSources($extraSources);
+            if ($error !== '') {
+                return new DataResponse(['error' => $error], Http::STATUS_BAD_REQUEST);
+            }
+        }
+        if ($shareGroups !== null) {
+            $groupManager = \OCP\Server::get(\OCP\IGroupManager::class);
+            $clean = [];
+            foreach ($shareGroups as $gid) {
+                $gid = (string)$gid;
+                if ($gid !== '' && $groupManager->groupExists($gid) && !in_array($gid, $clean, true)) {
+                    $clean[] = $gid;
+                }
+            }
+            $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_SHARE_GROUPS, json_encode($clean));
         }
 
         // ---------- Oeffentlicher Zugang ----------
@@ -414,6 +482,8 @@ class SettingsController extends Controller {
         return new DataResponse([
             'publicUrl' => $this->publicUrl(),
             'publicSlug' => preg_match(ShareService::SLUG_PATTERN, $token) ? $token : '',
+            // Mit vergebenen Kennungen, damit erneutes Speichern keine Doppel anlegt (ab 0.32.0)
+            'extraSources' => \OCP\Server::get(\OCA\AudioArchive\Service\AudioFolder::class)->extraSources(),
         ]);
     }
 

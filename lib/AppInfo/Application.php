@@ -100,6 +100,14 @@ class Application extends App implements IBootstrap {
 
     /** Duerfen angemeldete Nutzer eigene Freigaben anlegen? (Vorgabe: ja) */
     public const SETTING_USER_SHARES = 'user_shares';
+    /** Nextcloud-Gruppen, die teilen duerfen; leer = alle angemeldeten Nutzer (ab 0.32.0, Vikunja #8) */
+    public const SETTING_SHARE_GROUPS = 'share_groups';
+    /**
+     * Weitere Quellordner neben dem gemeinsamen Ordner (ab 0.32.0, Vikunja #8):
+     * JSON-Liste aus {id, name, owner, path}. In der App heisst die Quelle
+     * 'src:<id>'; ihre Links sind gewoehnliche Freigaben.
+     */
+    public const SETTING_EXTRA_SOURCES = 'extra_sources';
 
     /** Schluessel der persoenlichen Einstellungen je Nutzer (IConfig-Nutzerwerte). */
     public const USER_DESIGN = 'design';

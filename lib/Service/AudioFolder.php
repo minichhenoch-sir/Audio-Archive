@@ -49,6 +49,9 @@ class AudioFolder {
     /** Quellen: der gemeinsame Ordner des Administrators, die eigenen Dateien. */
     public const SOURCE_SHARED = 'shared';
     public const SOURCE_HOME = 'home';
+    /** Weitere Quellen des Administrators: 'src:<id>' (ab 0.32.0, Vikunja #8) */
+    public const SOURCE_EXTRA_PREFIX = 'src:';
+    public const MAX_EXTRA_SOURCES = 50;
 
     public function __construct(
         private IAppConfig $appConfig,
@@ -66,6 +69,11 @@ class AudioFolder {
      * Quellordner des Administrators.
      */
     public function rootFor(string $source): ?Folder {
+        $extraId = self::extraId($source);
+        if ($extraId !== null) {
+            $extra = $this->extraSource($extraId);
+            return $extra !== null ? $this->folderOf($extra['owner'], $extra['path']) : null;
+        }
         if ($source === self::SOURCE_HOME) {
             $user = $this->userSession->getUser();
             if ($user === null) {
@@ -78,6 +86,103 @@ class AudioFolder {
             }
         }
         return $this->getRoot();
+    }
+
+    // ------------------------------------------------------------------
+    // Weitere Quellen (ab 0.32.0, Vikunja #8)
+    // ------------------------------------------------------------------
+
+    /** Kennung einer weiteren Quelle: 'src:<id>' -> id, sonst null. */
+    public static function extraId(string $source): ?int {
+        return preg_match('/^src:(\d{1,9})$/', $source, $m) ? (int)$m[1] : null;
+    }
+
+    /** @return list<array{id: int, name: string, owner: string, path: string}> */
+    public function extraSources(): array {
+        $raw = json_decode($this->appConfig->getValueString(
+            Application::APP_ID, Application::SETTING_EXTRA_SOURCES, '[]'
+        ), true);
+        return self::normalizeExtraSources(is_array($raw) ? $raw : []);
+    }
+
+    /** @return array{id: int, name: string, owner: string, path: string}|null */
+    public function extraSource(int $id): ?array {
+        foreach ($this->extraSources() as $extra) {
+            if ($extra['id'] === $id) {
+                return $extra;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Nur gueltige Eintraege: positive, eindeutige Kennung, Besitzer und
+     * Pfad gesetzt. Namen werden gekuerzt.
+     *
+     * @return list<array{id: int, name: string, owner: string, path: string}>
+     */
+    public static function normalizeExtraSources(array $list): array {
+        $out = [];
+        $seen = [];
+        foreach ($list as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $id = (int)($item['id'] ?? 0);
+            $owner = trim((string)($item['owner'] ?? ''));
+            $path = '/' . trim(str_replace('\\', '/', (string)($item['path'] ?? '')), '/');
+            if ($id <= 0 || $id > 999999999 || isset($seen[$id]) || $owner === '') {
+                continue;
+            }
+            $seen[$id] = true;
+            $name = mb_substr(trim((string)($item['name'] ?? '')), 0, 60);
+            $out[] = ['id' => $id, 'name' => $name !== '' ? $name : 'Quelle ' . $id, 'owner' => $owner, 'path' => $path];
+            if (count($out) >= self::MAX_EXTRA_SOURCES) {
+                break;
+            }
+        }
+        return $out;
+    }
+
+    /** Ordner eines Nutzers zu einem Pfad, oder null. */
+    public function folderOf(string $owner, string $path): ?Folder {
+        if ($owner === '' || $path === '') {
+            return null;
+        }
+        try {
+            $userFolder = $this->rootFolder->getUserFolder($owner);
+            $node = ($path === '/') ? $userFolder : $userFolder->get($path);
+        } catch (\Throwable $e) {
+            return null;
+        }
+        return $node instanceof Folder ? $node : null;
+    }
+
+    /** Besitzer einer Quelle ('home' = angemeldeter Nutzer). */
+    public function ownerOf(string $source): string {
+        $extraId = self::extraId($source);
+        if ($extraId !== null) {
+            return $this->extraSource($extraId)['owner'] ?? '';
+        }
+        if ($source === self::SOURCE_HOME) {
+            return $this->userSession->getUser()?->getUID() ?? '';
+        }
+        return $this->sharedOwner();
+    }
+
+    /**
+     * Einheitliche Schreibweise der eigenen Quellen: 'home', 'src:<id>'
+     * (nur wenn es die Quelle gibt) oder 'shared'.
+     */
+    public function normalizeOwnSource(string $source): string {
+        if ($source === self::SOURCE_HOME) {
+            return self::SOURCE_HOME;
+        }
+        $extraId = self::extraId($source);
+        if ($extraId !== null && $this->extraSource($extraId) !== null) {
+            return self::SOURCE_EXTRA_PREFIX . $extraId;
+        }
+        return self::SOURCE_SHARED;
     }
 
     /** Besitzer des gemeinsamen Ordners (aus den Einstellungen). */

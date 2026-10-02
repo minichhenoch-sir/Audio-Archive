@@ -172,3 +172,34 @@
 #audioarchive-settings.aa-personal .aa-shares .aa-share-folder {
     white-space: normal;
 }
+
+/* Weitere Quellen und "Wer darf teilen" (ab 0.32.0, Vikunja #8) */
+#audioarchive-settings .aa-subheading {
+  margin: 18px 0 4px;
+  font-weight: 600;
+}
+
+#audioarchive-settings .aa-extra-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 10px;
+  padding: 10px;
+  border: 1px solid var(--color-border, #ddd);
+  border-radius: var(--border-radius-large, 10px);
+  max-width: 760px;
+}
+
+#audioarchive-settings .aa-extra-row .aa-extra-name { flex: 1 1 180px; min-width: 0; }
+#audioarchive-settings .aa-extra-row .aa-extra-path { flex: 2 1 220px; min-width: 0; }
+#audioarchive-settings .aa-extra-row .settings-hint { flex-basis: 100%; margin: 0; }
+
+#audioarchive-settings .aa-share-groups {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin: 4px 0;
+}
+
+#audioarchive-settings .aa-share-group { display: inline-flex; align-items: center; gap: 4px; }

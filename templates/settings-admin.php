@@ -11,17 +11,36 @@
         <span class="aa-version">Version <?php p($_['version'] ?? ''); ?></span>
     </h2>
 
-    <!-- ============ Quellordner ============ -->
-    <h3>Quellordner</h3>
+    <!-- ============ Quellen (ab 0.32.0 mehrere, Vikunja #8) ============ -->
+    <h3>Quellen</h3>
     <p class="settings-hint">
         Ordner mit den Aufnahmen. Unterordner werden so angezeigt, wie sie
-        angelegt sind.
+        angelegt sind. Der erste ist der gemeinsame Ordner mit dem öffentlichen
+        Zugang weiter unten.
     </p>
     <div class="aa-row">
         <input type="text" id="aa-folder" placeholder="/Aufnahmen" readonly>
         <button type="button" id="aa-folder-pick">Auswählen …</button>
     </div>
     <p class="settings-hint" id="aa-folder-owner"></p>
+
+    <h4 class="aa-subheading">Weitere Quellen</h4>
+    <p class="settings-hint">
+        Jede weitere Quelle erscheint in der App für alle angemeldeten Nutzer
+        als eigener Eintrag oben in der Seitenleiste (z.&nbsp;B.
+        „Kinderstunden“). <strong>Links</strong> dafür – mit eigenem Passwort,
+        Wunschnamen, „Angemeldet bleiben“ und eigener Gestaltung – legt man in
+        der App an: Quelle öffnen → „Diesen Ordner teilen“ → „Neuer Link“. Alle
+        Links stehen unten unter „Freigaben durch Nutzer“.
+    </p>
+    <div id="aa-extra-sources" class="aa-extra-sources"></div>
+    <p>
+        <button type="button" id="aa-extra-add">+ Weitere Quelle</button>
+    </p>
+    <p class="settings-hint">
+        Entfernen nimmt die Quelle aus der Seitenleiste. Bereits angelegte
+        Links bleiben gültig, bis sie unten gelöscht werden.
+    </p>
 
     <!-- ============ Oeffentlicher Zugang ============ -->
     <h3>Öffentlicher Zugang</h3>
@@ -92,6 +111,17 @@
         Aussehen, Funktionen). Abschalten sperrt nur das Anlegen neuer
         Freigaben. Bestehende bleiben gültig, bis sie hier gelöscht werden.
     </p>
+    <!-- Wer darf teilen (ab 0.32.0, Vikunja #8) -->
+    <div class="aa-field">
+        <label>Wer darf teilen?</label>
+        <div id="aa-share-groups" class="aa-share-groups"></div>
+        <p class="settings-hint">
+            Nur Mitglieder der angehakten Gruppen sehen den Knopf „Teilen“ und
+            dürfen Links anlegen oder weiterteilen. Keine Gruppe angehakt =
+            alle angemeldeten Nutzer. Wer über einen Link ohne Nextcloud-Konto
+            zuhört, kann nie teilen.
+        </p>
+    </div>
     <table class="aa-shares" id="aa-shares" hidden>
         <thead>
             <tr><th>Ordner</th><th>Angelegt von</th><th>Geteilt mit</th><th>Ablauf</th><th></th></tr>

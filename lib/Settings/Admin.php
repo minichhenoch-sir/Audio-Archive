@@ -41,6 +41,12 @@ class Admin implements ISettings {
             'sourceFolderOwner' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_FOLDER_OWNER, ''
             ),
+            // Weitere Quellen und Gruppen, die teilen duerfen (ab 0.32.0, Vikunja #8)
+            'extraSources' => array_map(
+                static fn ($s) => $s + ['found' => \OCP\Server::get(\OCA\AudioArchive\Service\AudioFolder::class)->folderOf($s['owner'], $s['path']) !== null],
+                \OCP\Server::get(\OCA\AudioArchive\Service\AudioFolder::class)->extraSources()
+            ),
+            'shareGroups' => \OCP\Server::get(\OCA\AudioArchive\Service\ShareService::class)->shareGroups(),
             'hasPublicPassword' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_PUBLIC_PASSWORD, ''
             ) !== '',

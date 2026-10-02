@@ -73,6 +73,17 @@ class PlayerPage {
         ];
     }
 
+    /** @return list<array{id: string, name: string}> Weitere Quellen, deren Ordner es gibt */
+    private function extraSourcesFor(): array {
+        $out = [];
+        foreach ($this->audioFolder->extraSources() as $extra) {
+            if ($this->audioFolder->folderOf($extra['owner'], $extra['path']) !== null) {
+                $out[] = ['id' => AudioFolder::SOURCE_EXTRA_PREFIX . $extra['id'], 'name' => $extra['name']];
+            }
+        }
+        return $out;
+    }
+
     private function favoritesOn(?string $uid): bool {
         if (!$this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true)) {
             return false;
@@ -240,6 +251,8 @@ class PlayerPage {
             // der Administrator einen eingerichtet hat
             'loggedIn' => $uid !== null ? '1' : '',
             'hasShared' => $this->audioFolder->hasSharedRoot() ? '1' : '',
+            // Weitere Quellen des Administrators, nur angemeldet (ab 0.32.0, Vikunja #8)
+            'sources' => json_encode($uid !== null ? $this->extraSourcesFor() : []),
             // Freigaben anlegen: angemeldet und vom Administrator erlaubt
             'canShare' => ($uid !== null && $this->shares->sharingAllowed()) ? '1' : '',
             // Adresse der eigenstaendigen Fassung, fuer den Knopf

@@ -70,6 +70,10 @@ class ContentScope {
         if ($source === AudioFolder::SOURCE_HOME) {
             return AudioFolder::SOURCE_HOME;
         }
+        $extraId = AudioFolder::extraId($source);
+        if ($extraId !== null) {
+            return AudioFolder::SOURCE_EXTRA_PREFIX . $extraId;
+        }
         $id = self::incomingId($source);
         return $id !== null ? 'in:' . $id : AudioFolder::SOURCE_SHARED;
     }
@@ -122,6 +126,31 @@ class ContentScope {
                 'countFolders' => true,
                 ...$this->commentFlags(($share['settings']['featureComments'] ?? false) === true),
                 'share' => $share,
+            ];
+        }
+
+        /*
+         * Weitere Quelle des Administrators (ab 0.32.0, Vikunja #8): fuer
+         * alle angemeldeten Nutzer, mit den Funktionen der Verwaltung. Ohne
+         * Anmeldung nur ueber einen Link (Freigabe) der Quelle.
+         */
+        $extraId = AudioFolder::extraId($source);
+        if ($extraId !== null) {
+            if ($this->userSession->getUser() === null) {
+                return Http::STATUS_UNAUTHORIZED;
+            }
+            $root = $this->audioFolder->rootFor($source);
+            if ($root === null) {
+                return Http::STATUS_NOT_FOUND;
+            }
+            return [
+                'root' => $root,
+                'offline' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, true),
+                'download' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false),
+                'folderDownload' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FOLDER_DOWNLOAD, false),
+                'countFolders' => true,
+                ...$this->commentFlags(true),
+                'share' => null,
             ];
         }
 

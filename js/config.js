@@ -35,6 +35,15 @@ const AudioArchive = (() => {
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
     // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
     showFolderCount: el.dataset.showFolderCount === '1',
+    // Weitere Quellen des Administrators: [{id: 'src:<n>', name}] (ab 0.32.0, Vikunja #8)
+    extraSources: (() => {
+      try {
+        const list = JSON.parse(el.dataset.sources || '[]');
+        return Array.isArray(list) ? list.filter((s) => s && /^src:\d+$/.test(s.id)) : [];
+      } catch (e) {
+        return [];
+      }
+    })(),
     // ab 0.28.0 (Vikunja #32/#2)
     commentsOffered: el.dataset.commentsOffered === '1',
     repeatLabels: {
@@ -120,8 +129,8 @@ const AudioArchive = (() => {
       // Seite einer Freigabe: alles laeuft ueber deren Token
       if (data.apiToken) return 's=' + encodeURIComponent(data.apiToken) + '&';
       if (source === 'home') return 'source=home&';
-      // Mit dem Nutzer geteilter Ordner (ab 0.13): 'in:<id>'
-      if (/^in:\d+$/.test(source || '')) return 'source=' + encodeURIComponent(source) + '&';
+      // Mit dem Nutzer geteilter Ordner (ab 0.13): 'in:<id>', weitere Quelle (ab 0.32.0): 'src:<id>'
+      if (/^(in|src):\d+$/.test(source || '')) return 'source=' + encodeURIComponent(source) + '&';
       return '';
     },
 
@@ -285,6 +294,17 @@ const AudioArchive = (() => {
 
     isIncoming(source) {
       return /^in:\d+$/.test(source || '');
+    },
+
+    /** Ist die Quelle eine weitere Quelle des Administrators ('src:<id>', ab 0.32.0)? */
+    isExtra(source) {
+      return /^src:\d+$/.test(source || '');
+    },
+
+    /** Name einer weiteren Quelle, wie in der Verwaltung eingetragen. */
+    extraName(source) {
+      const found = data.extraSources.find((s) => s.id === source);
+      return found ? found.name : 'Weitere Quelle';
     },
 
     /** Ist der Aufruf ueber die oeffentliche Seite erfolgt? */

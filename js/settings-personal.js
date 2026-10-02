@@ -81,7 +81,7 @@
         note.className = 'aa-share-note';
         note.textContent = (share.via
           ? 'Weitergeteilt aus einer Freigabe von ' + (share.via.creatorName || share.via.creator) + ': ' + (share.via.path || 'ganzer Ordner')
-          : (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsame Aufnahmen: ') + (share.path || '/'))
+          : (share.sourceName ? share.sourceName + ': ' : (share.source === 'home' ? 'Eigene Dateien: ' : 'Gemeinsame Aufnahmen: ')) + (share.path || '/'))
           + (share.missing ? ' – gilt nicht mehr (Ordner fehlt oder nicht mehr geteilt)' : '')
           + (share.expired ? ' – abgelaufen' : '');
         folderCell.appendChild(note);
