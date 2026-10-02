@@ -1613,3 +1613,27 @@ Vikunja #43.
 
 PHP, JavaScript und `info.xml` (Hintergrundaufgabe) geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.35.0: Kommentare einsehen und exportieren
+
+Vikunja #5 (Erweiterung).
+
+- **Persönliche Einstellungen → Audio Archive → Kommentare:** Tabelle der
+  Kommentare und Bewertungen zu Aufnahmen in den Ordnern, die der Nutzer
+  selbst geteilt hat (Links und Freigaben an Personen/Gruppen, nur gültige
+  Freigaben mit erreichbarem Ordner) – auch Kommentare über seinen Link und
+  Antworten aus „Dateien“. Mitglieder der Benachrichtigungs-Gruppe können
+  auf „Alle Kommentare“ umschalten.
+- **Verwaltung → Audio Archive – Kommentare:** alle Kommentare (gemeinsamer
+  Ordner, weitere Quellen, alle Freigaben).
+- **Export:** „Für Excel herunterladen (CSV)“ – UTF-8 mit BOM, Semikolon,
+  Spalten Datum, Aufnahme, Ordner, Bereich, Von, Bewertung, Kommentar; im
+  Browser erzeugt. „Drucken / als PDF“ – Druckansicht nur der Tabelle; im
+  Druckfenster „Als PDF sichern“. Suchfeld filtert Tabelle und Export.
+- Server: `GET api/comments/overview?scope=mine|all` (`CommentOverview`):
+  Nextcloud-Dateikommentare (neueste 3 000), nur erlaubte Audioformate
+  innerhalb der jeweiligen Ordner. `all` nur für Administrator und
+  Benachrichtigungs-Gruppe (sonst 403).
+
+PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

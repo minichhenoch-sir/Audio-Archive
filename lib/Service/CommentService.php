@@ -33,7 +33,7 @@ use Psr\Log\LoggerInterface;
 class CommentService {
 
     public const ACTOR_GUEST = 'audioarchive_guest';
-    private const META_KEY = 'audioarchive';
+    public const META_KEY = 'audioarchive';
     /** Laenge des eigentlichen Textes (Nextcloud erlaubt 1000 Zeichen samt Name/Sternen) */
     public const MAX_TEXT = 900;
     private const MAX_NAME = 60;

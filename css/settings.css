@@ -203,3 +203,47 @@
 }
 
 #audioarchive-settings .aa-share-group { display: inline-flex; align-items: center; gap: 4px; }
+
+/* ===== Kommentare einsehen und exportieren (ab 0.35.0, Vikunja #5) ===== */
+.aa-comments-overview .aa-co-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin: 8px 0 12px;
+}
+.aa-comments-overview .aa-co-search { min-width: 240px; flex: 1 1 240px; max-width: 420px; }
+.aa-comments-overview .aa-co-table { width: 100%; border-collapse: collapse; }
+.aa-comments-overview .aa-co-table th,
+.aa-comments-overview .aa-co-table td {
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--color-border, #ddd);
+  text-align: left;
+  vertical-align: top;
+}
+.aa-comments-overview .aa-co-table th { font-weight: 600; white-space: nowrap; }
+.aa-comments-overview .aa-co-text { white-space: pre-wrap; min-width: 220px; }
+.aa-comments-overview .aa-co-print-title { display: none; }
+@media (max-width: 800px) {
+  .aa-comments-overview { overflow-x: auto; }
+}
+/* Druckansicht: nur die Tabelle */
+@media print {
+  html, body.aa-co-printing { background: #fff !important; }
+  body.aa-co-printing * { visibility: hidden !important; }
+  body.aa-co-printing .aa-co-print-target,
+  body.aa-co-printing .aa-co-print-target * { visibility: visible !important; }
+  body.aa-co-printing .aa-co-print-target {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    color: #000;
+    background: #fff;
+  }
+  body.aa-co-printing .aa-co-print-target .aa-co-bar,
+  body.aa-co-printing .aa-co-print-target .aa-co-status { display: none !important; }
+  body.aa-co-printing .aa-co-print-target .aa-co-print-title { display: block; font-size: 14pt; margin: 0 0 8px; }
+  body.aa-co-printing .aa-co-table th,
+  body.aa-co-printing .aa-co-table td { border-bottom: 1px solid #999; color: #000; font-size: 9pt; }
+}

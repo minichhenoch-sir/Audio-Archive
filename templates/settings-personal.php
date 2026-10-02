@@ -30,3 +30,17 @@
     </table>
     <p class="settings-hint" id="aa-shares-state">Freigaben werden geladen …</p>
 </div>
+
+<!-- Kommentare einsehen und exportieren (ab 0.35.0, Vikunja #5) -->
+<div class="section aa-comments-section">
+    <h2>Audio Archive – Kommentare</h2>
+    <p class="settings-hint">
+        Kommentare und Bewertungen zu Aufnahmen in den Ordnern, die du geteilt
+        hast – auch die, die jemand über deinen Link geschrieben hat. Wer in
+        der Gruppe ist, die bei neuen Kommentaren benachrichtigt wird, kann
+        hier auch alle Kommentare ansehen. Zum Weiterverarbeiten als CSV-Datei
+        herunterladen (öffnet sich in Excel oder LibreOffice) oder drucken – im
+        Druckfenster „Als PDF sichern“ wählen, um eine PDF-Datei zu erhalten.
+    </p>
+    <div class="aa-comments-overview" data-scope="mine" data-switch="1"></div>
+</div>

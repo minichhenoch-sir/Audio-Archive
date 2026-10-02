@@ -34,6 +34,7 @@ class Personal implements ISettings {
             'appUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.page.index'),
         ]);
         Util::addScript(Application::APP_ID, 'settings-personal');
+        Util::addScript(Application::APP_ID, 'comments-overview'); // ab 0.35.0 (Vikunja #5)
         Util::addStyle(Application::APP_ID, 'settings');
         return new TemplateResponse(Application::APP_ID, 'settings-personal', []);
     }

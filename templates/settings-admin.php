@@ -459,3 +459,16 @@
         <span id="aa-status" class="aa-status"></span>
     </p>
 </div>
+
+<!-- Kommentare einsehen und exportieren (ab 0.35.0, Vikunja #5) -->
+<div class="section aa-comments-section">
+    <h2>Audio Archive – Kommentare</h2>
+    <p class="settings-hint">
+        Alle Kommentare und Bewertungen zu Aufnahmen: im gemeinsamen Ordner,
+        in den weiteren Quellen und in allen Freigaben der Nutzer. Zum
+        Weiterverarbeiten als CSV-Datei herunterladen (öffnet sich in Excel
+        oder LibreOffice) oder drucken – im Druckfenster „Als PDF sichern“
+        wählen, um eine PDF-Datei zu erhalten.
+    </p>
+    <div class="aa-comments-overview" data-scope="all"></div>
+</div>

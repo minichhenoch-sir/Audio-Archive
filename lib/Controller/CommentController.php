@@ -5,11 +5,13 @@ namespace OCA\AudioArchive\Controller;
 
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AudioFolder;
+use OCA\AudioArchive\Service\CommentOverview;
 use OCA\AudioArchive\Service\CommentService;
 use OCA\AudioArchive\Service\ContentScope;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\AnonRateLimit;
+use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
@@ -36,8 +38,30 @@ class CommentController extends Controller {
         private AudioFolder $audioFolder,
         private CommentService $comments,
         private IUserSession $userSession,
+        private CommentOverview $overview,
     ) {
         parent::__construct(Application::APP_ID, $request);
+    }
+
+    /**
+     * Uebersicht zum Einsehen und Exportieren (ab 0.35.0, Vikunja #5):
+     * scope 'mine' = Kommentare in den eigenen Freigaben, 'all' = alle
+     * (Administrator und Benachrichtigungs-Gruppe). Export (CSV, Drucken)
+     * macht die Oberflaeche aus dieser Antwort.
+     */
+    #[NoAdminRequired]
+    public function overview(string $scope = 'mine'): DataResponse {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+        $uid = $user->getUID();
+        $mayAll = $this->overview->maySeeAll($uid);
+        $all = $scope === 'all';
+        if ($all && !$mayAll) {
+            return new DataResponse(['error' => 'Nicht erlaubt.'], Http::STATUS_FORBIDDEN);
+        }
+        return new DataResponse(['scope' => $all ? 'all' : 'mine', 'mayAll' => $mayAll] + $this->overview->collect($uid, $all));
     }
 
     #[PublicPage]

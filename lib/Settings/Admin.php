@@ -188,6 +188,7 @@ class Admin implements ISettings {
         // style-tokens zuerst: settings.js nutzt dessen Editor (window.AAStyle)
         Util::addScript(Application::APP_ID, 'style-tokens');
         Util::addScript(Application::APP_ID, 'settings');
+        Util::addScript(Application::APP_ID, 'comments-overview'); // ab 0.35.0 (Vikunja #5)
         Util::addStyle(Application::APP_ID, 'settings');
         Util::addStyle(Application::APP_ID, 'style-editor');
 
