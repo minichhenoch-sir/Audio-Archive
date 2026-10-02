@@ -1569,7 +1569,7 @@ Vikunja #44, #50, #45, #3.
   „Ordnernamen lesbar umschreiben“ (`pretty_folder_names`, Vorgabe aus).
   Der Player (auch Sperrbildschirm/Auto) zeigt den Dateinamen; den Titel aus
   den Tags nur mit „Im Player den Titel aus der Datei zeigen“
-  (`title_from_tags`, Vorgabe aus).
+  (`title_from_tags`, Vorgabe aus) – **ab 0.35.1 umgekehrt, siehe dort**.
 - **Anzeige in der Liste (#50):** Einzeln abschaltbar – bei Ordnern Datum
   (`show_folder_date`) und Anzahl (`show_folder_count`, wie bisher aus), bei
   Aufnahmen Länge (`show_track_duration`) und Datum (`show_track_date`).
@@ -1637,3 +1637,14 @@ Vikunja #5 (Erweiterung).
 
 PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.35.1: Player zeigt wieder den Titel aus der Datei
+
+Klarstellung zu Vikunja #44: „Unverändert“ gilt für Liste und Ordnerbaum. Der
+Player (auch Sperrbildschirm/Auto) zeigt wieder den Titel aus der Datei, falls
+vorhanden, sonst den Dateinamen. Abschaltbar unter Verwaltung → Funktionen →
+Namen. Neuer Schlüssel `player_title_from_tags` (Vorgabe ja); der Schlüssel
+`title_from_tags` aus 0.33.0–0.35.0 (Vorgabe nein) wird nicht mehr gelesen.
+
+PHP, JavaScript, Vorlage und `info.xml` geändert; keine Datenbankänderung.
+Nach dem Einspielen Container neu starten.

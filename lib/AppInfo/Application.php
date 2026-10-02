@@ -33,13 +33,16 @@ class Application extends App implements IBootstrap {
     public const SETTING_SHOW_TRACK_DURATION = 'show_track_duration';
     public const SETTING_SHOW_TRACK_DATE = 'show_track_date';
     /*
-     * Namen (ab 0.33.0, Vikunja #44): Vorgabe sind die Ordner- und
-     * Dateinamen genau so, wie sie im Ordner stehen. Wahlweise wie bis
-     * 0.32.0 lesbar umgeschrieben ("2026_08" -> "August 2026") bzw. der
-     * Titel aus den Angaben der Datei (Tags) im Player.
+     * Namen (ab 0.33.0, Vikunja #44): In Liste und Ordnerbaum stehen die
+     * Ordner- und Dateinamen genau so, wie sie im Ordner stehen; wahlweise
+     * wie bis 0.32.0 lesbar umgeschrieben ("2026_08" -> "August 2026").
+     * Der Player zeigt den Titel aus der Datei (Tags), falls vorhanden -
+     * abschaltbar. Ab 0.35.1 eigener Schluessel mit Vorgabe "ja" (Klarstellung
+     * von Henoch); der Schluessel 'title_from_tags' aus 0.33.0-0.35.0 mit
+     * Vorgabe "nein" wird nicht mehr gelesen.
      */
     public const SETTING_PRETTY_FOLDER_NAMES = 'pretty_folder_names';
-    public const SETTING_TITLE_FROM_TAGS = 'title_from_tags';
+    public const SETTING_TITLE_FROM_TAGS = 'player_title_from_tags';
     /** Farbe des Favoriten-Sterns: 'accent' (Vorgabe), 'yellow' oder 'text' (ab 0.33.0, Vikunja #3) */
     public const SETTING_STAR_COLOR = 'star_color';
     public const STAR_COLORS = ['accent', 'yellow', 'text'];

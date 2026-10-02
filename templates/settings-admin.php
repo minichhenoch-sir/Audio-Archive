@@ -280,7 +280,8 @@
     <!-- Namen (ab 0.33.0, Vikunja #44) -->
     <h4 class="aa-subheading">Namen</h4>
     <p class="settings-hint">
-        Vorgabe: Ordner und Aufnahmen heißen in der App genau so wie im Ordner.
+        In der Liste und im Ordnerbaum heißen Ordner und Aufnahmen genau so
+        wie im Ordner.
     </p>
     <p>
         <input type="checkbox" id="aa-pretty-folder-names" class="checkbox">
@@ -296,9 +297,9 @@
         <label for="aa-title-from-tags">Im Player den Titel aus der Datei zeigen</label>
     </p>
     <p class="settings-hint">
-        Statt des Dateinamens den Titel, der in der Audiodatei selbst
-        gespeichert ist (falls vorhanden). Das gilt auch für die Anzeige auf
-        dem Sperrbildschirm und im Auto.
+        Vorgabe: Der Player zeigt den Titel, der in der Audiodatei selbst
+        gespeichert ist – hat sie keinen, den Dateinamen. Ohne Haken immer den
+        Dateinamen. Gilt auch für Sperrbildschirm und Auto.
     </p>
 
     <!-- Sternfarbe (ab 0.33.0, Vikunja #3) -->

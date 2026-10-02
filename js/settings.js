@@ -169,7 +169,7 @@
   showTrackDuration.checked = state.showTrackDuration !== false;
   showTrackDate.checked = state.showTrackDate !== false;
   prettyFolderNames.checked = state.prettyFolderNames === true;
-  titleFromTags.checked = state.titleFromTags === true;
+  titleFromTags.checked = state.titleFromTags !== false;
   starColor.value = ['accent', 'yellow', 'text'].includes(state.starColor) ? state.starColor : 'accent';
   searchScope.value = state.searchScope === 'all' ? 'all' : 'folder';
   featureComments.checked = state.featureComments === true;

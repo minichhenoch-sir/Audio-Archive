@@ -44,7 +44,7 @@ const AudioArchive = (() => {
         trackDuration: d.trackDuration !== false,
         trackDate: d.trackDate !== false,
         prettyFolderNames: d.prettyFolderNames === true,
-        titleFromTags: d.titleFromTags === true,
+        titleFromTags: d.titleFromTags !== false, // Vorgabe ja (ab 0.35.1)
       };
     })(),
     // Farbe des Favoriten-Sterns (ab 0.33.0, Vikunja #3)

@@ -305,7 +305,7 @@ class PlayerPage {
                     Application::APP_ID, Application::SETTING_PRETTY_FOLDER_NAMES, false
                 ),
                 'titleFromTags' => $this->appConfig->getValueBool(
-                    Application::APP_ID, Application::SETTING_TITLE_FROM_TAGS, false
+                    Application::APP_ID, Application::SETTING_TITLE_FROM_TAGS, true
                 ),
             ]),
             'starColor' => Application::starColor($this->appConfig),
