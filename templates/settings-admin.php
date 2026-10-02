@@ -466,10 +466,12 @@
     <h2>Audio Archive – Kommentare</h2>
     <p class="settings-hint">
         Alle Kommentare und Bewertungen zu Aufnahmen: im gemeinsamen Ordner,
-        in den weiteren Quellen und in allen Freigaben der Nutzer. Zum
-        Weiterverarbeiten als CSV-Datei herunterladen (öffnet sich in Excel
-        oder LibreOffice) oder drucken – im Druckfenster „Als PDF sichern“
-        wählen, um eine PDF-Datei zu erhalten.
+        in den weiteren Quellen und in allen Freigaben der Nutzer (nur für
+        Administratoren; Nutzer sehen unter „Persönlich“ ihre eigenen und die
+        über ihre Freigaben). ▶ bzw. ein Klick auf die Zeile öffnet die
+        Aufnahme in Audio Archive. Als Excel-Datei herunterladen, in den
+        eigenen Dateien ablegen und mit Office öffnen, als CSV speichern oder
+        drucken (im Druckfenster „Als PDF sichern“ ergibt eine PDF-Datei).
     </p>
     <div class="aa-comments-overview" data-scope="all"></div>
 </div>

@@ -1648,3 +1648,32 @@ Namen. Neuer Schlüssel `player_title_from_tags` (Vorgabe ja); der Schlüssel
 
 PHP, JavaScript, Vorlage und `info.xml` geändert; keine Datenbankänderung.
 Nach dem Einspielen Container neu starten.
+
+## 0.36.0: Kommentare – Rechte, Excel-Datei, Office, Sprung, Druckansicht
+
+Vikunja #5 (Rückmeldungen von Hans, 2026-10-02 abends).
+
+- **Wer sieht was:** Nutzer sehen ihre **eigenen** Kommentare und die, die
+  **über ihre Freigaben** geschrieben wurden; **alle** nur der
+  Administrator (die Benachrichtigungs-Gruppe sieht nicht mehr alles). Über
+  welche Freigabe ein Kommentar kam, steht ab jetzt in seinen Metadaten
+  (`share`); ältere Kommentare anderer sieht nur der Administrator.
+- **Excel-Datei:** `POST api/comments/export` (`scope`, `q` = Filter,
+  `save`) erzeugt eine .xlsx (`XlsxWriter`, ZipArchive, ohne Bibliothek:
+  fette fixierte Kopfzeile, Filter, Spaltenbreiten, Umbruch). Mit
+  `save=true` landet sie in den eigenen Dateien unter `Audio Archive/`, die
+  Antwort enthält `/f/<id>?openfile=true` – öffnet „Dateien“ mit der Datei
+  und damit das Office-Programm der Nextcloud (z. B. Euro-Office). CSV und
+  Drucken bleiben.
+- **Druckansicht:** eigenes Fenster, A4 quer, Seitenränder, Kopfzeile auf
+  jeder Seite, feste Spaltenbreiten mit Umbruch, Zebrastreifen, Titel mit
+  Stand und Filter.
+- **Sprung zur Aufnahme:** ▶ links in jeder Zeile oder Klick auf die Zeile
+  öffnet die App bei `#open=<quelle>|<pfad>`: Ordner der Aufnahme, Zeile
+  hervorgehoben. 📁 zeigt die Datei in „Dateien“ (wenn sie in den eigenen
+  Dateien liegt).
+- **Kommentar senden:** Hinweisfenster „Bitte warten! – Der Kommentar wird
+  versendet …“, danach „Kommentar erfolgreich übermittelt!“.
+
+PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

@@ -641,6 +641,23 @@
       view.source = sourceJump[1];
       history.replaceState(null, '', location.pathname + location.search);
     }
+    // Sprung zu einer Aufnahme aus der Kommentar-Uebersicht (ab 0.36.0,
+    // Vikunja #5): #open=<quelle>|<pfad> - oeffnet ihren Ordner und hebt sie hervor
+    let openTarget = null;
+    const openJump = /^#open=([^|]+)\|(.+)$/.exec(location.hash);
+    if (openJump && AudioArchive.loggedIn && !AudioArchive.isPublic()) {
+      let src = '';
+      let target = '';
+      try {
+        src = decodeURIComponent(openJump[1]);
+        target = decodeURIComponent(openJump[2]).replace(/^\/+/, '');
+      } catch (e) { /* kaputte Adresse: ignorieren */ }
+      if (target !== '' && (src === 'shared' || src === 'home' || AudioArchive.extraSources.some((s) => s.id === src))) {
+        view.source = src;
+        openTarget = target;
+      }
+      history.replaceState(null, '', location.pathname + location.search);
+    }
     // Ohne Verbindung mit einer Quelle beginnen, fuer die etwas gespeichert ist
     if (offlineMode) {
       const available = offlineSources();
@@ -651,8 +668,13 @@
     }
     // Basis-Historie-Eintrag setzen (ersetzt den aktuellen Eintrag, statt
     // einen neuen zu erzeugen) - Ausgangspunkt für die Zurück-Geste/-Taste.
+    const startFolder = openTarget && !offlineMode
+      ? openTarget.slice(0, Math.max(0, openTarget.lastIndexOf('/'))) : '';
+    view.path = startFolder;
     history.replaceState({ view }, '');
-    loadLibrary('', view.source);
+    loadLibrary(startFolder, view.source).then(() => {
+      if (openTarget && !offlineMode) highlightRow(view.source + '|' + openTarget);
+    });
     Tree.init();
     if (resumeApi) resumeApi.show();
     // Sprung aus den persoenlichen Einstellungen: #share=<id> (ab 0.26.0)
@@ -661,6 +683,16 @@
       history.replaceState({ view }, '', location.pathname + location.search);
       Shares.openById(Number(jump[1]));
     }
+  }
+
+  /** Zeile einer Aufnahme hervorheben und in die Mitte holen (ab 0.36.0). */
+  function highlightRow(key) {
+    const row = Array.from(listContainer.querySelectorAll('.explorer-row[data-key]'))
+      .find((r) => r.dataset.key === key);
+    if (!row) return;
+    row.classList.add('aa-jump-target');
+    row.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    setTimeout(() => row.classList.remove('aa-jump-target'), 6000);
   }
 
   // ------------------------------------------------------------------

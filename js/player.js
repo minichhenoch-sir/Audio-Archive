@@ -1587,11 +1587,15 @@ const Player = (() => {
         try { localStorage.setItem(NAME_KEY, name); } catch (e) { /* egal */ }
       }
       send.disabled = true;
+      // Rueckmeldung beim Senden (ab 0.36.0, Vikunja #5): erst "Bitte
+      // warten", dann eine deutliche Erfolgsmeldung
+      const notice = commentNotice('Bitte warten! – Der Kommentar wird versendet …', 'busy');
       try {
         await commentsRequestJson(commentsUrl(track), { text, rating, name });
-        showToast('Danke! Kommentar gespeichert.');
+        notice.done('Kommentar erfolgreich übermittelt!');
         loadComments();
       } catch (err) {
+        notice.close();
         send.disabled = false;
         error.textContent = err.status === 429
           ? 'Zu viele Kommentare in kurzer Zeit – bitte später noch einmal.'
@@ -1600,6 +1604,41 @@ const Player = (() => {
       }
     });
     box.appendChild(form);
+  }
+
+  /**
+   * Mittiges Hinweisfenster fuer das Senden eines Kommentars (ab 0.36.0).
+   * done(text) zeigt die Erfolgsmeldung und schliesst nach 2,5 s.
+   */
+  function commentNotice(text, state) {
+    // Direkt an <body>: im aufgeklappten Player liegt sonst alles darueber
+    const root = document.body;
+    const box = document.createElement('div');
+    box.className = 'aa-comment-notice is-' + state;
+    box.setAttribute('role', 'status');
+    box.setAttribute('aria-live', 'polite');
+    const card = document.createElement('div');
+    card.className = 'aa-comment-notice-card';
+    const icon = document.createElement('span');
+    icon.className = 'aa-comment-notice-icon';
+    icon.setAttribute('aria-hidden', 'true');
+    const label = document.createElement('p');
+    label.textContent = text;
+    card.append(icon, label);
+    box.appendChild(card);
+    root.appendChild(box);
+    let timer = null;
+    const close = () => { clearTimeout(timer); box.remove(); };
+    box.addEventListener('click', () => { if (!box.classList.contains('is-busy')) close(); });
+    return {
+      close,
+      done(message) {
+        box.classList.remove('is-busy');
+        box.classList.add('is-done');
+        label.textContent = message;
+        timer = setTimeout(close, 2500);
+      },
+    };
   }
 
   async function loadComments() {

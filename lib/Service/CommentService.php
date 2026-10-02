@@ -80,7 +80,7 @@ class CommentService {
      * @return array{id: string, text: string, rating: int, name: string, created: int}
      */
     public function add(File $file, string $actorType, string $actorId, string $text, int $rating,
-        string $guestName, string $authorLabel): array {
+        string $guestName, string $authorLabel, ?int $shareId = null): array {
         $text = trim(mb_substr(str_replace("\r", '', $text), 0, self::MAX_TEXT));
         $rating = max(0, min(5, $rating));
         $guestName = trim(mb_substr(preg_replace('/\s+/u', ' ', strip_tags($guestName)) ?? '', 0, self::MAX_NAME));
@@ -100,6 +100,9 @@ class CommentService {
             'rating' => $rating,
             'name' => $guestName,
             'text' => $text,
+            // Ueber welche Freigabe geschrieben (ab 0.36.0, Vikunja #5): Wer
+            // die Freigabe angelegt hat, sieht den Kommentar in seiner Uebersicht
+            'share' => $shareId,
         ]]);
         $this->comments->save($comment);
 

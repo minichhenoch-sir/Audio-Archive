@@ -223,27 +223,11 @@
 }
 .aa-comments-overview .aa-co-table th { font-weight: 600; white-space: nowrap; }
 .aa-comments-overview .aa-co-text { white-space: pre-wrap; min-width: 220px; }
-.aa-comments-overview .aa-co-print-title { display: none; }
+.aa-comments-overview .aa-co-go { width: 64px; white-space: nowrap; }
+.aa-comments-overview .aa-co-open { min-height: 30px; padding: 2px 10px; margin: 0 4px 0 0; }
+.aa-comments-overview .aa-co-files { text-decoration: none; font-size: 16px; }
+.aa-comments-overview tr.is-openable { cursor: pointer; }
+.aa-comments-overview tr.is-openable:hover td { background: var(--color-background-hover, #f2f2f2); }
 @media (max-width: 800px) {
   .aa-comments-overview { overflow-x: auto; }
-}
-/* Druckansicht: nur die Tabelle */
-@media print {
-  html, body.aa-co-printing { background: #fff !important; }
-  body.aa-co-printing * { visibility: hidden !important; }
-  body.aa-co-printing .aa-co-print-target,
-  body.aa-co-printing .aa-co-print-target * { visibility: visible !important; }
-  body.aa-co-printing .aa-co-print-target {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    color: #000;
-    background: #fff;
-  }
-  body.aa-co-printing .aa-co-print-target .aa-co-bar,
-  body.aa-co-printing .aa-co-print-target .aa-co-status { display: none !important; }
-  body.aa-co-printing .aa-co-print-target .aa-co-print-title { display: block; font-size: 14pt; margin: 0 0 8px; }
-  body.aa-co-printing .aa-co-table th,
-  body.aa-co-printing .aa-co-table td { border-bottom: 1px solid #999; color: #000; font-size: 9pt; }
 }

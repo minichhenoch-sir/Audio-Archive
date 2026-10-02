@@ -3267,3 +3267,71 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
 }
 #audioarchive.aa-design-nextcloud .player-comment-input::placeholder { color: var(--aa-nc-text-soft); }
 #audioarchive.aa-design-nextcloud .player-comment-error { color: var(--color-error, #c62828); }
+
+/* ===== Hinweis beim Senden eines Kommentars (ab 0.36.0, Vikunja #5) ===== */
+body > .aa-comment-notice {
+  position: fixed;
+  inset: 0;
+  z-index: 100000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, 0.35);
+}
+.aa-comment-notice-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  max-width: 360px;
+  padding: 18px 22px;
+  border-radius: 16px;
+  background: #fff;
+  color: #222;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.35;
+}
+.aa-comment-notice-card p { margin: 0; }
+.aa-comment-notice-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+}
+.aa-comment-notice.is-busy .aa-comment-notice-icon {
+  border: 3px solid rgba(0, 0, 0, 0.15);
+  border-top-color: var(--aa-star, #2e7d32);
+  animation: aa-notice-spin 0.9s linear infinite;
+}
+.aa-comment-notice.is-done .aa-comment-notice-icon {
+  background: #2e7d32;
+  position: relative;
+}
+.aa-comment-notice.is-done .aa-comment-notice-icon::after {
+  content: '';
+  position: absolute;
+  left: 10px;
+  top: 5px;
+  width: 6px;
+  height: 12px;
+  border: solid #fff;
+  border-width: 0 3px 3px 0;
+  transform: rotate(45deg);
+}
+@keyframes aa-notice-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  .aa-comment-notice.is-busy .aa-comment-notice-icon { animation-duration: 3s; }
+}
+
+/* Sprung zu einer Aufnahme aus der Kommentar-Uebersicht (ab 0.36.0) */
+#audioarchive .explorer-row.aa-jump-target {
+  outline: 3px solid var(--aa-star, var(--color-accent));
+  outline-offset: 2px;
+  animation: aa-jump-pulse 1.2s ease-in-out 3;
+}
+@keyframes aa-jump-pulse { 50% { outline-offset: 6px; } }
+@media (prefers-reduced-motion: reduce) {
+  #audioarchive .explorer-row.aa-jump-target { animation: none; }
+}

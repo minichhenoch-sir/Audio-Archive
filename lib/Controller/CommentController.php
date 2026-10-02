@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\CommentOverview;
 use OCA\AudioArchive\Service\CommentService;
+use OCA\AudioArchive\Service\XlsxWriter;
 use OCA\AudioArchive\Service\ContentScope;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
@@ -15,7 +16,13 @@ use OCP\AppFramework\Http\Attribute\NoAdminRequired;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
 use OCP\AppFramework\Http\Attribute\PublicPage;
 use OCP\AppFramework\Http\Attribute\UserRateLimit;
+use OCP\AppFramework\Http\DataDownloadResponse;
 use OCP\AppFramework\Http\DataResponse;
+use OCP\AppFramework\Http\Response;
+use OCP\Files\Folder;
+use OCP\Files\IRootFolder;
+use OCP\IDateTimeZone;
+use OCP\IURLGenerator;
 use OCP\Files\File;
 use OCP\IRequest;
 use OCP\IUserSession;
@@ -39,6 +46,10 @@ class CommentController extends Controller {
         private CommentService $comments,
         private IUserSession $userSession,
         private CommentOverview $overview,
+        private XlsxWriter $xlsx,
+        private IRootFolder $rootFolder,
+        private IDateTimeZone $timeZone,
+        private IURLGenerator $urlGenerator,
     ) {
         parent::__construct(Application::APP_ID, $request);
     }
@@ -62,6 +73,63 @@ class CommentController extends Controller {
             return new DataResponse(['error' => 'Nicht erlaubt.'], Http::STATUS_FORBIDDEN);
         }
         return new DataResponse(['scope' => $all ? 'all' : 'mine', 'mayAll' => $mayAll] + $this->overview->collect($uid, $all));
+    }
+
+    /**
+     * Excel-Datei (.xlsx) der Uebersicht (ab 0.36.0, Vikunja #5), mit
+     * demselben Filter wie in der Oberflaeche. save=true legt sie in den
+     * eigenen Dateien unter "Audio Archive/" ab und liefert die Adresse zum
+     * Oeffnen mit dem Office-Programm der Nextcloud; sonst Download.
+     */
+    #[NoAdminRequired]
+    public function export(string $scope = 'mine', string $q = '', bool $save = false): Response {
+        $user = $this->userSession->getUser();
+        if ($user === null) {
+            return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
+        }
+        $uid = $user->getUID();
+        $all = $scope === 'all';
+        if ($all && !$this->overview->maySeeAll($uid)) {
+            return new DataResponse(['error' => 'Nicht erlaubt.'], Http::STATUS_FORBIDDEN);
+        }
+        $data = $this->overview->collect($uid, $all, mb_substr($q, 0, 200));
+        $tz = $this->timeZone->getTimeZone();
+        $rows = [];
+        foreach ($data['comments'] as $c) {
+            $date = (new \DateTime('@' . $c['created']))->setTimezone($tz)->format('d.m.Y H:i');
+            $rows[] = [$date, $c['file'], $c['folder'], $c['source'], $c['author'] . ($c['reply'] ? ' (Antwort)' : ''),
+                $c['rating'] > 0 ? (int)$c['rating'] : null, $c['text']];
+        }
+        try {
+            $content = $this->xlsx->build('Kommentare',
+                ['Datum', 'Aufnahme', 'Ordner', 'Bereich', 'Von', 'Bewertung', 'Kommentar'],
+                $rows, [17, 32, 32, 26, 22, 11, 70]);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => 'Excel-Datei konnte nicht erstellt werden.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+        $name = 'Kommentare ' . ($all ? 'alle ' : '') . (new \DateTime('now', $tz))->format('Y-m-d H-i') . '.xlsx';
+
+        if (!$save) {
+            return new DataDownloadResponse($content, $name,
+                'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        }
+        try {
+            $home = $this->rootFolder->getUserFolder($uid);
+            $folder = $home->nodeExists('Audio Archive') ? $home->get('Audio Archive') : $home->newFolder('Audio Archive');
+            if (!$folder instanceof Folder) {
+                throw new \RuntimeException('kein Ordner');
+            }
+            $file = $folder->newFile($folder->getNonExistingName($name), $content);
+        } catch (\Throwable $e) {
+            return new DataResponse(['error' => 'Speichern in deinen Dateien hat nicht geklappt.'], Http::STATUS_INTERNAL_SERVER_ERROR);
+        }
+        return new DataResponse([
+            'name' => $file->getName(),
+            'path' => 'Audio Archive/' . $file->getName(),
+            'fileId' => $file->getId(),
+            // Oeffnet "Dateien" mit der Datei - und damit das Office-Programm der Nextcloud
+            'url' => $this->urlGenerator->linkToRoute('files.view.showFile', ['fileid' => $file->getId()]) . '?openfile=true',
+        ]);
     }
 
     #[PublicPage]
@@ -100,7 +168,7 @@ class CommentController extends Controller {
         }
         $user = $this->userSession->getUser();
         $comment = $this->comments->add($ctx['file'], $ctx['actorType'], $ctx['actorId'], $text, $rating, $name,
-            $user !== null ? $user->getDisplayName() : '');
+            $user !== null ? $user->getDisplayName() : '', $ctx['share']);
         return new DataResponse(['comment' => $comment]);
     }
 
@@ -123,7 +191,7 @@ class CommentController extends Controller {
     /**
      * Datei, Kommentierender und Bewertung - oder die Fehlerantwort.
      *
-     * @return array{file: File, actorType: string, actorId: string, rating: bool}|DataResponse
+     * @return array{file: File, actorType: string, actorId: string, rating: bool, share: ?int}|DataResponse
      */
     private function context(string $path, string $source, string $s, string $guest): array|DataResponse {
         $scope = $this->scope->resolve($source, $s);
@@ -139,12 +207,14 @@ class CommentController extends Controller {
         }
         $user = $this->userSession->getUser();
         if ($user !== null) {
-            return ['file' => $node, 'actorType' => 'users', 'actorId' => $user->getUID(), 'rating' => $scope['rating']];
+            return ['file' => $node, 'actorType' => 'users', 'actorId' => $user->getUID(), 'rating' => $scope['rating'],
+                'share' => isset($scope['share']['id']) ? (int)$scope['share']['id'] : null];
         }
         $actorId = CommentService::guestActorId($guest);
         if ($actorId === null) {
             return new DataResponse(['error' => 'Geräte-Kennung fehlt.'], Http::STATUS_BAD_REQUEST);
         }
-        return ['file' => $node, 'actorType' => CommentService::ACTOR_GUEST, 'actorId' => $actorId, 'rating' => $scope['rating']];
+        return ['file' => $node, 'actorType' => CommentService::ACTOR_GUEST, 'actorId' => $actorId, 'rating' => $scope['rating'],
+            'share' => isset($scope['share']['id']) ? (int)$scope['share']['id'] : null];
     }
 }

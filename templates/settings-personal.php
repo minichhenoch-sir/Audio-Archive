@@ -35,12 +35,13 @@
 <div class="section aa-comments-section">
     <h2>Audio Archive – Kommentare</h2>
     <p class="settings-hint">
-        Kommentare und Bewertungen zu Aufnahmen in den Ordnern, die du geteilt
-        hast – auch die, die jemand über deinen Link geschrieben hat. Wer in
-        der Gruppe ist, die bei neuen Kommentaren benachrichtigt wird, kann
-        hier auch alle Kommentare ansehen. Zum Weiterverarbeiten als CSV-Datei
-        herunterladen (öffnet sich in Excel oder LibreOffice) oder drucken – im
-        Druckfenster „Als PDF sichern“ wählen, um eine PDF-Datei zu erhalten.
+        Deine eigenen Kommentare und Bewertungen – und die, die andere über
+        deine Freigaben (Links, Freigaben an Personen und Gruppen) geschrieben
+        haben. ▶ bzw. ein Klick auf die Zeile öffnet die Aufnahme in Audio
+        Archive. Als Excel-Datei herunterladen, direkt in deinen Dateien
+        ablegen und mit dem Office-Programm der Nextcloud öffnen, als CSV
+        speichern oder drucken (im Druckfenster „Als PDF sichern“ ergibt eine
+        PDF-Datei).
     </p>
     <div class="aa-comments-overview" data-scope="mine" data-switch="1"></div>
 </div>
