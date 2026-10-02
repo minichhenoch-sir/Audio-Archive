@@ -54,6 +54,9 @@ if ($_['backgroundUrl'] !== '') {
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
+     data-search-scope="<?php echo $escape($_['searchScope'] ?? 'folder'); ?>"
+     data-repeat-default="<?php echo $escape($_['repeatDefault'] ?? 'next'); ?>"
+     data-admin-repeat-default="<?php echo $escape($_['adminRepeatDefault'] ?? 'next'); ?>"
      data-shared-label="<?php echo $escape($_['sharedLabel'] ?? ''); ?>"
      data-favorites="<?php echo $escape($_['favorites'] ?? ''); ?>"
      data-header-title="<?php echo $escape($_['headerTitle']); ?>"
@@ -196,9 +199,15 @@ if ($_['backgroundUrl'] !== '') {
         <div id="us-editor"></div>
       </fieldset>
 
-      <fieldset class="panel-group" id="us-features" hidden>
+      <fieldset class="panel-group" id="us-features">
         <legend>Funktionen</legend>
-        <label class="panel-choice"><input type="checkbox" id="us-favorites"> Favoriten (Stern) anzeigen</label>
+        <label class="panel-choice" id="us-favorites-wrap" hidden><input type="checkbox" id="us-favorites"> Favoriten (Stern) anzeigen</label>
+        <!-- Wiederholen-Vorgabe persoenlich (ab 0.28.0, Vikunja #2) -->
+        <label class="panel-field">
+          <span class="panel-field-label">Wiederholen (Vorgabe)</span>
+          <select id="us-repeat" class="panel-input"></select>
+          <span class="panel-hint">So steht der Wiederholen-Knopf beim Öffnen der App.</span>
+        </label>
       </fieldset>
 
       <fieldset class="panel-group">

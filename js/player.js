@@ -1157,7 +1157,9 @@ const Player = (() => {
   //            die Suche uebernimmt app.js ueber onQueueEnd)
   //   folder - den Ordner von vorn
   //   one    - den Titel endlos (audio.loop, dadurch ohne Luecke)
-  // Die Wahl wird je Geraet gemerkt.
+  // Die Wahl wird je Geraet gemerkt - zusammen mit der Vorgabe, die beim
+  // Merken galt (ab 0.28.0, Vikunja #2). Aendert sich die Vorgabe
+  // (Verwaltung, Link oder persoenlich), gilt wieder die neue Vorgabe.
   // ------------------------------------------------------------------
   const REPEAT_MODES = ['off', 'next', 'folder', 'one'];
   const REPEAT_LABELS = {
@@ -1168,11 +1170,13 @@ const Player = (() => {
   };
   const REPEAT_KEY = 'audioarchive_repeat';
 
-  let repeatMode = 'off';
+  const repeatDefault = REPEAT_MODES.includes(AudioArchive.repeatDefault) ? AudioArchive.repeatDefault : 'next';
+  let repeatMode = repeatDefault;
   try {
-    const stored = localStorage.getItem(REPEAT_KEY);
-    if (REPEAT_MODES.includes(stored)) repeatMode = stored;
-  } catch (e) { /* ohne Speicher: Vorgabe */ }
+    // Bis 0.27.0 stand hier nur der Modus - ohne Vorgabe, also verworfen
+    const stored = JSON.parse(localStorage.getItem(REPEAT_KEY) || 'null');
+    if (stored && stored.base === repeatDefault && REPEAT_MODES.includes(stored.mode)) repeatMode = stored.mode;
+  } catch (e) { /* ohne Speicher oder alter Wert: Vorgabe */ }
 
   function applyRepeatMode() {
     audio.loop = repeatMode === 'one';
@@ -1186,7 +1190,9 @@ const Player = (() => {
 
   function setRepeatMode(mode) {
     repeatMode = REPEAT_MODES.includes(mode) ? mode : 'off';
-    try { localStorage.setItem(REPEAT_KEY, repeatMode); } catch (e) { /* egal */ }
+    try {
+      localStorage.setItem(REPEAT_KEY, JSON.stringify({ mode: repeatMode, base: repeatDefault }));
+    } catch (e) { /* egal */ }
     applyRepeatMode();
   }
 

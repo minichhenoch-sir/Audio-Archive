@@ -87,6 +87,8 @@ class SettingsController extends Controller {
         ?string $betaLinkLabel = null,
         ?string $publicCoverIcon = null,
         ?string $sortDefault = null,
+        ?string $searchScope = null,
+        ?string $repeatDefault = null,
         ?int $rememberDays = null,
         ?string $sharedLabel = null,
         ?bool $featureFavorites = null,
@@ -316,6 +318,17 @@ class SettingsController extends Controller {
         if ($sortDefault !== null) {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
+            );
+        }
+        if ($searchScope !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_SEARCH_SCOPE, $searchScope === 'all' ? 'all' : 'folder'
+            );
+        }
+        if ($repeatDefault !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_REPEAT_DEFAULT,
+                in_array($repeatDefault, Application::REPEAT_MODES, true) ? $repeatDefault : 'next'
             );
         }
         if ($featureDownload !== null) {

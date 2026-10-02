@@ -33,6 +33,16 @@ const AudioArchive = (() => {
     standaloneUrl: el.dataset.standaloneUrl || '',
     nextcloudUrl: el.dataset.nextcloudUrl || '',
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
+    // ab 0.28.0 (Vikunja #32/#2)
+    repeatLabels: {
+      off: 'Aus',
+      next: 'Danach nächster Ordner',
+      folder: 'Ordner wiederholen',
+      one: 'Titel wiederholen',
+    },
+    searchScope: el.dataset.searchScope === 'all' ? 'all' : 'folder',
+    repeatDefault: ['off', 'next', 'folder', 'one'].includes(el.dataset.repeatDefault) ? el.dataset.repeatDefault : 'next',
+    adminRepeatDefault: ['off', 'next', 'folder', 'one'].includes(el.dataset.adminRepeatDefault) ? el.dataset.adminRepeatDefault : 'next',
     sharedLabel: (el.dataset.sharedLabel || '').trim(),
     favorites: el.dataset.favorites === '1',
     headerTitle: el.dataset.headerTitle || '',

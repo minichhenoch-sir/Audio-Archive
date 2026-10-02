@@ -73,6 +73,9 @@ class ShareService {
         // Ordner weiterteilen. Wer ueber einen Link zuhoert, hat kein Konto
         // und kann nie weiterteilen.
         'allowReshare' => false,
+        // Vorgabe fuer "Wiederholen" auf diesem Link (ab 0.28.0, Vikunja #2):
+        // '' = Vorgabe der Verwaltung, sonst 'off', 'next', 'folder', 'one'
+        'repeatDefault' => '',
         // Weitergeteilt aus dieser internen Freigabe (Kennung), 0 = nein.
         // Wird nur vom Server gesetzt; gilt nur, solange die Ursprungs-
         // freigabe besteht und das Weiterteilen erlaubt.
@@ -662,6 +665,9 @@ class ShareService {
         }
         if ($out['coverIcon'] !== AppIcon::COVER_CUSTOM && !in_array($out['coverIcon'], AppIcon::COVER_ICONS, true)) {
             $out['coverIcon'] = '';
+        }
+        if ($out['repeatDefault'] !== '' && !in_array($out['repeatDefault'], Application::REPEAT_MODES, true)) {
+            $out['repeatDefault'] = '';
         }
         $out['title'] = mb_substr($out['title'], 0, 200);
         $out['subtitle'] = mb_substr($out['subtitle'], 0, 500);

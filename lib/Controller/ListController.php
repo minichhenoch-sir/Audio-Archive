@@ -485,8 +485,10 @@ class ListController extends Controller {
     private const SEARCH_READ_BUDGET = 4.0;
 
     /**
-     * Sucht in der ganzen Quelle (gemeinsamer Ordner, eigene Dateien bzw.
-     * Freigabe): Ordner nach Namen, Aufnahmen nach Datei- und Ordnername
+     * Sucht in der Quelle (gemeinsamer Ordner, eigene Dateien bzw.
+     * Freigabe) - mit $path nur im geoeffneten Ordner samt Unterordnern
+     * (ab 0.28.0, Vikunja #32; Vorgabe der Verwaltung "Suchbereich"):
+     * Ordner nach Namen, Aufnahmen nach Datei- und Ordnername
      * sowie Titel, Kuenstler und Album. Mehrere Woerter muessen alle
      * vorkommen ("predigt 2024"), Gross-/Kleinschreibung egal.
      *
@@ -496,7 +498,7 @@ class ListController extends Controller {
      */
     #[PublicPage]
     #[NoCSRFRequired]
-    public function search(string $q = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+    public function search(string $q = '', string $source = AudioFolder::SOURCE_SHARED, string $s = '', string $path = ''): DataResponse {
         $scope = $this->scope->resolve($source, $s);
         if (is_int($scope)) {
             return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
@@ -508,6 +510,21 @@ class ListController extends Controller {
         $root = $scope['root'];
         $deadline = microtime(true) + self::SEARCH_READ_BUDGET;
 
+        // Startordner (ab 0.28.0): geoeffneter Ordner, sonst die ganze Quelle.
+        // Verglichen wird nur der Pfad unterhalb des Startordners - sonst
+        // passte der Name des Startordners selbst auf jede Aufnahme darin.
+        $start = $root;
+        $base = '';
+        if (trim($path, '/') !== '') {
+            $node = $this->audioFolder->resolveIn($root, $path);
+            if (!$node instanceof Folder) {
+                return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
+            }
+            $start = $node;
+            $base = $this->audioFolder->relativePath($root, $node);
+        }
+        $below = static fn (string $rel): string => $base === '' ? $rel : substr($rel, strlen($base) + 1);
+
         $dirs = [];
         $files = [];
         $complete = true;
@@ -516,7 +533,7 @@ class ListController extends Controller {
         $pending = false;
         $folders = 0;
         $seenFiles = 0;
-        $queue = [[$root, '']];
+        $queue = [[$start, $base]];
 
         while ($queue !== []) {
             [$folder, $relative] = array_shift($queue);
@@ -544,7 +561,7 @@ class ListController extends Controller {
                 $childRelative = ltrim($relative . '/' . $name, '/');
                 if ($child instanceof Folder) {
                     $subfolders[] = [$child, $childRelative];
-                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $childRelative)) {
+                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $below($childRelative))) {
                         $dirs[] = [
                             'type' => 'dir',
                             'name' => $name,
@@ -563,7 +580,7 @@ class ListController extends Controller {
                     break 2;
                 }
                 /** @var File $child */
-                $haystack = $childRelative;
+                $haystack = $below($childRelative);
                 if (!self::matches($terms, $haystack)) {
                     // Angaben aus der Datei: zwischengespeichert, sonst nur mit Zeit
                     $meta = $known[(int)$child->getId()] ?? null;

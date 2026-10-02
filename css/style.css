@@ -3144,3 +3144,42 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
  * sie. */
 #audioarchive .explorer-row.is-unavailable { opacity: 0.45; }
 #audioarchive .explorer-row.is-unavailable .explorer-row-meta { font-style: italic; }
+
+/* ===================== SCHMALE BILDSCHIRME: NAME VOLL BREIT (ab 0.28.0, Vikunja #41) =====================
+   Auf dem Telefon nahmen Datum und Anzahl („21.09.2026 · 248 Aufnahmen")
+   so viel Platz, dass vom Ordnernamen nur „2…" blieb. Unter 640 px steht
+   die Angabe deshalb in einer zweiten Zeile unter dem Namen; Symbol und
+   Stern bleiben links bzw. rechts mittig. */
+@media (max-width: 640px) {
+  #audioarchive .explorer-row {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon label fav" "icon meta fav";
+    column-gap: 12px;
+    row-gap: 1px;
+    align-items: center;
+  }
+  #audioarchive .explorer-row-icon { grid-area: icon; }
+  #audioarchive .explorer-row-label { grid-area: label; }
+  /* Lange Namen duerfen zweizeilig umbrechen, erst danach "…" */
+  #audioarchive .explorer-row-label:not(.explorer-row-label--two) {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    line-height: 1.25;
+  }
+  #audioarchive .explorer-row-meta {
+    grid-area: meta;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  #audioarchive .explorer-row .row-fav { grid-area: fav; margin: -6px -4px; }
+  /* Ohne Angabe: Name mittig ueber beide Zeilen */
+  #audioarchive .explorer-row-meta:empty { display: none; }
+  #audioarchive .explorer-row:has(.explorer-row-meta:empty) .explorer-row-label { grid-row: 1 / 3; }
+}

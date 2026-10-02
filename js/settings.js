@@ -53,6 +53,8 @@
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
+  const searchScope = el('aa-search-scope');
+  const repeatDefault = el('aa-repeat-default');
   const featureFavorites = el('aa-feature-favorites');
   const featureFolderDownload = el('aa-feature-folder-download');
   const transcode = el('aa-transcode');
@@ -147,6 +149,8 @@
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
+  searchScope.value = state.searchScope === 'all' ? 'all' : 'folder';
+  repeatDefault.value = ['off', 'next', 'folder', 'one'].includes(state.repeatDefault) ? state.repeatDefault : 'next';
   featureFavorites.checked = state.featureFavorites !== false;
   featureFolderDownload.checked = state.featureFolderDownload === true;
   // Umwandlung in MP3 (ab 0.27.0): ohne ffmpeg nicht waehlbar
@@ -388,6 +392,8 @@
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
+      searchScope: searchScope.value,
+      repeatDefault: repeatDefault.value,
       featureFavorites: featureFavorites.checked,
       featureFolderDownload: featureFolderDownload.checked,
       transcode: transcode.checked,

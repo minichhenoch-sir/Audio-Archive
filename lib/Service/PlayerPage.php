@@ -52,6 +52,23 @@ class PlayerPage {
             || $this->config->getUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, '1') !== '0';
     }
 
+    /**
+     * Vorgabe fuer "Wiederholen" (ab 0.28.0, Vikunja #2): Link-Seite -> Wert
+     * der Freigabe, angemeldet -> persoenlicher Wert, sonst Verwaltung.
+     */
+    private function repeatDefault(?string $uid, ?array $share): string {
+        $mode = '';
+        if ($share !== null) {
+            $mode = (string)($share['settings']['repeatDefault'] ?? '');
+        } elseif ($uid !== null) {
+            $mode = $this->config->getUserValue($uid, Application::APP_ID, Application::USER_REPEAT_DEFAULT, '');
+        }
+        if (!in_array($mode, Application::REPEAT_MODES, true)) {
+            $mode = $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next');
+        }
+        return in_array($mode, Application::REPEAT_MODES, true) ? $mode : 'next';
+    }
+
     /** Name des freigegebenen Ordners - Titel, wenn keiner gesetzt ist. */
     private function shareFolderName(array $share): string {
         $folder = $this->shares->rootFolder($share);
@@ -209,6 +226,15 @@ class PlayerPage {
             // Name des gemeinsamen Ordners (ab 0.23.0, Vikunja #37); leer = Vorgabe
             'sharedLabel' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SHARED_LABEL, ''
+            ),
+            // Suchbereich und Wiederholen-Vorgabe (ab 0.28.0, Vikunja #32/#2)
+            'searchScope' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_SEARCH_SCOPE, 'folder'
+            ) === 'all' ? 'all' : 'folder',
+            'repeatDefault' => $this->repeatDefault($uid, $share),
+            // Fuer die Auswahl "Vorgabe der Verwaltung (…)" in Link-Formular und Zahnrad
+            'adminRepeatDefault' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'
             ),
             // Vorgabe fuer die Sortierung der Liste (ab 0.22.0, Vikunja #30)
             'sortDefault' => $this->appConfig->getValueString(

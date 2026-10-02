@@ -223,6 +223,32 @@
             umschalten; seine Wahl merkt sich sein Gerät.
         </p>
     </div>
+    <div class="aa-field">
+        <label for="aa-search-scope">Suchbereich</label>
+        <select id="aa-search-scope">
+            <option value="folder">Geöffneter Ordner mit Unterordnern</option>
+            <option value="all">Alles (ganzer Bereich)</option>
+        </select>
+        <p class="settings-hint">
+            „Geöffneter Ordner“: Die Suche findet nur, was im gerade geöffneten
+            Ordner und seinen Unterordnern liegt. Ganz oben wird alles durchsucht.
+        </p>
+    </div>
+    <div class="aa-field">
+        <label for="aa-repeat-default">Wiederholen (Vorgabe)</label>
+        <select id="aa-repeat-default">
+            <option value="next">Danach nächster Ordner</option>
+            <option value="off">Aus</option>
+            <option value="folder">Ordner wiederholen</option>
+            <option value="one">Titel wiederholen</option>
+        </select>
+        <p class="settings-hint">
+            So steht der Wiederholen-Knopf im Player am Anfang. Für einen
+            geteilten Link lässt sich das beim Link anders einstellen, angemeldete
+            Nutzer können es unter „Darstellung“ für sich ändern. Tippt jemand
+            selbst auf den Knopf, merkt sich das sein Gerät.
+        </p>
+    </div>
     <p>
         <input type="checkbox" id="aa-feature-offline" class="checkbox">
         <label for="aa-feature-offline">Offline verfügbar machen erlauben</label>

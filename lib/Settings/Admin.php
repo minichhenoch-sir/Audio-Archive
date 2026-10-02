@@ -95,6 +95,12 @@ class Admin implements ISettings {
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
             ),
+            'searchScope' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_SEARCH_SCOPE, 'folder'
+            ),
+            'repeatDefault' => $this->appConfig->getValueString(
+                Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'
+            ),
             'betaEnabled' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ),

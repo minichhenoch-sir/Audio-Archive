@@ -69,6 +69,8 @@ class UserSettingsController extends Controller {
             // Favoriten (ab 0.24.0): persoenlich ein/aus, sofern der Administrator sie anbietet
             'favorites' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, '1') !== '0',
             'favoritesOffered' => $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_FEATURE_FAVORITES, true),
+            // Wiederholen-Vorgabe (ab 0.28.0): '' = Vorgabe der Verwaltung
+            'repeatDefault' => $this->config->getUserValue($uid, Application::APP_ID, Application::USER_REPEAT_DEFAULT, ''),
         ]);
     }
 
@@ -81,13 +83,20 @@ class UserSettingsController extends Controller {
     #[NoAdminRequired]
     public function set(string $design = '', ?string $title = null, ?string $subtitle = null,
         ?string $themeAccent = null, ?string $themeBar = null, ?string $themeBase = null,
-        ?array $style = null, ?bool $favorites = null): DataResponse {
+        ?array $style = null, ?bool $favorites = null, ?string $repeatDefault = null): DataResponse {
         $uid = $this->uid();
         if ($uid === null) {
             return new DataResponse(['error' => 'not_authenticated'], Http::STATUS_UNAUTHORIZED);
         }
         if ($favorites !== null) {
             $this->config->setUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, $favorites ? '1' : '0');
+        }
+        if ($repeatDefault !== null) {
+            if (in_array($repeatDefault, Application::REPEAT_MODES, true)) {
+                $this->config->setUserValue($uid, Application::APP_ID, Application::USER_REPEAT_DEFAULT, $repeatDefault);
+            } else {
+                $this->config->deleteUserValue($uid, Application::APP_ID, Application::USER_REPEAT_DEFAULT);
+            }
         }
         if (!$this->appearance->userCustomizationAllowed()) {
             return new DataResponse(['error' => 'Vom Administrator abgeschaltet.'], Http::STATUS_FORBIDDEN);

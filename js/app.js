@@ -29,6 +29,26 @@
   let currentEntries = [];
   // Suche (ab 0.22.0) - wird weiter unten angelegt, siehe "Suche"
   let searchApi = null;
+
+  /**
+   * Auswahl der Wiederholen-Vorgabe (ab 0.28.0, Vikunja #2). '' = Vorgabe
+   * der naechsthoeheren Ebene; deren Wert steht in Klammern dahinter.
+   */
+  function repeatDefaultSelect(value, inheritLabel) {
+    const select = document.createElement('select');
+    select.className = 'panel-input';
+    const inherited = AudioArchive.repeatLabels[AudioArchive.adminRepeatDefault] || '';
+    const options = [['', inheritLabel + (inherited ? ' (' + inherited + ')' : '')]]
+      .concat(['next', 'off', 'folder', 'one'].map((m) => [m, AudioArchive.repeatLabels[m]]));
+    options.forEach(([v, label]) => {
+      const opt = document.createElement('option');
+      opt.value = v;
+      opt.textContent = label;
+      select.appendChild(opt);
+    });
+    select.value = value || '';
+    return select;
+  }
   // Weiterhoeren-Karte (ab 0.23.0), siehe "Weiterhoeren"
   let resumeApi = null;
   // Favoriten (ab 0.24.0), siehe "Favoriten"
@@ -1523,6 +1543,8 @@
     listContainer.classList.remove('entering');
     void listContainer.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
     listContainer.classList.add('entering');
+    // Suchfeld nennt den Ordner, in dem gesucht wird (ab 0.28.0)
+    if (searchApi) searchApi.updatePlaceholder();
 
     if (searchApi && searchApi.active()) {
       searchApi.render();
@@ -1650,8 +1672,9 @@
   // ------------------------------------------------------------------
   // Suche (ab 0.22.0, Vikunja #32)
   //
-  // Sucht in der ganzen geoeffneten Quelle (gemeinsame Aufnahmen, eigene
-  // Dateien bzw. Freigabe) - in Ordner- und Dateinamen sowie Titel,
+  // Sucht ab 0.28.0 nur im geoeffneten Ordner samt Unterordnern (Vorgabe
+  // der Verwaltung "Suchbereich", alternativ die ganze Quelle: gemeinsame
+  // Aufnahmen, eigene Dateien bzw. Freigabe) - in Ordner- und Dateinamen sowie Titel,
   // Kuenstler und Album. Mehrere Woerter muessen alle vorkommen. Ohne
   // Verbindung wird in den offline gespeicherten Ordnern gesucht.
   // ------------------------------------------------------------------
@@ -1686,6 +1709,20 @@
       return query.length >= 2;
     }
 
+    /** Ordner, in dem gesucht wird ('' = ganze Quelle), festgehalten beim Start der Suche. */
+    let searchBase = '';
+    const scopeBase = () => (AudioArchive.searchScope === 'folder' ? view.path || '' : '');
+    const below = (path) => (searchBase === '' ? path : path.slice(searchBase.length + 1));
+    const inBase = (path) => searchBase === '' || path.startsWith(searchBase + '/');
+
+    /** Platzhalter des Suchfelds passend zum Bereich (ab 0.28.0). */
+    function updatePlaceholder() {
+      const base = scopeBase();
+      input.placeholder = base === ''
+        ? 'Suchen: Titel, Künstler, Ordner …'
+        : 'In „' + prettyFolderName(base.split('/').pop()) + '“ suchen …';
+    }
+
     async function offlineSearch(q) {
       const t = terms(q);
       const found = [];
@@ -1694,10 +1731,11 @@
         let entries = await offlineEntriesFromCache(folderPath, view.source);
         if (entries === null) entries = offlineEntriesFor(folderPath, view.source);
         entries.forEach((e) => {
+          if (!inBase(e.path)) return;
           if (found.some((f) => f.path === e.path)) return;
           // Ordner nur, wenn darin etwas offline liegt - sonst waere er leer
           if (e.type === 'dir' && !Object.keys(folders).some((k) => k === e.path || k.startsWith(e.path + '/'))) return;
-          const hay = fold([e.path, e.title, e.artist, e.album].join(' '));
+          const hay = fold([below(e.path), e.title, e.artist, e.album].join(' '));
           if (t.every((x) => hay.includes(x))) found.push({ ...e });
         });
       }
@@ -1712,6 +1750,7 @@
     async function run() {
       const mySeq = ++seq;
       const q = query;
+      searchBase = scopeBase();
       loading = true;
       failed = '';
       reading = false;
@@ -1723,7 +1762,8 @@
           list = await offlineSearch(q);
         } else {
           const url = new URL(AudioArchive.api('search') + '?' + AudioArchive.sourceQuery(view.source)
-            + 'q=' + encodeURIComponent(q), location.href).href;
+            + 'q=' + encodeURIComponent(q)
+            + (searchBase !== '' ? '&path=' + encodeURIComponent(searchBase) : ''), location.href).href;
           for (let attempt = 0; ; attempt++) {
             const res = await fetch(url, { credentials: 'same-origin' });
             if (res.status === 401) {
@@ -1782,6 +1822,7 @@
           : 'Bisher nichts gefunden für „' + query + '“ – es wurde nicht alles durchsucht. Bitte gleich noch einmal suchen.';
       } else {
         libraryStatus.textContent = n + ' Treffer für „' + query + '“'
+          + (searchBase !== '' ? ' in „' + prettyFolderName(searchBase.split('/').pop()) + '“' : '')
           + (complete ? '' : ' – nicht alles durchsucht, bitte genauer suchen')
           + (offlineMode ? ' (nur offline gespeicherte)' : '');
       }
@@ -1875,7 +1916,7 @@
       input.focus();
     });
 
-    return { active, render, clear };
+    return { active, render, clear, updatePlaceholder };
   })();
   searchApi = Search;
 
@@ -3386,6 +3427,11 @@
       return { wrap, input };
     }
 
+    /** Auswahl "Wiederholen (Vorgabe)" fuer einen Link (ab 0.28.0, Vikunja #2). */
+    function repeatSelect(value) {
+      return repeatDefaultSelect(value, 'Vorgabe der Verwaltung');
+    }
+
     function group(title) {
       const fs = el('fieldset', 'panel-group');
       fs.appendChild(el('legend', '', title));
@@ -3564,6 +3610,10 @@
       // Unterordner als ZIP (ab 0.25.0) - die oberste Ebene der Freigabe nie
       const folderDownload = checkbox('Unterordner als ZIP herunterladen erlauben', isNew ? false : st.featureFolderDownload === true);
       functions.append(offline.wrap, download.wrap, folderDownload.wrap);
+      // Wiederholen-Vorgabe fuer diesen Link (ab 0.28.0, Vikunja #2)
+      const repeat = repeatSelect(st.repeatDefault || '');
+      functions.appendChild(field('Wiederholen (Vorgabe)', repeat,
+        'So steht der Wiederholen-Knopf beim Öffnen. Die Zuhörer können ihn selbst umstellen.'));
       // Weiterteilen (ab 0.26.0, Vikunja #8) - nur bei Personen und Gruppen;
       // wer ueber einen Link zuhoert, hat kein Konto und kann nie weiterteilen
       let reshare = null;
@@ -3865,6 +3915,7 @@
           featureDownload: download.input.checked,
           featureFolderDownload: folderDownload.input.checked,
           allowReshare: reshare ? reshare.input.checked : false,
+          repeatDefault: repeat.value,
           coverIcon: chosenCover,
         };
         if (isInternal && members.value().length === 0) {
@@ -4249,8 +4300,12 @@
         syncSections();
         usShowBackground(data.hasBackground === true);
         // Favoriten persoenlich ein/aus (ab 0.24.0)
-        document.getElementById('us-features').hidden = data.favoritesOffered !== true;
+        document.getElementById('us-favorites-wrap').hidden = data.favoritesOffered !== true;
         document.getElementById('us-favorites').checked = data.favorites !== false;
+        // Wiederholen-Vorgabe persoenlich (ab 0.28.0, Vikunja #2)
+        const usRepeat = document.getElementById('us-repeat');
+        usRepeat.replaceChildren(...repeatDefaultSelect(data.repeatDefault || '', 'Vorgabe der Verwaltung').children);
+        usRepeat.value = data.repeatDefault || '';
       } catch (err) {
         usShowError('Einstellungen konnten nicht geladen werden (keine Verbindung?).');
       }
@@ -4282,9 +4337,10 @@
       // Benutzerdefinierte Werte immer mitsichern - auch wenn gerade eine
       // andere Gestaltung gewaehlt ist, bleiben sie so fuer spaeter erhalten
       if (us.editor) payload.style = us.editor.get();
-      if (!document.getElementById('us-features').hidden) {
+      if (!document.getElementById('us-favorites-wrap').hidden) {
         payload.favorites = document.getElementById('us-favorites').checked;
       }
+      payload.repeatDefault = document.getElementById('us-repeat').value;
       try {
         await usRequest('user/settings', {
           method: 'POST',

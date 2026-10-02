@@ -1432,3 +1432,33 @@ Vikunja #34 („beim Abspielen umwandeln, wenn das geht“).
 
 PHP, Routen, JavaScript, Vorlage und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+---
+
+## 0.28.0: Suche im geöffneten Ordner, Wiederholen-Vorgabe, Ordnernamen am Telefon
+
+Vikunja #32, #2, #41.
+
+- **Suche (#32):** Gesucht wird jetzt im **geöffneten Ordner samt
+  Unterordnern**; ganz oben weiterhin überall. Das Suchfeld nennt den
+  Ordner („In „Predigten 2024“ suchen …“), die Trefferzeile ebenso.
+  Verglichen wird nur der Pfad unterhalb des geöffneten Ordners – sonst
+  passte dessen Name auf jede Aufnahme darin. Neu in der Verwaltung →
+  Funktionen: **„Suchbereich“** (Geöffneter Ordner mit Unterordnern /
+  Alles). Ohne Verbindung gilt derselbe Bereich für die offline
+  gespeicherten Ordner. `api/search` nimmt dafür `path`.
+- **Wiederholen-Vorgabe (#2):** Neu in der Verwaltung → Funktionen:
+  **„Wiederholen (Vorgabe)“**, Vorgabe „Danach nächster Ordner“. Für einen
+  Link lässt sich das im Link-Formular anders einstellen, angemeldete Nutzer
+  können es unter „Darstellung“ für sich ändern (jeweils „Vorgabe der
+  Verwaltung“ = übernehmen). Tippt jemand selbst auf den Knopf, merkt sich
+  das Gerät die Wahl – zusammen mit der Vorgabe, die dabei galt. Ändert sich
+  die Vorgabe, gilt wieder die neue. Gespeicherte Werte aus 0.27.0 und älter
+  werden deshalb einmalig durch die Vorgabe ersetzt.
+- **Schmale Bildschirme (#41):** Unter 640 px steht „Datum · Anzahl“ in einer
+  zweiten Zeile unter dem Namen, der Name hat die volle Breite. Breite
+  Bildschirme unverändert.
+
+PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
+Datenbankänderung (die Link-Einstellung steckt in den vorhandenen
+Einstellungen der Freigabe). Nach dem Einspielen Container neu starten.

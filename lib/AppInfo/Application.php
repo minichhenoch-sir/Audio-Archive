@@ -23,6 +23,13 @@ class Application extends App implements IBootstrap {
     public const SETTING_PUBLIC_COVER_ICON = 'public_cover_icon';
     /** Vorgabe fuer die Sortierung der Liste: 'name' oder 'newest' (ab 0.22.0) */
     public const SETTING_SORT_DEFAULT = 'sort_default';
+    /** Suchbereich: 'folder' = geoeffneter Ordner samt Unterordnern, 'all' = ganze Quelle (ab 0.28.0, Vikunja #32) */
+    public const SETTING_SEARCH_SCOPE = 'search_scope';
+    /** Vorgabe fuer "Wiederholen": 'off', 'next', 'folder' oder 'one' (ab 0.28.0, Vikunja #2) */
+    public const SETTING_REPEAT_DEFAULT = 'repeat_default';
+    public const REPEAT_MODES = ['off', 'next', 'folder', 'one'];
+    /** Persoenliche Vorgabe fuer "Wiederholen", leer = Vorgabe der Verwaltung (ab 0.28.0) */
+    public const USER_REPEAT_DEFAULT = 'repeat_default';
     /** "Angemeldet bleiben" fuer Links mit Passwort, in Tagen; 0 = aus (ab 0.23.0) */
     public const SETTING_REMEMBER_DAYS = 'remember_days';
     /** Geheimer Schluessel fuer die Signatur der gemerkten Zugaenge (ab 0.23.0) */
