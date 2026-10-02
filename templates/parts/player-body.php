@@ -54,6 +54,7 @@ if ($_['backgroundUrl'] !== '') {
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
      data-nextcloud-url="<?php echo $escape($_['nextcloudUrl'] ?? ''); ?>"
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
+     data-show-folder-count="<?php echo $escape($_['showFolderCount'] ?? ''); ?>"
      data-search-scope="<?php echo $escape($_['searchScope'] ?? 'folder'); ?>"
      data-repeat-default="<?php echo $escape($_['repeatDefault'] ?? 'next'); ?>"
      data-comments-offered="<?php echo $escape($_['commentsOffered'] ?? ''); ?>"

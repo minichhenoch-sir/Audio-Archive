@@ -33,6 +33,8 @@ const AudioArchive = (() => {
     standaloneUrl: el.dataset.standaloneUrl || '',
     nextcloudUrl: el.dataset.nextcloudUrl || '',
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
+    // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
+    showFolderCount: el.dataset.showFolderCount === '1',
     // ab 0.28.0 (Vikunja #32/#2)
     commentsOffered: el.dataset.commentsOffered === '1',
     repeatLabels: {

@@ -23,6 +23,8 @@ class Application extends App implements IBootstrap {
     public const SETTING_PUBLIC_COVER_ICON = 'public_cover_icon';
     /** Vorgabe fuer die Sortierung der Liste: 'name' oder 'newest' (ab 0.22.0) */
     public const SETTING_SORT_DEFAULT = 'sort_default';
+    /** Anzahl der Aufnahmen neben Ordnern anzeigen (ab 0.30.0, Vikunja #42; Vorgabe: nein) */
+    public const SETTING_SHOW_FOLDER_COUNT = 'show_folder_count';
     /** Suchbereich: 'folder' = geoeffneter Ordner samt Unterordnern, 'all' = ganze Quelle (ab 0.28.0, Vikunja #32) */
     public const SETTING_SEARCH_SCOPE = 'search_scope';
     /** Vorgabe fuer "Wiederholen": 'off', 'next', 'folder' oder 'one' (ab 0.28.0, Vikunja #2) */

@@ -96,6 +96,10 @@ class Admin implements ISettings {
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
             ),
+            // Anzahl der Aufnahmen bei Ordnern (ab 0.30.0, Vikunja #42)
+            'showFolderCount' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false
+            ),
             // Kommentare (ab 0.29.0, Vikunja #5)
             'featureComments' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false

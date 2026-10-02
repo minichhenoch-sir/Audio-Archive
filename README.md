@@ -1498,3 +1498,17 @@ PHP (neu: `CommentController`, `CommentService`, `Notification\Notifier`),
 JavaScript, CSS, Vorlagen und `info.xml` geändert; keine Datenbankänderung
 (Nextclouds eigene Kommentar-Tabelle). Nach dem Einspielen Container neu
 starten.
+
+## 0.30.0: Anzahl der Aufnahmen nur auf Wunsch
+
+Vikunja #42.
+
+- Neben den Ordnern steht die **Anzahl der Aufnahmen** („12 Aufnahmen“)
+  nicht mehr von selbst. Der Administrator kann sie unter Verwaltung →
+  Funktionen mit „Anzahl der Aufnahmen bei Ordnern anzeigen“ wieder
+  einschalten (Vorgabe: aus). Das Datum neben dem Ordner bleibt.
+- Die Einstellung gilt überall: angemeldete Nutzer, öffentlicher Link und
+  Freigaben der Nutzer.
+
+PHP, JavaScript, Vorlagen und `info.xml` geändert; keine Datenbankänderung.
+Nach dem Einspielen Container neu starten (PHP-Dateien geändert).

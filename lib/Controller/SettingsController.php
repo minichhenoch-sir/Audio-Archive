@@ -87,6 +87,7 @@ class SettingsController extends Controller {
         ?string $betaLinkLabel = null,
         ?string $publicCoverIcon = null,
         ?string $sortDefault = null,
+        ?bool $showFolderCount = null,
         ?string $searchScope = null,
         ?string $repeatDefault = null,
         ?bool $featureComments = null,
@@ -323,6 +324,9 @@ class SettingsController extends Controller {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
             );
+        }
+        if ($showFolderCount !== null) {
+            $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, $showFolderCount);
         }
         // ---------- Kommentare (ab 0.29.0) ----------
         if ($featureComments !== null) {

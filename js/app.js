@@ -2410,7 +2410,8 @@
   }
 
   function folderMeta(entry) {
-    const count = entry.count || 0; // null bei den eigenen Dateien (nicht gezaehlt)
+    // Die Anzahl zeigt nur, wer sie in der Verwaltung einschaltet (ab 0.30.0, Vikunja #42)
+    const count = AudioArchive.showFolderCount ? (entry.count || 0) : 0; // null bei den eigenen Dateien (nicht gezaehlt)
     return [
       shortDate(entry.added),
       count > 0 ? count + (count === 1 ? ' Aufnahme' : ' Aufnahmen') : '',

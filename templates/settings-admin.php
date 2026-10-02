@@ -223,6 +223,15 @@
             umschalten; seine Wahl merkt sich sein Gerät.
         </p>
     </div>
+    <!-- Anzahl der Aufnahmen (ab 0.30.0, Vikunja #42) -->
+    <p>
+        <input type="checkbox" id="aa-show-folder-count" class="checkbox">
+        <label for="aa-show-folder-count">Anzahl der Aufnahmen bei Ordnern anzeigen</label>
+    </p>
+    <p class="settings-hint">
+        Zeigt neben jedem Ordner, wie viele Aufnahmen er enthält (z.&nbsp;B.
+        „12 Aufnahmen“). Gilt für alle, auch für geteilte Links.
+    </p>
     <!-- Kommentare (ab 0.29.0, Vikunja #5) -->
     <p>
         <input type="checkbox" id="aa-feature-comments" class="checkbox">

@@ -244,6 +244,10 @@ class PlayerPage {
             'sortDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
             ) === 'newest' ? 'newest' : 'name',
+            // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
+            'showFolderCount' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false
+            ) ? '1' : '',
             'headerTitle' => $values['title'],
             'headerSubtitle' => $values['subtitle'],
             'themeBar' => $values['themeBar'],

@@ -53,6 +53,7 @@
   const featureOffline = el('aa-feature-offline');
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
+  const showFolderCount = el('aa-show-folder-count'); // ab 0.30.0 (Vikunja #42)
   const searchScope = el('aa-search-scope');
   // Kommentare (ab 0.29.0)
   const featureComments = el('aa-feature-comments');
@@ -154,6 +155,7 @@
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
+  showFolderCount.checked = state.showFolderCount === true;
   searchScope.value = state.searchScope === 'all' ? 'all' : 'folder';
   featureComments.checked = state.featureComments === true;
   featureRating.checked = state.featureRating !== false;
@@ -412,6 +414,7 @@
       featureOffline: featureOffline.checked,
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
+      showFolderCount: showFolderCount.checked,
       searchScope: searchScope.value,
       featureComments: featureComments.checked,
       featureRating: featureRating.checked,
