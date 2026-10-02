@@ -66,7 +66,7 @@ function cacheKeyFor(rawUrl) {
    * 0.18.3): searchParams schreibt beim Loeschen die ganze Abfrage neu und
    * macht dabei aus %20 ein "+" (ebenso bei ( ) ! ' *). Die Adresse passte
    * dann nicht mehr zum gespeicherten Eintrag - jede Aufnahme mit
-   * Leerzeichen im Namen ("Predigt 1.mp3") kam nie aus dem Offline-Speicher,
+   * Leerzeichen im Namen ("Vortrag 1.mp3") kam nie aus dem Offline-Speicher,
    * weder offline noch aus dem Vorausladen.
    */
   if (!/[?&]retry=/.test(rawUrl)) return rawUrl;
@@ -98,7 +98,7 @@ async function serveAudioFromCache(request) {
    * Als Blob statt als ArrayBuffer (ab 0.15.1): Ein Blob aus dem Speicher
    * liegt beim Browser auf der Platte, slice() kopiert nichts. Mit
    * arrayBuffer() wurde bei JEDEM Spulen die ganze Datei in den
-   * Arbeitsspeicher geladen - bei einer zweistuendigen Predigt ueber 100 MB.
+   * Arbeitsspeicher geladen - bei einer zweistuendigen Aufnahme ueber 100 MB.
    * Auf Telefonen fuehrte das zu Abbruechen ("data source error"), vor allem
    * beim Spulen ans Ende; im Test mit Chromium reproduzierbar.
    */

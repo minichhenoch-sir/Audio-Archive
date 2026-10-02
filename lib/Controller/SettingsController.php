@@ -136,6 +136,12 @@ class SettingsController extends Controller {
         ?string $publicCoverIcon = null,
         ?string $sortDefault = null,
         ?bool $showFolderCount = null,
+        ?bool $showFolderDate = null,
+        ?bool $showTrackDuration = null,
+        ?bool $showTrackDate = null,
+        ?bool $prettyFolderNames = null,
+        ?bool $titleFromTags = null,
+        ?string $starColor = null,
         ?string $searchScope = null,
         ?string $repeatDefault = null,
         ?bool $featureComments = null,
@@ -396,6 +402,24 @@ class SettingsController extends Controller {
         }
         if ($showFolderCount !== null) {
             $this->appConfig->setValueBool(Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, $showFolderCount);
+        }
+        // ---------- Anzeige in der Liste, Namen, Sternfarbe (ab 0.33.0) ----------
+        foreach ([
+            Application::SETTING_SHOW_FOLDER_DATE => $showFolderDate,
+            Application::SETTING_SHOW_TRACK_DURATION => $showTrackDuration,
+            Application::SETTING_SHOW_TRACK_DATE => $showTrackDate,
+            Application::SETTING_PRETTY_FOLDER_NAMES => $prettyFolderNames,
+            Application::SETTING_TITLE_FROM_TAGS => $titleFromTags,
+        ] as $key => $value) {
+            if ($value !== null) {
+                $this->appConfig->setValueBool(Application::APP_ID, $key, $value);
+            }
+        }
+        if ($starColor !== null) {
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_STAR_COLOR,
+                in_array($starColor, Application::STAR_COLORS, true) ? $starColor : 'accent'
+            );
         }
         // ---------- Kommentare (ab 0.29.0) ----------
         if ($featureComments !== null) {

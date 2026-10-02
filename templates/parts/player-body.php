@@ -31,6 +31,10 @@ if ($_['backgroundUrl'] !== '') {
     $rootStyle = '--aa-image: url("' . str_replace(['"', '\\', "\n"], '', $_['backgroundUrl']) . '")';
 }
 ?>
+<?php
+// Farbe des Favoriten-Sterns (ab 0.33.0, Vikunja #3)
+$rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yellow', 'text'], true) ? $_['starColor'] : 'accent');
+?>
 <div id="audioarchive" class="<?php echo $escape(implode(' ', $rootClasses)); ?>"<?php if ($rootStyle !== '') { ?> style="<?php echo $escape($rootStyle); ?>"<?php } ?>>
 
 <!--
@@ -56,6 +60,8 @@ if ($_['backgroundUrl'] !== '') {
      data-sort-default="<?php echo $escape($_['sortDefault'] ?? 'name'); ?>"
      data-sources="<?php echo $escape($_['sources'] ?? '[]'); ?>"
      data-show-folder-count="<?php echo $escape($_['showFolderCount'] ?? ''); ?>"
+     data-list-display="<?php echo $escape($_['listDisplay'] ?? '{}'); ?>"
+     data-star-color="<?php echo $escape($_['starColor'] ?? 'accent'); ?>"
      data-search-scope="<?php echo $escape($_['searchScope'] ?? 'folder'); ?>"
      data-repeat-default="<?php echo $escape($_['repeatDefault'] ?? 'next'); ?>"
      data-comments-offered="<?php echo $escape($_['commentsOffered'] ?? ''); ?>"

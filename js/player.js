@@ -244,6 +244,9 @@ const Player = (() => {
    * sonst der Dateiname ohne Endung.
    */
   function trackTitle(track) {
+    // Ab 0.33.0 (Vikunja #44) zeigt der Player den Dateinamen wie in der
+    // Liste; den Titel aus den Tags nur, wenn die Verwaltung es so einstellt.
+    if (!AudioArchive.listDisplay.titleFromTags) return track.name;
     return (track.title && track.title.trim()) || track.name;
   }
 

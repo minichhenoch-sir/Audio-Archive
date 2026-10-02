@@ -290,6 +290,25 @@ class PlayerPage {
             'showFolderCount' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false
             ) ? '1' : '',
+            // Anzeige in der Liste, Namen und Sternfarbe (ab 0.33.0, Vikunja #50, #44, #3)
+            'listDisplay' => json_encode([
+                'folderDate' => $this->appConfig->getValueBool(
+                    Application::APP_ID, Application::SETTING_SHOW_FOLDER_DATE, true
+                ),
+                'trackDuration' => $this->appConfig->getValueBool(
+                    Application::APP_ID, Application::SETTING_SHOW_TRACK_DURATION, true
+                ),
+                'trackDate' => $this->appConfig->getValueBool(
+                    Application::APP_ID, Application::SETTING_SHOW_TRACK_DATE, true
+                ),
+                'prettyFolderNames' => $this->appConfig->getValueBool(
+                    Application::APP_ID, Application::SETTING_PRETTY_FOLDER_NAMES, false
+                ),
+                'titleFromTags' => $this->appConfig->getValueBool(
+                    Application::APP_ID, Application::SETTING_TITLE_FROM_TAGS, false
+                ),
+            ]),
+            'starColor' => Application::starColor($this->appConfig),
             'headerTitle' => $values['title'],
             'headerSubtitle' => $values['subtitle'],
             'themeBar' => $values['themeBar'],

@@ -106,6 +106,23 @@ class Admin implements ISettings {
             'showFolderCount' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false
             ),
+            // Anzeige in der Liste und Namen (ab 0.33.0, Vikunja #50, #44, #3)
+            'showFolderDate' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_SHOW_FOLDER_DATE, true
+            ),
+            'showTrackDuration' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_SHOW_TRACK_DURATION, true
+            ),
+            'showTrackDate' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_SHOW_TRACK_DATE, true
+            ),
+            'prettyFolderNames' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_PRETTY_FOLDER_NAMES, false
+            ),
+            'titleFromTags' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_TITLE_FROM_TAGS, false
+            ),
+            'starColor' => Application::starColor($this->appConfig),
             // Kommentare (ab 0.29.0, Vikunja #5)
             'featureComments' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_COMMENTS, false

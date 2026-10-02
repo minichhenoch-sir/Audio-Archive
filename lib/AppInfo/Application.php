@@ -25,6 +25,30 @@ class Application extends App implements IBootstrap {
     public const SETTING_SORT_DEFAULT = 'sort_default';
     /** Anzahl der Aufnahmen neben Ordnern anzeigen (ab 0.30.0, Vikunja #42; Vorgabe: nein) */
     public const SETTING_SHOW_FOLDER_COUNT = 'show_folder_count';
+    /*
+     * Was in den Zeilen der Liste steht (ab 0.33.0, Vikunja #50): Datum bei
+     * Ordnern, Laenge und Datum bei Aufnahmen. Vorgabe: ja (wie bisher).
+     */
+    public const SETTING_SHOW_FOLDER_DATE = 'show_folder_date';
+    public const SETTING_SHOW_TRACK_DURATION = 'show_track_duration';
+    public const SETTING_SHOW_TRACK_DATE = 'show_track_date';
+    /*
+     * Namen (ab 0.33.0, Vikunja #44): Vorgabe sind die Ordner- und
+     * Dateinamen genau so, wie sie im Ordner stehen. Wahlweise wie bis
+     * 0.32.0 lesbar umgeschrieben ("2026_08" -> "August 2026") bzw. der
+     * Titel aus den Angaben der Datei (Tags) im Player.
+     */
+    public const SETTING_PRETTY_FOLDER_NAMES = 'pretty_folder_names';
+    public const SETTING_TITLE_FROM_TAGS = 'title_from_tags';
+    /** Farbe des Favoriten-Sterns: 'accent' (Vorgabe), 'yellow' oder 'text' (ab 0.33.0, Vikunja #3) */
+    public const SETTING_STAR_COLOR = 'star_color';
+    public const STAR_COLORS = ['accent', 'yellow', 'text'];
+
+    /** Gewaehlte Sternfarbe, unbekannte Werte = Vorgabe 'accent'. */
+    public static function starColor(\OCP\IAppConfig $appConfig): string {
+        $value = $appConfig->getValueString(self::APP_ID, self::SETTING_STAR_COLOR, 'accent');
+        return in_array($value, self::STAR_COLORS, true) ? $value : 'accent';
+    }
     /** Suchbereich: 'folder' = geoeffneter Ordner samt Unterordnern, 'all' = ganze Quelle (ab 0.28.0, Vikunja #32) */
     public const SETTING_SEARCH_SCOPE = 'search_scope';
     /** Vorgabe fuer "Wiederholen": 'off', 'next', 'folder' oder 'one' (ab 0.28.0, Vikunja #2) */

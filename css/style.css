@@ -418,6 +418,18 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 /* ===================== FAVORITEN (ab 0.24.0) ===================== */
 
+/*
+ * Farbe des Sterns (ab 0.33.0, Vikunja #3): Fest gelb passte nicht zu jeder
+ * Gestaltung. Vorgabe ist jetzt die Akzentfarbe der Gestaltung; in der
+ * Verwaltung waehlbar: klassisch Gelb oder wie der Text. Ob ein Eintrag
+ * Favorit ist, zeigt weiter die Form (gefuellt / nur Umriss).
+ */
+#audioarchive { --aa-star: var(--aa-accent-on-surface, var(--color-accent-deep)); }
+#audioarchive.aa-design-nextcloud { --aa-star: var(--aa-nc-primary); }
+#audioarchive.aa-star-yellow { --aa-star: #e0a100; }
+#audioarchive.aa-star-text { --aa-star: var(--color-ink); }
+#audioarchive.aa-design-nextcloud.aa-star-text { --aa-star: var(--aa-nc-text); }
+
 #audioarchive .row-fav {
   flex: none;
   display: flex;
@@ -435,11 +447,11 @@ body.has-bg-image #audioarchive .explorer-row.active {
   cursor: pointer;
 }
 #audioarchive .row-fav.is-on {
-  color: #e0a100;
+  color: var(--aa-star);
   opacity: 1;
 }
 #audioarchive .row-fav:active { transform: scale(0.88); }
-#audioarchive .fav-entry .explorer-row-icon { color: #e0a100; }
+#audioarchive .fav-entry .explorer-row-icon { color: var(--aa-star); }
 #audioarchive .fav-header {
   display: flex;
   align-items: center;
@@ -459,7 +471,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   color: var(--color-ink);
   font-weight: 700;
 }
-#audioarchive .fav-title svg { color: #e0a100; }
+#audioarchive .fav-title svg { color: var(--aa-star); }
 #audioarchive.aa-favorites .breadcrumb-row,
 #audioarchive.aa-favorites .folder-actions,
 #audioarchive.aa-favorites .offline-bar,
@@ -472,7 +484,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
   color: var(--aa-nc-text);
 }
 #audioarchive.aa-design-nextcloud .row-fav { color: var(--aa-nc-text-soft); }
-#audioarchive.aa-design-nextcloud .row-fav.is-on { color: #e0a100; }
+#audioarchive.aa-design-nextcloud .row-fav.is-on { color: var(--aa-star); }
 
 /* ===================== WEITERHOEREN (ab 0.23.0) ===================== */
 
@@ -1404,9 +1416,9 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 /*
  * Auf schmalen Bildschirmen wird der Untertitel (zweite Zeile unter
- * "Gemeinde-Aufnahmen") nicht mehr einzeilig abgeschnitten, sondern darf
+ * "Aufnahmen des Vereins") nicht mehr einzeilig abgeschnitten, sondern darf
  * umbrechen und mehrzeilig unter dem Titel stehen. Sonst geht bei
- * laengeren Saetzen (z.B. einem Bibelvers) der halbe Text verloren.
+ * laengeren Saetzen (z.B. einem Zitat) der halbe Text verloren.
  */
 @media (max-width: 640px) {
   #audioarchive .topbar {
@@ -3240,7 +3252,7 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
   padding: 0;
   border: none;
   background: transparent;
-  color: #e0a100;
+  color: var(--aa-star);
   font-size: 26px;
   line-height: 1;
   cursor: pointer;

@@ -392,10 +392,10 @@ window.AAStyle = (() => {
       + '<div class="aa-se-pv-top"><span class="aa-se-pv-title">Aufnahmen</span><span class="aa-se-pv-btn"></span></div>'
       + '<div class="aa-se-pv-list">'
       + '<div class="aa-se-pv-row"><span class="aa-se-pv-ico"></span><span class="aa-se-pv-text"><b>2026_09</b><i>12 Aufnahmen</i></span></div>'
-      + '<div class="aa-se-pv-row is-active"><span class="aa-se-pv-eq"><i></i><i></i><i></i></span><span class="aa-se-pv-text"><b>Vortrag am Sonntag</b><i>48:12</i></span></div>'
+      + '<div class="aa-se-pv-row is-active"><span class="aa-se-pv-eq"><i></i><i></i><i></i></span><span class="aa-se-pv-text"><b>Vortrag – Teil 1</b><i>48:12</i></span></div>'
       + '<div class="aa-se-pv-row"><span class="aa-se-pv-ico"></span><span class="aa-se-pv-text"><b>Interview</b><i>31:05</i></span></div>'
       + '</div>'
-      + '<div class="aa-se-pv-player"><span class="aa-se-pv-cover"></span><span class="aa-se-pv-text"><b>Vortrag am Sonntag</b><i>Archiv</i><span class="aa-se-pv-progress"><span></span></span></span><span class="aa-se-pv-play"></span></div>';
+      + '<div class="aa-se-pv-player"><span class="aa-se-pv-cover"></span><span class="aa-se-pv-text"><b>Vortrag – Teil 1</b><i>Archiv</i><span class="aa-se-pv-progress"><span></span></span></span><span class="aa-se-pv-play"></span></div>';
 
     return {
       el: box,

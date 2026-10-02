@@ -55,6 +55,13 @@
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
   const showFolderCount = el('aa-show-folder-count'); // ab 0.30.0 (Vikunja #42)
+  // Anzeige in der Liste, Namen, Sternfarbe (ab 0.33.0, Vikunja #50, #44, #3)
+  const showFolderDate = el('aa-show-folder-date');
+  const showTrackDuration = el('aa-show-track-duration');
+  const showTrackDate = el('aa-show-track-date');
+  const prettyFolderNames = el('aa-pretty-folder-names');
+  const titleFromTags = el('aa-title-from-tags');
+  const starColor = el('aa-star-color');
   const searchScope = el('aa-search-scope');
   // Kommentare (ab 0.29.0)
   const featureComments = el('aa-feature-comments');
@@ -158,6 +165,12 @@
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
   showFolderCount.checked = state.showFolderCount === true;
+  showFolderDate.checked = state.showFolderDate !== false;
+  showTrackDuration.checked = state.showTrackDuration !== false;
+  showTrackDate.checked = state.showTrackDate !== false;
+  prettyFolderNames.checked = state.prettyFolderNames === true;
+  titleFromTags.checked = state.titleFromTags === true;
+  starColor.value = ['accent', 'yellow', 'text'].includes(state.starColor) ? state.starColor : 'accent';
   searchScope.value = state.searchScope === 'all' ? 'all' : 'folder';
   featureComments.checked = state.featureComments === true;
   featureRating.checked = state.featureRating !== false;
@@ -408,7 +421,7 @@
     const name = document.createElement('input');
     name.type = 'text';
     name.maxLength = 60;
-    name.placeholder = 'Name, z. B. Kinderstunden';
+    name.placeholder = 'Name, z. B. Hörbücher';
     name.value = src.name || '';
     name.className = 'aa-extra-name';
 
@@ -520,6 +533,12 @@
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
       showFolderCount: showFolderCount.checked,
+      showFolderDate: showFolderDate.checked,
+      showTrackDuration: showTrackDuration.checked,
+      showTrackDate: showTrackDate.checked,
+      prettyFolderNames: prettyFolderNames.checked,
+      titleFromTags: titleFromTags.checked,
+      starColor: starColor.value,
       searchScope: searchScope.value,
       featureComments: featureComments.checked,
       featureRating: featureRating.checked,

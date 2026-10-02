@@ -216,8 +216,8 @@ laufende Wiedergabe ausbremsen.
 
 **Offline-Ansicht als echter Ordnerbaum.** Gespeichert wird je Ordner unter
 seinem vollen Pfad; die Zwischenebenen werden daraus abgeleitet. Liegt etwa
-`2026_08/Sonntag` vor, zeigt die oberste Ebene `2026_08` und erst darin
-`Sonntag` – statt alle gespeicherten Ordner flach nebeneinander.
+`2026_08/Teil 1` vor, zeigt die oberste Ebene `2026_08` und erst darin
+`Teil 1` – statt alle gespeicherten Ordner flach nebeneinander.
 
 **Künstler und Album offline.** Diese Angaben stehen nur im Verzeichnis, nicht
 im Audio-Speicher. Musste das Verzeichnis aus dem Speicher rekonstruiert
@@ -534,12 +534,12 @@ eine Neuinstallation nötig.
 
 ### Links mit Wunschnamen
 Statt einer Zufallsadresse lässt sich ein eigener Name vergeben:
-`/apps/audioarchive/s/gottesdienst-sonntag`.
+`/apps/audioarchive/s/konzert-abend`.
 
 - Bei jedem Link eines Nutzers („Neuer Link" bzw. „Bearbeiten") und beim
   öffentlichen Link des Administrators (Einstellungen → Verwaltung).
 - Erlaubt: a–z, Ziffern, Bindestrich, 3 bis 64 Zeichen. Eingaben werden
-  umgewandelt: „Gottesdienst Sonntag Über" → `gottesdienst-sonntag-ueber`.
+  umgewandelt: „Konzert Abend Über" → `konzert-abend-ueber`.
 - Groß-/Kleinschreibung in der Adresse spielt keine Rolle.
 - Jeder Name nur einmal, auch nicht gleich dem Administrator-Link.
 - Feld leeren = wieder eine zufällige Adresse.
@@ -669,7 +669,7 @@ passend zur Stufe.
 ### Nächster Ordner = Baum-Reihenfolge
 Wie ein Inhaltsverzeichnis: zuerst die Unterordner, dann der Ordner daneben,
 am Ende einer Ebene eine Ebene höher. Beispiel:
-`2026_08` → `2026_08/Sonntag` → `2026_09` → `2026_10/Teil`. Ordner ohne
+`2026_08` → `2026_08/Teil 1` → `2026_09` → `2026_10/Teil`. Ordner ohne
 Aufnahmen werden übersprungen, ihre Unterordner aber durchsucht. Nie
 außerhalb der Quelle (bei Links und geteilten Ordnern nur innerhalb der
 Freigabe). Zeigt die Liste gerade den fertigen Ordner, wandert sie mit.
@@ -766,8 +766,8 @@ Player-Leiste nur ein bis zwei Einträge der Liste sichtbar.
   Album) ist einzeilig und wird abgekürzt, statt auf bis zu sechs Zeilen
   umzubrechen. Kleinere Knöpfe und Abstände. Die Leiste ist dadurch etwa
   ein Drittel niedriger. Vollständig steht alles weiter im Vollbild-Player.
-- **Kopfzeile scrollt mit:** Auf Telefonen bleibt der Titel samt Vers nicht
-  mehr fest oben stehen, sondern scrollt mit der Liste weg. Der Vers bleibt
+- **Kopfzeile scrollt mit:** Auf Telefonen bleibt der Titel samt Untertitel nicht
+  mehr fest oben stehen, sondern scrollt mit der Liste weg. Der Untertitel bleibt
   vollständig sichtbar, sobald man nach oben scrollt. Mit Ordnerbaum
   scrollt dafür die ganze Seite; das Menü (☰) ist oben erreichbar.
 - **Telefon quer:** Steuerung neben dem Titel, Fortschritt darunter – die
@@ -1079,7 +1079,7 @@ Nur JavaScript und CSS geändert – kein Neustart des Containers nötig.
   „›“ statt „/“, und der aktuelle Ordner steht kräftig statt blass.
 - Ordnernamen werden lesbarer angezeigt (nur die Anzeige, die Ordner bleiben
   unverändert): Unterstriche werden Leerzeichen, „2026_08“ wird „August 2026“,
-  „2026-09-21 Gottesdienst Sonntag“ wird „Gottesdienst Sonntag,
+  „2026-09-21 Konzert Abend“ wird „Konzert Abend,
   21. September 2026“. Das gilt für Liste, Pfad, Ordnerbaum und die Angabe im
   Player.
 
@@ -1268,7 +1268,7 @@ Container neu starten; keine Datenbankänderung.
 - **Suche:** Feld über der Liste. Gesucht wird in der ganzen geöffneten
   Quelle (gemeinsame Aufnahmen, eigene Dateien oder Freigabe) – in Ordner-
   und Dateinamen, im Ordnerpfad sowie in Titel, Künstler und Album. Mehrere
-  Wörter müssen alle vorkommen („predigt 2024“), Groß-/Kleinschreibung und
+  Wörter müssen alle vorkommen („vortrag 2024“), Groß-/Kleinschreibung und
   Akzente egal. Treffer zeigen darunter ihren Ordner; Antippen spielt die
   Trefferliste ab bzw. öffnet den Ordner. Ohne Verbindung wird in den offline
   gespeicherten Ordnern gesucht.
@@ -1441,7 +1441,7 @@ Vikunja #32, #2, #41.
 
 - **Suche (#32):** Gesucht wird jetzt im **geöffneten Ordner samt
   Unterordnern**; ganz oben weiterhin überall. Das Suchfeld nennt den
-  Ordner („In „Predigten 2024“ suchen …“), die Trefferzeile ebenso.
+  Ordner („In „Vorträge 2024“ suchen …“), die Trefferzeile ebenso.
   Verglichen wird nur der Pfad unterhalb des geöffneten Ordners – sonst
   passte dessen Name auf jede Aufnahme darin. Neu in der Verwaltung →
   Funktionen: **„Suchbereich“** (Geöffneter Ordner mit Unterordnern /
@@ -1555,6 +1555,33 @@ Vikunja #8 (Teil 2).
   für Links, Freigaben an Personen und das Weiterteilen.
 - Entfernte Quelle: verschwindet aus der Seitenleiste, bestehende Links
   bleiben gültig, bis sie gelöscht werden.
+
+PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.33.0: Originale Namen, Anzeige in der Liste einstellbar, allgemeine Texte
+
+Vikunja #44, #50, #45, #3.
+
+- **Originale Namen (#44):** Ordner und Aufnahmen heißen in der App genau so
+  wie im Ordner. Das lesbare Umschreiben aus 0.19.0 („2026_08“ → „August
+  2026“) gibt es nur noch auf Wunsch: Verwaltung → Funktionen → Namen →
+  „Ordnernamen lesbar umschreiben“ (`pretty_folder_names`, Vorgabe aus).
+  Der Player (auch Sperrbildschirm/Auto) zeigt den Dateinamen; den Titel aus
+  den Tags nur mit „Im Player den Titel aus der Datei zeigen“
+  (`title_from_tags`, Vorgabe aus).
+- **Anzeige in der Liste (#50):** Einzeln abschaltbar – bei Ordnern Datum
+  (`show_folder_date`) und Anzahl (`show_folder_count`, wie bisher aus), bei
+  Aufnahmen Länge (`show_track_duration`) und Datum (`show_track_date`).
+  Vorgabe wie bisher. Gilt für alle, auch für Links.
+- **Sternfarbe (#3):** Der Favoriten-Stern hat jetzt die Akzentfarbe der
+  Gestaltung (bei „Klassisch“ die Nextcloud-Farbe). Wählbar: Gestaltung,
+  Gelb, Schriftfarbe (`star_color`). Gilt auch für die Sterne der Bewertung.
+- **Allgemeine Texte (#45):** Gemeindespezifische Beispiele aus Oberfläche,
+  Vorschau des Gestaltungs-Editors, Kommentaren im Code und README entfernt
+  (z. B. „Bibelvers“, „Kinderstunden“, „Vortrag am Sonntag“). Nur der alte
+  Name des Offline-Speichers der eigenständigen Fassung bleibt, damit dort
+  gespeicherte Aufnahmen lesbar bleiben.
 
 PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.

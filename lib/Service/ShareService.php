@@ -152,7 +152,7 @@ class ShareService {
     /**
      * Macht aus einer Eingabe einen Wunschnamen: Kleinbuchstaben, Umlaute
      * ausgeschrieben, Leerzeichen und Sonderzeichen als Bindestrich.
-     * "Gottesdienst Sonntag" -> "gottesdienst-sonntag".
+     * "Konzert Abend" -> "konzert-abend".
      */
     public static function normalizeSlug(string $input): string {
         $s = mb_strtolower(trim($input), 'UTF-8');
@@ -222,7 +222,7 @@ class ShareService {
     /**
      * Freigabe zu einem Token. Erst exakt (zufaellige Tokens unterscheiden
      * Gross-/Kleinschreibung), dann als Wunschname in Kleinschreibung - wer
-     * /s/Gottesdienst tippt, landet trotzdem bei /s/gottesdienst.
+     * /s/Konzert tippt, landet trotzdem bei /s/konzert.
      */
     public function findByToken(string $token): ?array {
         if ($token === '' || strlen($token) > 64) {

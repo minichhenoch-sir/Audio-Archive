@@ -28,7 +28,7 @@
     <p class="settings-hint">
         Jede weitere Quelle erscheint in der App für alle angemeldeten Nutzer
         als eigener Eintrag oben in der Seitenleiste (z.&nbsp;B.
-        „Kinderstunden“). <strong>Links</strong> dafür – mit eigenem Passwort,
+        „Hörbücher“). <strong>Links</strong> dafür – mit eigenem Passwort,
         Wunschnamen, „Angemeldet bleiben“ und eigener Gestaltung – legt man in
         der App an: Quelle öffnen → „Diesen Ordner teilen“ → „Neuer Link“. Alle
         Links stehen unten unter „Freigaben durch Nutzer“.
@@ -253,15 +253,67 @@
             umschalten; seine Wahl merkt sich sein Gerät.
         </p>
     </div>
-    <!-- Anzahl der Aufnahmen (ab 0.30.0, Vikunja #42) -->
+    <!-- Anzeige in der Liste (ab 0.33.0, Vikunja #50; Anzahl ab 0.30.0, #42) -->
+    <h4 class="aa-subheading">Anzeige in der Liste</h4>
+    <p class="settings-hint">
+        Was klein neben den Namen steht. Gilt für alle, auch für geteilte Links.
+    </p>
+    <p><strong>Bei Ordnern:</strong></p>
+    <p>
+        <input type="checkbox" id="aa-show-folder-date" class="checkbox">
+        <label for="aa-show-folder-date">Datum (wann der Ordner hinzugekommen ist)</label>
+    </p>
     <p>
         <input type="checkbox" id="aa-show-folder-count" class="checkbox">
-        <label for="aa-show-folder-count">Anzahl der Aufnahmen bei Ordnern anzeigen</label>
+        <label for="aa-show-folder-count">Anzahl der Aufnahmen (z.&nbsp;B. „12 Aufnahmen“)</label>
+    </p>
+    <p><strong>Bei Aufnahmen:</strong></p>
+    <p>
+        <input type="checkbox" id="aa-show-track-duration" class="checkbox">
+        <label for="aa-show-track-duration">Länge (z.&nbsp;B. „48:12“)</label>
+    </p>
+    <p>
+        <input type="checkbox" id="aa-show-track-date" class="checkbox">
+        <label for="aa-show-track-date">Datum (wann die Datei zuletzt geändert wurde)</label>
+    </p>
+
+    <!-- Namen (ab 0.33.0, Vikunja #44) -->
+    <h4 class="aa-subheading">Namen</h4>
+    <p class="settings-hint">
+        Vorgabe: Ordner und Aufnahmen heißen in der App genau so wie im Ordner.
+    </p>
+    <p>
+        <input type="checkbox" id="aa-pretty-folder-names" class="checkbox">
+        <label for="aa-pretty-folder-names">Ordnernamen lesbar umschreiben</label>
     </p>
     <p class="settings-hint">
-        Zeigt neben jedem Ordner, wie viele Aufnahmen er enthält (z.&nbsp;B.
-        „12 Aufnahmen“). Gilt für alle, auch für geteilte Links.
+        Unterstriche werden zu Leerzeichen, Datumsangaben werden ausgeschrieben:
+        „2026_08“ wird „August 2026“, „2026-09-21 Konzert“ wird „Konzert,
+        21. September 2026“. Die Ordner selbst bleiben unverändert.
     </p>
+    <p>
+        <input type="checkbox" id="aa-title-from-tags" class="checkbox">
+        <label for="aa-title-from-tags">Im Player den Titel aus der Datei zeigen</label>
+    </p>
+    <p class="settings-hint">
+        Statt des Dateinamens den Titel, der in der Audiodatei selbst
+        gespeichert ist (falls vorhanden). Das gilt auch für die Anzeige auf
+        dem Sperrbildschirm und im Auto.
+    </p>
+
+    <!-- Sternfarbe (ab 0.33.0, Vikunja #3) -->
+    <div class="aa-field">
+        <label for="aa-star-color">Farbe des Favoriten-Sterns</label>
+        <select id="aa-star-color">
+            <option value="accent">Wie die Gestaltung (Akzentfarbe)</option>
+            <option value="yellow">Gelb</option>
+            <option value="text">Wie die Schrift</option>
+        </select>
+        <p class="settings-hint">
+            Ein Favorit hat einen ausgefüllten Stern, sonst ist nur der Umriss
+            zu sehen – das bleibt bei jeder Farbe erkennbar.
+        </p>
+    </div>
     <!-- Kommentare (ab 0.29.0, Vikunja #5) -->
     <p>
         <input type="checkbox" id="aa-feature-comments" class="checkbox">
@@ -376,7 +428,7 @@
     <h3>Text über den Aufnahmen</h3>
     <p class="settings-hint">
         Ein frei formulierbarer Text über der Liste, z.&nbsp;B. ein Gruß, ein
-        Bibelvers oder ein Hinweis. Er erscheint ohne Überschrift. Das hier ist
+        Zitat oder ein Hinweis. Er erscheint ohne Überschrift. Das hier ist
         die Vorgabe: Angemeldete Nutzer können für ihre eigene Ansicht (Zahnrad
         → Texte) und beim Teilen für jeden Link einen eigenen Text setzen.
     </p>

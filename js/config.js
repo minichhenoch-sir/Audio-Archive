@@ -35,6 +35,20 @@ const AudioArchive = (() => {
     sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
     // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
     showFolderCount: el.dataset.showFolderCount === '1',
+    // Was in den Zeilen steht und wie Namen erscheinen (ab 0.33.0, Vikunja #50, #44)
+    listDisplay: (() => {
+      let d = {};
+      try { d = JSON.parse(el.dataset.listDisplay || '{}') || {}; } catch (e) { d = {}; }
+      return {
+        folderDate: d.folderDate !== false,
+        trackDuration: d.trackDuration !== false,
+        trackDate: d.trackDate !== false,
+        prettyFolderNames: d.prettyFolderNames === true,
+        titleFromTags: d.titleFromTags === true,
+      };
+    })(),
+    // Farbe des Favoriten-Sterns (ab 0.33.0, Vikunja #3)
+    starColor: ['accent', 'yellow', 'text'].includes(el.dataset.starColor) ? el.dataset.starColor : 'accent',
     // Weitere Quellen des Administrators: [{id: 'src:<n>', name}] (ab 0.32.0, Vikunja #8)
     extraSources: (() => {
       try {
@@ -284,7 +298,7 @@ const AudioArchive = (() => {
 
     /** Ist die Quelle ein mit dem Nutzer geteilter Ordner ('in:<id>')? */
     /**
-     * Empfaenger einer Freigabe lesbar: "👤 Anna Beispiel, 👥 Gruppe Chor"
+     * Empfaenger einer Freigabe lesbar: "👤 Anna Beispiel, 👥 Gruppe Team"
      * (ab 0.26.0, Vikunja #8: Person oder Gruppe muss erkennbar sein).
      */
     describeMembers(members) {

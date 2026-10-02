@@ -107,7 +107,7 @@ class AssetController extends Controller {
      * Das Erzeugen einer NEUEN Farbe kostet etwas Rechenzeit (~0,1 s).
      * Ohne Anmeldung ist das deshalb begrenzt - aber nur, wenn wirklich neu
      * gerechnet werden muss. Schon erzeugte Symbole kommen unbegrenzt aus
-     * dem Zwischenspeicher (viele Geraete hinter einem Gemeinde-WLAN).
+     * dem Zwischenspeicher (viele Geraete hinter einem gemeinsamen WLAN).
      */
     #[PublicPage]
     #[NoCSRFRequired]

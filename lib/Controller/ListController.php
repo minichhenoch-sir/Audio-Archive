@@ -493,7 +493,7 @@ class ListController extends Controller {
      * (ab 0.28.0, Vikunja #32; Vorgabe der Verwaltung "Suchbereich"):
      * Ordner nach Namen, Aufnahmen nach Datei- und Ordnername
      * sowie Titel, Kuenstler und Album. Mehrere Woerter muessen alle
-     * vorkommen ("predigt 2024"), Gross-/Kleinschreibung egal.
+     * vorkommen ("vortrag 2024"), Gross-/Kleinschreibung egal.
      *
      * Die Angaben aus den Dateien kommen aus dem Zwischenspeicher; noch
      * nicht gelesene Dateien werden nur innerhalb eines Zeitbudgets gelesen.

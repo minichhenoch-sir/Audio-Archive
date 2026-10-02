@@ -691,8 +691,8 @@
    * Hoerer die Ordner leicht verstehen:
    *   - Unterstriche werden Leerzeichen:  "09_September"   -> "09 September"
    *   - Jahr und Monat allein:            "2026_08"        -> "August 2026"
-   *   - Datum am Anfang ausgeschrieben:   "2026-09-21 Gottesdienst Sonntag"
-   *                                       -> "Gottesdienst Sonntag, 21. September 2026"
+   *   - Datum am Anfang ausgeschrieben:   "2026-09-21 Konzert Abend"     
+   *                                       -> "Konzert Abend, 21. September 2026"
    *   - Datum mitten im Namen ebenso ausgeschrieben
    * Sortiert wird weiter nach dem echten Namen.
    */
@@ -708,6 +708,9 @@
   }
 
   function prettyFolderName(raw) {
+    // Ab 0.33.0 (Vikunja #44) nur noch, wenn die Verwaltung es einschaltet -
+    // Vorgabe sind die Namen genau so, wie sie im Ordner stehen.
+    if (!AudioArchive.listDisplay.prettyFolderNames) return String(raw || '');
     const name = String(raw || '').replace(/_/g, ' ').replace(/\s+/g, ' ').trim();
     if (name === '') return String(raw || '');
 
@@ -729,7 +732,7 @@
     });
   }
 
-  /** Weg zu einem Ordner zum Vorlesen im Player: "August 2026 · Sonntag" */
+  /** Weg zu einem Ordner zum Vorlesen im Player: "August 2026 · Teil 1" */
   function prettyPath(path) {
     return path.split('/').map(prettyFolderName).join(' \u00b7 ');
   }
@@ -1085,7 +1088,8 @@
     if (!offlineSupportedStorage()) return false;
 
     try {
-      // Auch den Speichernamen der aelteren Fassung mitlesen
+      // Auch den Speichernamen der aelteren, eigenstaendigen Fassung mitlesen
+      // (fester Name von damals - nur so bleiben dort gespeicherte Aufnahmen erhalten)
       const keys = [];
       for (const name of [OFFLINE_AUDIO_CACHE_NAME, 'gemeinde-offline-audio']) {
         try {
@@ -1163,8 +1167,8 @@
    *
    * Gespeichert wird je Ordner unter seinem VOLLEN Pfad. Damit die Ansicht
    * ohne Verbindung genauso aussieht wie online, werden die Zwischenebenen
-   * aus diesen Pfaden abgeleitet: Liegt etwa "2026_08/Sonntag" vor, zeigt die
-   * oberste Ebene "2026_08" und darin erst "Sonntag" - statt wie zuvor alle
+   * aus diesen Pfaden abgeleitet: Liegt etwa "2026_08/Teil 1" vor, zeigt die
+   * oberste Ebene "2026_08" und darin erst "Teil 1" - statt wie zuvor alle
    * gespeicherten Ordner flach nebeneinander.
    */
   function offlineEntriesFor(path, source) {
@@ -2403,10 +2407,12 @@
   function rowMeta(entry, isActive) {
     const support = Player.formatSupport(entry);
     if (isActive && support.playable) return 'L\u00e4uft gerade';
+    // Laenge und Datum lassen sich in der Verwaltung abschalten (ab 0.33.0, Vikunja #50)
+    const show = AudioArchive.listDisplay;
     return [
-      support.playable ? trackMeta(entry) : support.short,
+      support.playable ? (show.trackDuration ? trackMeta(entry) : '') : support.short,
       support.label,
-      shortDate(entry.mtime),
+      show.trackDate ? shortDate(entry.mtime) : '',
     ].filter(Boolean).join(' \u00b7 ');
   }
 
@@ -2430,7 +2436,7 @@
     // Die Anzahl zeigt nur, wer sie in der Verwaltung einschaltet (ab 0.30.0, Vikunja #42)
     const count = AudioArchive.showFolderCount ? (entry.count || 0) : 0; // null bei den eigenen Dateien (nicht gezaehlt)
     return [
-      shortDate(entry.added),
+      AudioArchive.listDisplay.folderDate ? shortDate(entry.added) : '', // abschaltbar ab 0.33.0 (Vikunja #50)
       count > 0 ? count + (count === 1 ? ' Aufnahme' : ' Aufnahmen') : '',
     ].filter(Boolean).join(' \u00b7 ');
   }
