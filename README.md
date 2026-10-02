@@ -1585,3 +1585,31 @@ Vikunja #44, #50, #45, #3.
 
 PHP, JavaScript, CSS, Vorlagen und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.34.0: Schneller – Angaben im Hintergrund, kleinere Cover
+
+Vikunja #43.
+
+- **Hintergrundaufgabe `ReadMetadata`** (Nextcloud-Cron, alle 15 Minuten,
+  je Lauf höchstens 40 s): liest Länge, Titel, Künstler, Album und Cover-
+  Kennung aller Aufnahmen im gemeinsamen Ordner und den weiteren Quellen
+  vorab in `audioarchive_meta`. Bekannte Dateien kosten eine Abfrage je
+  Ordner. Im Test: 1 800 Dateien in 19 s. Voraussetzung: Nextclouds
+  Hintergrundaufgaben laufen (am besten „Cron“).
+- **Ordner öffnen:** bekannte Angaben aller Aufnahmen mit einer Abfrage
+  (`peekMany`) statt je Datei; noch nie gelesene Dateien nur 1,5 s lang,
+  danach kommt die Liste sofort mit `pending: true`, und die App holt die
+  restlichen Angaben im Hintergrund nach (ohne die Liste neu aufzubauen).
+- **Anzahl je Unterordner** wird nur noch gezählt, wenn die Verwaltung sie
+  anzeigen lässt (das Zählen ging bei jedem Öffnen durch alle Unterordner).
+- **Suche:** schon gelesene Angaben werden für die Treffer weiterverwendet
+  statt erneut nachgeschlagen.
+- **Cover für Sperrbildschirm, Benachrichtigung und Bluetooth/Auto:**
+  `api/cover?…&size=96|256|512` liefert ein quadratisches JPEG
+  (`CoverThumbnail`, GD, abgelegt in den App-Daten `cover-thumbs/`). Die
+  Media Session meldet diese drei Größen mit Typ statt des Originalbilds
+  (oft mehrere MB). Ohne Verbindung weiter das Original aus dem
+  Offline-Speicher.
+
+PHP, JavaScript und `info.xml` (Hintergrundaufgabe) geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

@@ -1536,8 +1536,50 @@
       libraryStatus.hidden = true;
       renderEntries();
       refreshOfflineBar();
+      // Angaben einzelner Aufnahmen liest der Server noch (ab 0.34.0)
+      if (data.pending) fillPending(source, view.path);
     } catch (err) {
       libraryStatus.textContent = 'Verbindung zum Server fehlgeschlagen.';
+    }
+  }
+
+  /*
+   * Nachladen der Angaben (ab 0.34.0, Vikunja #43). Beim ersten Oeffnen
+   * eines Ordners liest der Server nur kurz in den Dateien und liefert die
+   * Liste sofort; Laenge, Titel und Cover der restlichen Aufnahmen holt
+   * diese Funktion im Hintergrund nach und traegt sie in die Zeilen ein -
+   * ohne die Liste neu aufzubauen.
+   */
+  let pendingSeq = 0;
+  async function fillPending(source, path) {
+    const mySeq = ++pendingSeq;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      await new Promise((r) => setTimeout(r, 300));
+      if (mySeq !== pendingSeq || offlineMode || view.source !== source || view.path !== path) return;
+      let data;
+      try {
+        const res = await fetch(AudioArchive.listUrl(path, source), { credentials: 'same-origin' });
+        if (!res.ok) return;
+        data = await res.json();
+      } catch (e) {
+        return;
+      }
+      if (mySeq !== pendingSeq || view.source !== source || view.path !== path) return;
+      const fresh = new Map((data.entries || []).filter((e) => e.type === 'file').map((e) => [e.path, e]));
+      currentEntries.forEach((entry) => {
+        const f = entry.type === 'file' ? fresh.get(entry.path) : null;
+        if (!f) return;
+        ['duration', 'title', 'artist', 'album', 'cover'].forEach((k) => { entry[k] = f[k]; });
+      });
+      if (!(searchApi && searchApi.active())) {
+        const current = Player.getCurrentKey();
+        listContainer.querySelectorAll('.explorer-row[data-key]').forEach((row) => {
+          const entry = currentEntries.find((e) => e.key === row.dataset.key);
+          const metaEl = row.querySelector('.explorer-row-meta');
+          if (entry && metaEl) metaEl.textContent = rowMeta(entry, entry.key === current);
+        });
+      }
+      if (!data.pending) return;
     }
   }
 

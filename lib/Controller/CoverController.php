@@ -6,6 +6,7 @@ namespace OCA\AudioArchive\Controller;
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\ContentScope;
 use OCA\AudioArchive\Service\CoverFinder;
+use OCA\AudioArchive\Service\CoverThumbnail;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -28,13 +29,14 @@ class CoverController extends Controller {
         private ContentScope $scope,
         private AudioFolder $audioFolder,
         private CoverFinder $covers,
+        private CoverThumbnail $thumbnails,
     ) {
         parent::__construct($appName, $request);
     }
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function index(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): Response {
+    public function index(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = '', int $size = 0): Response {
         $scope = $this->scope->resolve($source, $s);
         if (is_int($scope)) {
             return new DataDisplayResponse('', $scope);
@@ -48,6 +50,11 @@ class CoverController extends Controller {
         $cover = $this->covers->coverFor($node, $scope['root']);
         if ($cover === null) {
             return new DataDisplayResponse('', Http::STATUS_NOT_FOUND);
+        }
+
+        // Kleine Fassung fuer Sperrbildschirm und Bluetooth (ab 0.34.0)
+        if ($size > 0) {
+            $cover = $this->thumbnails->scaled($cover, $size);
         }
 
         $response = new DataDisplayResponse($cover['data'], Http::STATUS_OK, ['Content-Type' => $cover['mime']]);

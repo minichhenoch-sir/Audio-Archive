@@ -207,7 +207,29 @@ class ListController extends Controller {
         // kein eingebettetes Cover hat, und dann nur einmal je Ordner
         $folderCover = false;
 
-        foreach ($node->getDirectoryListing() as $child) {
+        /*
+         * Schneller (ab 0.34.0, Vikunja #43):
+         *  - Die Anzahl der Aufnahmen je Unterordner wird nur noch gezaehlt,
+         *    wenn die Verwaltung sie anzeigen laesst. Das Zaehlen geht durch
+         *    alle Unterordner und war ganz oben die teuerste Arbeit.
+         *  - Bekannte Angaben aller Aufnahmen kommen mit EINER Abfrage.
+         *  - Noch nie gelesene Dateien werden nur eine kurze Zeit lang
+         *    gelesen; den Rest liefert die naechste Anfrage nach
+         *    ('pending' => true, die Oberflaeche fragt dann selbst nach).
+         *    Vorher wartete man beim ersten Oeffnen, bis alle gelesen waren.
+         */
+        $countFolders = $scope['countFolders'] && $this->appConfig->getValueBool(
+            Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false
+        );
+        $listing = $node->getDirectoryListing();
+        $known = $this->metadata->peekMany(array_values(array_filter(
+            $listing,
+            fn ($c) => !($c instanceof Folder) && !str_starts_with($c->getName(), '.') && $this->audioFolder->isAllowedFile($c)
+        )));
+        $deadline = microtime(true) + self::LIST_READ_BUDGET;
+        $pending = false;
+
+        foreach ($listing as $child) {
             $name = $child->getName();
             if (str_starts_with($name, '.')) {
                 continue;
@@ -221,7 +243,7 @@ class ListController extends Controller {
                     'name' => $name,
                     'path' => $childRelative,
                     // null = nicht gezaehlt (eigene Dateien, siehe ContentScope)
-                    'count' => $scope['countFolders'] ? $this->audioFolder->countRecursive($child) : null,
+                    'count' => $countFolders ? $this->audioFolder->countRecursive($child) : null,
                     // Datum fuer Anzeige und Sortierung (ab 0.22.0, Vikunja #30)
                     'added' => self::folderAdded($child),
                     'fav' => $favIds !== null && isset($favIds[$child->getId()]),
@@ -234,7 +256,12 @@ class ListController extends Controller {
             }
 
             /** @var File $child */
-            $entry = $this->fileEntry($child, $node, $root, $childRelative, $folderCover);
+            $meta = $known[(int)$child->getId()] ?? null;
+            if ($meta === null && microtime(true) > $deadline) {
+                $pending = true;
+                $meta = MetadataReader::EMPTY; // kommt mit der naechsten Anfrage
+            }
+            $entry = $this->fileEntry($child, $node, $root, $childRelative, $folderCover, $meta);
             $entry['fav'] = $favIds !== null && isset($favIds[$child->getId()]);
             $files[] = $entry;
         }
@@ -253,6 +280,8 @@ class ListController extends Controller {
             'path' => $relative,
             'parent' => $parent,
             'entries' => array_merge($dirs, $files),
+            // ab 0.34.0: true = Angaben einzelner Aufnahmen werden noch gelesen
+            'pending' => $pending,
             'features' => [
                 'offline' => $scope['offline'],
                 'download' => $scope['download'],
@@ -420,8 +449,9 @@ class ListController extends Controller {
      * @param File|false|null $folderCover Ordnerbild des Ordners, einmal je
      *                                     Ordner gesucht (false = noch nicht)
      */
-    private function fileEntry(File $file, Folder $parent, Folder $root, string $relative, mixed &$folderCover): array {
-        $meta = $this->metadata->read($file);
+    private function fileEntry(File $file, Folder $parent, Folder $root, string $relative, mixed &$folderCover, ?array $meta = null): array {
+        // Schon bekannte Angaben werden mitgegeben (ab 0.34.0) - sonst lesen
+        $meta ??= $this->metadata->read($file);
 
         // Cover: 'v' ist die Versionskennung fuer die Adresse, damit ein
         // geaendertes Bild nicht aus dem Browser-Speicher kommt
@@ -484,6 +514,8 @@ class ListController extends Controller {
     private const SEARCH_MAX_FOLDERS = 4000;
     private const SEARCH_MAX_FILES = 40000;
     private const SEARCH_MAX_RESULTS = 150;
+    /** Sekunden, die das Oeffnen eines Ordners noch nie gelesene Dateien liest (ab 0.34.0). */
+    private const LIST_READ_BUDGET = 1.5;
     /** Sekunden, in denen noch nicht zwischengespeicherte Angaben gelesen werden. */
     private const SEARCH_READ_BUDGET = 4.0;
 
@@ -594,13 +626,15 @@ class ListController extends Controller {
                             continue;
                         }
                         $meta = $this->metadata->read($child);
+                        $known[(int)$child->getId()] = $meta;
                     }
                     $haystack .= ' ' . ($meta['title'] ?? '') . ' ' . ($meta['artist'] ?? '') . ' ' . ($meta['album'] ?? '');
                     if (!self::matches($terms, $haystack)) {
                         continue;
                     }
                 }
-                $files[] = $this->fileEntry($child, $folder, $root, $childRelative, $folderCover);
+                // Bekannte Angaben weitergeben statt erneut nachzuschlagen (ab 0.34.0)
+                $files[] = $this->fileEntry($child, $folder, $root, $childRelative, $folderCover, $known[(int)$child->getId()] ?? null);
             }
             usort($subfolders, static fn ($a, $b) => strnatcasecmp($a[1], $b[1]));
             foreach ($subfolders as $sub) {

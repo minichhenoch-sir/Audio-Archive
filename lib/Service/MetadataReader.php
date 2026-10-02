@@ -32,6 +32,9 @@ class MetadataReader {
 
     private ICache $cache;
 
+    /** Angaben einer Datei, die (noch) nicht gelesen wurde (ab 0.34.0). */
+    public const EMPTY = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null, 'cover' => false];
+
     private const TABLE = 'audioarchive_meta';
     /** Haltezeit im schnellen Zwischenspeicher; dauerhaft liegt es in der Tabelle. */
     private const CACHE_TTL = 60 * 60 * 24;

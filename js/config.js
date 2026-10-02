@@ -195,9 +195,10 @@ const AudioArchive = (() => {
      * und aendert sich mit dem Bild - so kommt nie ein veraltetes Cover aus
      * dem Browser-Speicher.
      */
-    coverUrl(path, source, version) {
+    coverUrl(path, source, version, size) {
       return new URL(this.api('cover') + '?' + this.sourceQuery(source)
-        + 'path=' + encodeURIComponent(path) + '&v=' + encodeURIComponent(version || ''), location.href).href;
+        + 'path=' + encodeURIComponent(path) + '&v=' + encodeURIComponent(version || '')
+        + (size ? '&size=' + size : ''), location.href).href;
     },
 
     /**

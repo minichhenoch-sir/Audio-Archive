@@ -377,8 +377,17 @@ const Player = (() => {
     // Immer absolute Adressen - relativ wuerden sie auf der oeffentlichen
     // Seite gegen /s/<token>/ aufgeloest und ins Leere zeigen.
     const cover = coverUrlFor(track);
+    // Ab 0.34.0 (Vikunja #43) kleine JPEG-Fassungen statt des Originalbilds:
+    // Grosse Bilder kamen ueber Bluetooth/im Auto oft nicht an. Ohne
+    // Verbindung das Original - nur das liegt im Offline-Speicher.
     const artwork = cover
-      ? [{ src: cover, sizes: '512x512' }]
+      ? (navigator.onLine === false
+        ? [{ src: cover, sizes: '512x512' }]
+        : [96, 256, 512].map((size) => ({
+          src: AudioArchive.coverUrl(track.path, track.source, track.cover, size),
+          sizes: size + 'x' + size,
+          type: 'image/jpeg',
+        })))
       : [{ src: fallbackCover(), sizes: '512x512' }];
 
     try {
