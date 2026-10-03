@@ -1540,25 +1540,10 @@ body.has-bg-image #audioarchive .explorer-row.active {
 
 #audioarchive .offline-pin-error[hidden] { display: none !important; }
 
-/* ===================== BETA-KENNZEICHNUNG ===================== */
+/* ===================== TEXT UEBER DEN AUFNAHMEN ===================== */
+/* (Das BETA-Schild gibt es seit 0.37.0 nicht mehr, Vikunja #39) */
 
-/* Kleines Zeichen neben dem Titel - soll auffallen, aber nicht stoeren */
-#audioarchive .beta-badge {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: var(--aa-pill, 999px);
-  background: var(--color-accent);
-  color: #2a1a0e;
-  font-family: var(--font-body);
-  font-size: calc(0.62 * var(--aa-rem));
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  vertical-align: middle;
-}
-
-/* Hinweisstreifen ueber dem Pfad */
+/* Textstreifen ueber dem Pfad */
 #audioarchive .beta-notice {
   margin: 0 0 12px;
   padding: 10px 16px;
@@ -1577,6 +1562,25 @@ body.has-bg-image #audioarchive .explorer-row.active {
   white-space: nowrap;
 }
 
+/* Formatierter Text (ab 0.37.0, Vikunja #49): Absaetze und Listen kompakt */
+#audioarchive .beta-notice .notice-body { overflow-wrap: anywhere; }
+#audioarchive .beta-notice .notice-body > :first-child { margin-top: 0; }
+#audioarchive .beta-notice .notice-body > :last-child { margin-bottom: 0; }
+#audioarchive .beta-notice .notice-body p,
+#audioarchive .beta-notice .notice-body div { margin: 0 0 0.4em; }
+#audioarchive .beta-notice .notice-body ul,
+#audioarchive .beta-notice .notice-body ol { margin: 0.2em 0 0.4em; padding-left: 1.6em; }
+#audioarchive .beta-notice .notice-body ul { list-style: disc; }
+#audioarchive .beta-notice .notice-body ol { list-style: decimal; }
+#audioarchive .beta-notice .notice-body b,
+#audioarchive .beta-notice .notice-body strong { font-weight: 700; }
+#audioarchive .beta-notice .notice-body i,
+#audioarchive .beta-notice .notice-body em { font-style: italic; }
+#audioarchive .beta-notice .notice-body u { text-decoration: underline; }
+#audioarchive .beta-notice .notice-body h2,
+#audioarchive .beta-notice .notice-body h3,
+#audioarchive .beta-notice .notice-body h4 { font-weight: 700; margin: 0 0 0.3em; }
+#audioarchive .beta-notice .notice-link { display: inline-block; margin-top: 4px; }
 #audioarchive .beta-notice[hidden] { display: none !important; }
 
 /* ===================== KNOPF "APP INSTALLIEREN" ===================== */
@@ -1767,6 +1771,44 @@ body.has-bg-image #audioarchive .explorer-row.active {
   line-height: 1.45;
 }
 #audioarchive .install-help-steps li { margin: 4px 0; }
+
+/* Welche Browser koennen installieren? (ab 0.37.0, Vikunja #27) */
+#audioarchive .install-browsers { margin: 8px 0; font-size: calc(0.86 * var(--aa-rem)); line-height: 1.45; }
+#audioarchive .install-browsers summary { cursor: pointer; font-weight: 600; padding: 4px 0; }
+#audioarchive .install-browsers dl { margin: 6px 0 0; }
+#audioarchive .install-browsers dt { font-weight: 600; margin-top: 8px; }
+#audioarchive .install-browsers dd { margin: 2px 0 0 1.4em; }
+#audioarchive .install-browsers strong { font-weight: 600; }
+#audioarchive .link-button {
+  display: inline;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+#audioarchive .install-help-contact[hidden] { display: none !important; }
+
+/* Hilfe und Kontakt (ab 0.37.0, Vikunja #27) */
+#audioarchive .help-form { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+#audioarchive .help-form[hidden],
+#audioarchive #help-mail-row[hidden],
+#audioarchive #help-name-field[hidden] { display: none !important; }
+#audioarchive .help-form-title { margin: 4px 0 0; font-weight: 600; }
+#audioarchive .help-form textarea { min-height: 6em; resize: vertical; }
+#audioarchive #help-mail { text-decoration: none; display: inline-flex; align-items: center; }
+#audioarchive .help-status {
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: calc(10px * var(--aa-rf, 1));
+  font-weight: 600;
+}
+#audioarchive .help-status[hidden] { display: none !important; }
+#audioarchive .help-status.is-busy { background: rgba(0, 0, 0, 0.06); }
+#audioarchive .help-status.is-done { background: rgba(46, 160, 67, 0.16); color: #1b6b2c; }
 
 /* Knopf "Zu Nextcloud" unter dem Ordnerbaum (ab 0.21.1) */
 #audioarchive .sidebar-nextcloud {
@@ -2268,10 +2310,6 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 }
 #audioarchive.aa-design-nextcloud .install-btn:hover { background: var(--aa-nc-primary-light-hover); }
 
-#audioarchive.aa-design-nextcloud .beta-badge {
-  background: var(--aa-nc-primary);
-  color: var(--aa-nc-primary-text);
-}
 
 /* ---------- Pfad, Hinweise, Offline-Leiste ---------- */
 #audioarchive.aa-design-nextcloud .breadcrumb {

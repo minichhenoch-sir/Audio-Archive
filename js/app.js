@@ -111,6 +111,14 @@
     const isAndroid = /Android/i.test(ua);
     const isFirefox = /Firefox|FxiOS/i.test(ua);
     const isSafariMac = !isIOS && /Macintosh/.test(ua) && /Safari/.test(ua) && !/Chrome|Chromium|Edg|Firefox/.test(ua);
+    if (isIOS && /CriOS|EdgiOS|FxiOS|OPiOS/.test(ua)) {
+      // Andere Browser auf dem iPhone (ab iOS 16.4), Vikunja #27
+      return [
+        'Oben rechts in der Adressleiste auf <strong>Teilen</strong> tippen (Quadrat mit Pfeil nach oben; evtl. erst im Menü ⋯).',
+        '<strong>„Zum Home-Bildschirm“</strong> wählen.',
+        'Mit <strong>„Hinzufügen“</strong> bestätigen.',
+      ];
+    }
     if (isIOS) {
       return [
         'Unten (iPad: oben) auf <strong>Teilen</strong> tippen – das Quadrat mit dem Pfeil nach oben.',
@@ -132,9 +140,15 @@
         '<strong>„Zum Dock hinzufügen …“</strong> wählen und bestätigen.',
       ];
     }
+    if (isFirefox && /Windows/.test(ua)) {
+      return [
+        'Rechts in der Adressleiste auf das Symbol <strong>„Zur Taskleiste hinzufügen“</strong> klicken (neuere Firefox-Versionen).',
+        'Fehlt das Symbol: Firefox aktualisieren – oder die Seite in <strong>Chrome</strong> oder <strong>Edge</strong> öffnen.',
+      ];
+    }
     if (isFirefox) {
       return [
-        'Firefox kann am Rechner keine Apps installieren.',
+        'Firefox kann am Mac und unter Linux keine Apps installieren.',
         'Am einfachsten in <strong>Chrome</strong> oder <strong>Edge</strong> öffnen – oder die Seite als Lesezeichen speichern.',
       ];
     }
@@ -198,6 +212,138 @@
   }
 
   // ------------------------------------------------------------------
+  // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
+  // ------------------------------------------------------------------
+  /*
+   * Kleiner Knopf (i) oben neben "App installieren". Je nach Verwaltung:
+   * "Per E-Mail schreiben" (oeffnet das Mailprogramm mit der eingetragenen
+   * Adresse) und/oder ein Textfenster, dessen Nachricht die Hilfe-Gruppe
+   * als Nextcloud-Benachrichtigung bekommt. Mitgeschickt wird, wo man
+   * gerade ist (Seite, Ordner, Aufnahme, Geraet) - das hilft beim Helfen.
+   */
+  (function setupHelp() {
+    const helpBtn = document.getElementById('help-btn');
+    const panel = document.getElementById('help-panel');
+    if (!helpBtn || !panel) return;
+    const hasMail = /^[^\s@]+@[^\s@]+$/.test(AudioArchive.helpEmail || '');
+    const hasMessage = AudioArchive.helpMessage === true;
+    if (!hasMail && !hasMessage) return;
+
+    const NAME_KEY = 'audioarchive_comment_name'; // derselbe Name wie bei Kommentaren
+    const form = document.getElementById('help-form');
+    const nameField = document.getElementById('help-name-field');
+    const nameInput = document.getElementById('help-name');
+    const emailInput = document.getElementById('help-email');
+    const textInput = document.getElementById('help-text');
+    const errorBox = document.getElementById('help-error');
+    const statusBox = document.getElementById('help-status');
+    const sendBtn = document.getElementById('help-send');
+    const mail = document.getElementById('help-mail');
+    const loggedIn = !AudioArchive.isPublic() && !AudioArchive.apiToken;
+
+    function where() {
+      const parts = [];
+      const title = (document.getElementById('topbar-title') || {}).textContent || '';
+      if (title.trim()) parts.push('Seite „' + title.trim() + '“' + (AudioArchive.isPublic() ? ' (Link)' : ''));
+      const crumb = (document.getElementById('breadcrumb') || {}).textContent || '';
+      if (crumb.trim()) parts.push('Ordner: ' + crumb.replace(/\s+/g, ' ').trim());
+      const track = (document.getElementById('player-track-title') || {}).textContent || '';
+      if (track.trim() && track.trim() !== '–') parts.push('Aufnahme: ' + track.trim());
+      const ua = navigator.userAgent || '';
+      const device = /iPhone|iPad|iPod/.test(ua) ? 'iPhone/iPad' : /Android/.test(ua) ? 'Android'
+        : /Windows/.test(ua) ? 'Windows' : /Macintosh/.test(ua) ? 'Mac' : /Linux/.test(ua) ? 'Linux' : 'Gerät';
+      const browser = /Edg\//.test(ua) ? 'Edge' : /SamsungBrowser/.test(ua) ? 'Samsung Internet'
+        : /Firefox|FxiOS/.test(ua) ? 'Firefox' : /OPR\//.test(ua) ? 'Opera'
+        : /Chrome|CriOS/.test(ua) ? 'Chrome' : /Safari/.test(ua) ? 'Safari' : 'Browser';
+      const app = window.matchMedia('(display-mode: standalone)').matches ? ', als App' : '';
+      parts.push(device + ', ' + browser + app + (AudioArchive.appVersion ? ', Audio Archive ' + AudioArchive.appVersion : ''));
+      return parts.join(' · ');
+    }
+
+    function open() {
+      document.getElementById('help-mail-row').hidden = !hasMail;
+      form.hidden = !hasMessage;
+      document.getElementById('help-form-title').textContent = hasMail
+        ? 'Oder direkt hier eine Nachricht schreiben:' : 'Nachricht an uns:';
+      if (hasMail) {
+        const body = '\n\n\n---\n' + where();
+        mail.href = 'mailto:' + AudioArchive.helpEmail
+          + '?subject=' + encodeURIComponent('Audio Archive – Hilfe')
+          + '&body=' + encodeURIComponent(body);
+      }
+      nameField.hidden = loggedIn;
+      if (!loggedIn && !nameInput.value) {
+        try { nameInput.value = localStorage.getItem(NAME_KEY) || ''; } catch (e) { /* privat */ }
+      }
+      errorBox.hidden = true;
+      statusBox.hidden = true;
+      panel.hidden = false;
+      panel.scrollIntoView({ block: 'nearest' });
+    }
+
+    helpBtn.hidden = false;
+    helpBtn.addEventListener('click', () => {
+      if (panel.hidden) open(); else panel.hidden = true;
+    });
+    document.getElementById('help-close').addEventListener('click', () => { panel.hidden = true; });
+    const fromInstall = document.getElementById('install-help-contact');
+    if (fromInstall) {
+      fromInstall.closest('.install-help-contact').hidden = false;
+      fromInstall.addEventListener('click', () => {
+        const ih = document.getElementById('install-help');
+        if (ih) ih.hidden = true;
+        open();
+      });
+    }
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      errorBox.hidden = true;
+      const text = textInput.value.trim();
+      if (text === '') {
+        errorBox.textContent = 'Bitte eine Nachricht schreiben.';
+        errorBox.hidden = false;
+        textInput.focus();
+        return;
+      }
+      if (!loggedIn) {
+        try { localStorage.setItem(NAME_KEY, nameInput.value.trim()); } catch (e) { /* privat */ }
+      }
+      sendBtn.disabled = true;
+      statusBox.className = 'help-status is-busy';
+      statusBox.textContent = 'Bitte warten! – Die Nachricht wird gesendet …';
+      statusBox.hidden = false;
+      const headers = { 'X-AudioArchive': '1', 'Content-Type': 'application/json' };
+      if (AudioArchive.requestToken) headers.requesttoken = AudioArchive.requestToken;
+      try {
+        const res = await fetch(AudioArchive.api('help') + '?' + AudioArchive.sourceQuery(''), {
+          method: 'POST',
+          credentials: 'same-origin',
+          headers,
+          body: JSON.stringify({
+            name: nameInput.value.trim(),
+            email: emailInput.value.trim(),
+            message: text,
+            where: where(),
+          }),
+        });
+        let data = {};
+        try { data = await res.json(); } catch (e) { /* leer */ }
+        if (!res.ok) throw new Error(data.error || ('Fehler ' + res.status));
+        statusBox.className = 'help-status is-done';
+        statusBox.textContent = '✓ Nachricht erfolgreich übermittelt! Wir melden uns.';
+        textInput.value = '';
+      } catch (err) {
+        statusBox.hidden = true;
+        errorBox.textContent = (err && err.message) || 'Senden fehlgeschlagen.';
+        errorBox.hidden = false;
+      } finally {
+        sendBtn.disabled = false;
+      }
+    });
+  })();
+
+  // ------------------------------------------------------------------
   // Service Worker registrieren (PWA-Installierbarkeit + App-Shell-Cache)
   // ------------------------------------------------------------------
   if ('serviceWorker' in navigator) {
@@ -222,70 +368,56 @@
    * Seite steht sofort richtig da, ohne kurzes Umspringen.
    */
   /**
-   * Zeigt das "BETA"-Schild neben dem Titel (nur Administrator) und den
-   * Text ueber den Aufnahmen. Seit 0.31.0 (Vikunja #39) unabhaengig
-   * voneinander; den Text setzt der Administrator, der Nutzer fuer seine
-   * eigene Ansicht oder die Freigabe fuer ihren Link (siehe PlayerPage).
-   * Keine Ueberschrift wie "Hinweis" - der Text steht fuer sich.
+   * Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39). Den Text setzt der
+   * Administrator, der Nutzer fuer seine eigene Ansicht oder die Freigabe
+   * fuer ihren Link (siehe PlayerPage). Keine Ueberschrift - der Text steht
+   * fuer sich. Das fruehere "BETA"-Schild ist seit 0.37.0 ganz entfernt.
    *
-   * Der Link wird bewusst NUR mit seiner Beschriftung angezeigt, nicht mit
-   * der vollen Adresse - lange Adressen sprengen auf dem Telefon die Zeile.
+   * Seit 0.37.0 (Vikunja #49) ist der Text formatiert (Schrift, Groesse,
+   * Farbe ...). Er kommt bereits bereinigt vom Server (RichText.php: feste
+   * Auswahl an Elementen, keine Skripte/Ereignisse/fremden Bilder) und wird
+   * deshalb per innerHTML eingesetzt.
+   *
+   * Der Link der Verwaltung wird bewusst NUR mit seiner Beschriftung
+   * angezeigt, nicht mit der vollen Adresse - lange Adressen sprengen auf
+   * dem Telefon die Zeile.
    */
-  // Das "Beta"-Zeichen - einmal erzeugt, bei jedem Titelwechsel wieder
-  // angehaengt (siehe renderTitles)
-  let betaBadge = null;
-
-  function applyBetaNotice() {
-    if (AudioArchive.betaEnabled) {
-      // Kennzeichnung in der Kopfzeile
-      betaBadge = document.createElement('span');
-      betaBadge.className = 'beta-badge';
-      betaBadge.textContent = 'Beta';
-      // In die Ueberschrift hinein, nicht daneben: Als eigenstaendiges
-      // Element neben dem h1 wuerde es in einer eigenen Zeile landen.
-      topbarTitle.appendChild(betaBadge);
-    }
-
+  function applyNotice() {
     const notice = document.getElementById('beta-notice');
     if (!notice) return;
 
-    const text = AudioArchive.noticeText.trim();
+    const html = AudioArchive.noticeText.trim();
     const url = AudioArchive.noticeLinkUrl.trim();
     const label = AudioArchive.noticeLinkLabel.trim() || 'Mehr erfahren';
 
-    if (text === '' && url === '') return;
+    if (html === '' && url === '') return;
 
     notice.textContent = '';
 
-    if (text !== '') {
-      const span = document.createElement('span');
-      span.textContent = text;
-      notice.appendChild(span);
+    if (html !== '') {
+      const body = document.createElement('div');
+      body.className = 'notice-body';
+      body.innerHTML = html;
+      notice.appendChild(body);
     }
 
-    if (url !== '') {
+    if (url !== '' && /^https?:/i.test(url)) {
       const link = document.createElement('a');
-      /*
-       * textContent statt innerHTML: Der Text stammt zwar vom
-       * Administrator, wird aber allen Nutzern angezeigt - auch denen der
-       * oeffentlichen Seite. So kann daraus kein Markup werden.
-       */
       link.textContent = label;
       link.href = url;
       link.target = '_blank';
       link.rel = 'noreferrer noopener';
-      notice.appendChild(document.createTextNode(' '));
+      link.className = 'notice-link';
       notice.appendChild(link);
     }
 
     notice.hidden = false;
   }
 
-  /** Titel und Zusatzzeile in der Kopfzeile setzen (Beta-Zeichen bleibt). */
+  /** Titel und Zusatzzeile in der Kopfzeile setzen. */
   function renderTitles(title, subtitle) {
     document.title = title;
     topbarTitle.textContent = title;
-    if (betaBadge) topbarTitle.appendChild(betaBadge);
     topbarSubtitle.textContent = subtitle;
     topbarSubtitle.hidden = subtitle === '';
   }
@@ -319,7 +451,7 @@
       logoutBtn.hidden = true;
     }
 
-    applyBetaNotice();
+    applyNotice();
   }
 
   // ------------------------------------------------------------------
@@ -3746,12 +3878,19 @@
       const subtitle = textInput(st.subtitle, '');
       look.appendChild(field('Zusatzzeile (optional)', subtitle));
       // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39)
-      const notice = el('textarea', 'panel-input');
-      notice.rows = 2;
-      notice.maxLength = 500;
-      notice.value = st.notice || '';
-      look.appendChild(field('Text über den Aufnahmen (optional)', notice,
-        'Steht über der Liste, z. B. ein Gruß oder ein Hinweis. Leer = Text der Verwaltung, falls eingestellt.'));
+      // Ab 0.37.0 (Vikunja #49) mit Formatierungsleiste. Als <div>, nicht
+      // per field() im <label> - dort loeste ein Klick den ersten Knopf aus.
+      const notice = window.AARichText
+        ? window.AARichText.create({ value: st.notice || '', label: 'Text über den Aufnahmen' })
+        : null;
+      {
+        const wrap = el('div', 'panel-field');
+        wrap.appendChild(el('span', 'panel-field-label', 'Text über den Aufnahmen (optional)'));
+        if (notice) wrap.appendChild(notice.el);
+        wrap.appendChild(el('span', 'panel-hint',
+          'Steht über der Liste, z. B. ein Gruß oder ein Hinweis – mit Schriftart, Größe, Farbe und mehr. Leer = Text der Verwaltung, falls eingestellt.'));
+        look.appendChild(wrap);
+      }
 
       /*
        * Gestaltung der Freigabe (ab 0.17): dieselben vier wie persoenlich,
@@ -4021,7 +4160,7 @@
         const settings = {
           title: title.value,
           subtitle: subtitle.value,
-          notice: notice.value,
+          notice: notice ? notice.value : (st.notice || ''),
           design: chosenDesign,
           // Werte fuer "Benutzerdefiniert": bei Wahl, und bereits vorhandene
           // bleiben erhalten, wenn voruebergehend anders gewaehlt wird
@@ -4181,7 +4320,9 @@
     const usBackgroundRemove = document.getElementById('us-background-remove');
     const usTitle = document.getElementById('us-title');
     const usSubtitle = document.getElementById('us-subtitle');
-    const usNotice = document.getElementById('us-notice'); // ab 0.31.0
+    // ab 0.31.0; ab 0.37.0 (Vikunja #49) mit Formatierungsleiste
+    const usNoticeField = document.getElementById('us-notice');
+    const usNotice = (usNoticeField && window.AARichText) ? window.AARichText.attach(usNoticeField) : usNoticeField;
     const usOwnColors = document.getElementById('us-own-colors');
     const usColors = document.getElementById('us-colors');
     const usModern = document.getElementById('us-modern');

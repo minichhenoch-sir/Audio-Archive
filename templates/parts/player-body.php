@@ -83,7 +83,8 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-cover-icon="<?php echo $escape($_['coverIcon'] ?? ''); ?>"
      data-cover-url="<?php echo $escape($_['coverUrl'] ?? ''); ?>"
      data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
-     data-beta="<?php echo $escape($_['betaEnabled']); ?>"
+     data-help-email="<?php echo $escape($_['helpEmail'] ?? ''); ?>"
+     data-help-message="<?php echo $escape($_['helpMessage'] ?? ''); ?>"
      data-notice-text="<?php echo $escape($_['noticeText'] ?? ''); ?>"
      data-notice-link-url="<?php echo $escape($_['noticeLinkUrl'] ?? ''); ?>"
      data-notice-link-label="<?php echo $escape($_['noticeLinkLabel'] ?? ''); ?>"
@@ -140,6 +141,15 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       die Installation anbietet. Eigenstaendig: erscheint nur, wenn der
       Browser die Installation direkt anbietet (beforeinstallprompt).
     -->
+    <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27): nur, wenn in der Verwaltung eingerichtet -->
+    <button id="help-btn" class="icon-btn glass-pill" type="button"
+            title="Hilfe und Kontakt" aria-label="Hilfe und Kontakt" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.5"/>
+        <path d="M12 11v6"/>
+        <circle cx="12" cy="7.5" r="0.6" fill="currentColor"/>
+      </svg>
+    </button>
     <a id="install-btn" class="icon-btn glass-pill install-btn" href="#" title="Als App installieren" hidden>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
         <path d="M12 3v12"/>
@@ -232,12 +242,14 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
           <span class="panel-field-label">Zusatzzeile</span>
           <input type="text" id="us-subtitle" class="panel-input" maxlength="500">
         </label>
-        <!-- Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39) -->
-        <label class="panel-field">
+        <!-- Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39; formatiert ab 0.37.0, #49).
+             Bewusst <div> statt <label>: Ein Klick im Label loeste sonst den
+             ersten Knopf der Formatierungsleiste aus. -->
+        <div class="panel-field">
           <span class="panel-field-label">Text über den Aufnahmen</span>
-          <textarea id="us-notice" class="panel-input" rows="2" maxlength="500"></textarea>
-          <span class="panel-hint">Leere Felder übernehmen die Vorgabe des Administrators.</span>
-        </label>
+          <textarea id="us-notice" class="panel-input" rows="2" aria-label="Text über den Aufnahmen"></textarea>
+          <span class="panel-hint">Mit Schriftart, Größe, Farbe und mehr. Leer = Vorgabe des Administrators.</span>
+        </div>
       </fieldset>
 
       <fieldset class="panel-group">
@@ -265,8 +277,59 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       <h2 class="panel-title">Als App installieren</h2>
       <ol id="install-help-steps" class="install-help-steps"></ol>
       <p class="panel-hint">Danach startet der Player wie eine App vom Startbildschirm – auch ohne Browserleiste.</p>
+      <!-- Welche Browser koennen das? (ab 0.37.0, Vikunja #27) -->
+      <details class="install-browsers">
+        <summary>Welche Browser können das?</summary>
+        <dl>
+          <dt>📱 iPhone und iPad</dt>
+          <dd><strong>Safari:</strong> Teilen <span aria-hidden="true">⬆︎</span> → „Zum Home-Bildschirm“.<br>
+              <strong>Chrome, Edge, Firefox</strong> (ab iOS 16.4): Teilen-Symbol in der Adressleiste → „Zum Home-Bildschirm“.</dd>
+          <dt>🤖 Android</dt>
+          <dd><strong>Chrome, Edge, Samsung Internet, Firefox, Opera:</strong> Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.</dd>
+          <dt>💻 Windows, Mac, Linux</dt>
+          <dd><strong>Chrome und Edge:</strong> Installieren-Symbol rechts in der Adressleiste (oder Menü → „App installieren“).<br>
+              <strong>Safari am Mac</strong> (ab macOS 14 Sonoma): Ablage → „Zum Dock hinzufügen“.<br>
+              <strong>Firefox unter Windows</strong> (neuere Versionen): Symbol „Zur Taskleiste hinzufügen“ in der Adressleiste.<br>
+              <strong>Firefox am Mac und unter Linux:</strong> geht nicht – bitte Chrome oder Edge verwenden oder ein Lesezeichen setzen.</dd>
+        </dl>
+      </details>
+      <p class="panel-hint install-help-contact" hidden>
+        Klappt es nicht? <button type="button" class="link-button" id="install-help-contact">Hilfe und Kontakt</button>
+      </p>
       <div class="panel-row panel-actions">
         <button type="button" class="panel-button" id="install-help-close">Schließen</button>
+      </div>
+    </section>
+
+    <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27) -->
+    <section id="help-panel" class="panel help-panel" hidden>
+      <h2 class="panel-title">Hilfe und Kontakt</h2>
+      <p class="panel-hint">Probleme beim Abspielen oder Installieren, oder eine Frage? Schreib uns – wir helfen gern.</p>
+      <div class="panel-row" id="help-mail-row" hidden>
+        <a id="help-mail" class="panel-button" href="#">✉️ Per E-Mail schreiben</a>
+      </div>
+      <form id="help-form" class="help-form" hidden novalidate>
+        <p class="panel-field-label help-form-title" id="help-form-title">Oder direkt hier eine Nachricht schreiben:</p>
+        <label class="panel-field" id="help-name-field">
+          <span class="panel-field-label">Dein Name</span>
+          <input type="text" id="help-name" class="panel-input" maxlength="80" autocomplete="name">
+        </label>
+        <label class="panel-field">
+          <span class="panel-field-label">Deine E-Mail-Adresse für die Antwort (optional)</span>
+          <input type="email" id="help-email" class="panel-input" maxlength="200" autocomplete="email">
+        </label>
+        <label class="panel-field">
+          <span class="panel-field-label">Nachricht</span>
+          <textarea id="help-text" class="panel-input" rows="4" maxlength="2000"></textarea>
+        </label>
+        <p class="panel-error" id="help-error" hidden></p>
+        <p class="help-status" id="help-status" role="status" hidden></p>
+        <div class="panel-row panel-actions">
+          <button type="submit" class="panel-button panel-button--primary" id="help-send">Nachricht senden</button>
+        </div>
+      </form>
+      <div class="panel-row panel-actions">
+        <button type="button" class="panel-button" id="help-close">Schließen</button>
       </div>
     </section>
 
@@ -426,5 +489,6 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/style-tokens.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/config.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/player.js'); ?>"></script>
+<script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/rich-text.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/app.js'); ?>"></script>
 </div>

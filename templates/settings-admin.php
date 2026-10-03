@@ -413,17 +413,34 @@
     </p>
     <p class="settings-hint" id="aa-transcode-state"></p>
 
-    <!-- ============ BETA-Schild (ab 0.31.0 getrennt vom Text, Vikunja #39) ============ -->
-    <h3>BETA-Schild</h3>
-    <p>
-        <input type="checkbox" id="aa-beta-enabled" class="checkbox">
-        <label for="aa-beta-enabled">„BETA“-Schild neben dem Titel zeigen</label>
-    </p>
+    <!-- ============ Hilfe und Kontakt (ab 0.37.0, Vikunja #27) ============ -->
+    <h3>Hilfe und Kontakt</h3>
     <p class="settings-hint">
-        Kennzeichnet die App als in Entwicklung – überall: in der App, auf dem
-        öffentlichen Link und auf allen Links der Nutzer. Ausschalten, sobald
-        die App fertig bzw. öffentlich ist.
+        Zeigt oben in der App und auf allen Links einen kleinen Knopf (i)
+        „Hilfe und Kontakt“ – auch in der Anleitung „App installieren“.
+        Hörer und Nutzer können darüber eine E-Mail schreiben oder direkt eine
+        Nachricht senden. Ohne Gruppe und ohne Adresse erscheint kein Knopf.
     </p>
+    <div class="aa-field">
+        <label for="aa-help-group">Nachrichten aus dem Hilfe-Fenster an</label>
+        <select id="aa-help-group"></select>
+        <p class="settings-hint">
+            Alle Mitglieder dieser Nextcloud-Gruppe bekommen die Nachricht als
+            Nextcloud-Benachrichtigung – mit Name, Antwort-Adresse und wo der
+            Absender gerade war (Seite, Ordner, Aufnahme, Gerät). Per E-Mail kommt
+            sie, wenn das in den persönlichen Einstellungen unter
+            „Benachrichtigungen“ eingeschaltet ist.
+        </p>
+    </div>
+    <div class="aa-field">
+        <label for="aa-help-email">E-Mail-Adresse für „Per E-Mail schreiben“ (optional)</label>
+        <input type="text" id="aa-help-email" placeholder="z. B. technik@example.org" autocomplete="off">
+        <p class="settings-hint">
+            Öffnet beim Hörer das Mailprogramm mit dieser Adresse. Die Adresse ist
+            damit für alle sichtbar, die die App oder einen Link öffnen. Leer =
+            nur das Textfenster.
+        </p>
+    </div>
 
     <!-- ============ Text ueber den Aufnahmen ============ -->
     <h3>Text über den Aufnahmen</h3>
@@ -438,9 +455,13 @@
         <label for="aa-notice-enabled">Diesen Text anzeigen</label>
     </p>
     <div class="aa-field">
-        <label for="aa-beta-text">Text</label>
-        <input type="text" id="aa-beta-text"
-               placeholder="z. B. Herzlich willkommen!">
+        <span class="aa-field-label">Text</span>
+        <textarea id="aa-beta-text" aria-label="Text über den Aufnahmen"
+                  placeholder="z. B. Herzlich willkommen!"></textarea>
+        <p class="settings-hint">
+            Mit der Leiste lassen sich Schriftart, Größe, Farbe, Ausrichtung,
+            Listen und Links festlegen – erst Text markieren, dann wählen.
+        </p>
     </div>
     <div class="aa-field">
         <label for="aa-beta-link-url">Link-Adresse (optional)</label>

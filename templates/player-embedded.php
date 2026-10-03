@@ -20,5 +20,6 @@ $asset = static fn (string $file): string => $escape($_['assetBase']) . $file . 
 ?>
 <link rel="stylesheet" href="<?php echo $asset('css/style.css'); ?>">
 <link rel="stylesheet" href="<?php echo $asset('css/style-editor.css'); ?>">
+<link rel="stylesheet" href="<?php echo $asset('css/rich-text.css'); ?>">
 
 <?php include __DIR__ . '/parts/player-body.php'; ?>

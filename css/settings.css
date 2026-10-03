@@ -21,7 +21,8 @@
     margin: 8px 0;
 }
 
-#audioarchive-settings .aa-field label {
+#audioarchive-settings .aa-field label,
+#audioarchive-settings .aa-field .aa-field-label {
     display: block;
     margin-bottom: 4px;
     font-size: 0.9em;

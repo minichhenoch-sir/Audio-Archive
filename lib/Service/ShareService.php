@@ -703,7 +703,8 @@ class ShareService {
         }
         $out['title'] = mb_substr($out['title'], 0, 200);
         $out['subtitle'] = mb_substr($out['subtitle'], 0, 500);
-        $out['notice'] = mb_substr($out['notice'], 0, 500);
+        // Formatierter Text (ab 0.37.0, Vikunja #49) - bereinigt statt nur gekuerzt
+        $out['notice'] = RichText::forStorage((string)$out['notice']);
 
         return $out;
     }

@@ -103,7 +103,8 @@ class UserSettingsController extends Controller {
             $this->config->setUserValue($uid, Application::APP_ID, Application::USER_FAVORITES, $favorites ? '1' : '0');
         }
         if ($notice !== null) {
-            $notice = mb_substr(trim($notice), 0, 500);
+            // Formatierter Text (ab 0.37.0, Vikunja #49) - bereinigt
+            $notice = \OCA\AudioArchive\Service\RichText::forStorage($notice);
             if ($notice !== '') {
                 $this->config->setUserValue($uid, Application::APP_ID, Application::USER_NOTICE, $notice);
             } else {

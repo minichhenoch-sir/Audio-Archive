@@ -128,7 +128,6 @@ class SettingsController extends Controller {
         ?bool $userShares = null,
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
-        ?bool $betaEnabled = null,
         ?bool $noticeEnabled = null,
         ?string $betaText = null,
         ?string $betaLinkUrl = null,
@@ -148,6 +147,8 @@ class SettingsController extends Controller {
         ?bool $featureRating = null,
         ?bool $publicComments = null,
         ?string $commentNotifyGroup = null,
+        ?string $helpGroup = null,
+        ?string $helpEmail = null,
         ?int $rememberDays = null,
         ?string $sharedLabel = null,
         ?bool $featureFavorites = null,
@@ -438,6 +439,24 @@ class SettingsController extends Controller {
                 ($gid !== '' && \OCP\Server::get(\OCP\IGroupManager::class)->groupExists($gid)) ? $gid : ''
             );
         }
+        // ---------- Hilfe und Kontakt (ab 0.37.0, Vikunja #27) ----------
+        if ($helpGroup !== null) {
+            $gid = trim($helpGroup);
+            $this->appConfig->setValueString(
+                Application::APP_ID, Application::SETTING_HELP_GROUP,
+                ($gid !== '' && \OCP\Server::get(\OCP\IGroupManager::class)->groupExists($gid)) ? $gid : ''
+            );
+        }
+        if ($helpEmail !== null) {
+            $mail = trim($helpEmail);
+            if ($mail !== '' && filter_var($mail, FILTER_VALIDATE_EMAIL) === false) {
+                return new DataResponse(
+                    ['error' => 'Die E-Mail-Adresse für die Hilfe ist ungültig.'],
+                    Http::STATUS_BAD_REQUEST
+                );
+            }
+            $this->appConfig->setValueString(Application::APP_ID, Application::SETTING_HELP_EMAIL, $mail);
+        }
         if ($searchScope !== null) {
             $this->appConfig->setValueString(
                 Application::APP_ID, Application::SETTING_SEARCH_SCOPE, $searchScope === 'all' ? 'all' : 'folder'
@@ -455,12 +474,7 @@ class SettingsController extends Controller {
             );
         }
 
-        // ---------- BETA-Schild und Text ueber den Aufnahmen ----------
-        if ($betaEnabled !== null) {
-            $this->appConfig->setValueBool(
-                Application::APP_ID, Application::SETTING_BETA_ENABLED, $betaEnabled
-            );
-        }
+        // ---------- Text ueber den Aufnahmen (BETA-Schild seit 0.37.0 entfernt) ----------
         if ($noticeEnabled !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_NOTICE_ENABLED, $noticeEnabled
@@ -469,7 +483,9 @@ class SettingsController extends Controller {
 
         if ($betaText !== null) {
             $this->appConfig->setValueString(
-                Application::APP_ID, Application::SETTING_BETA_TEXT, trim($betaText)
+                Application::APP_ID, Application::SETTING_BETA_TEXT,
+                // Formatierter Text (ab 0.37.0, Vikunja #49) - bereinigt
+                \OCA\AudioArchive\Service\RichText::forStorage($betaText)
             );
         }
 

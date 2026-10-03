@@ -42,6 +42,8 @@ return [
         ['name' => 'comment#overview', 'url' => '/api/comments/overview', 'verb' => 'GET'],
         // Excel-Datei: Download oder in den eigenen Dateien ablegen (ab 0.36.0)
         ['name' => 'comment#export', 'url' => '/api/comments/export', 'verb' => 'POST'],
+        // Hilfe und Kontakt: Nachricht an die Hilfe-Gruppe (ab 0.37.0, Vikunja #27)
+        ['name' => 'help#send', 'url' => '/api/help', 'verb' => 'POST'],
         // Favoriten (ab 0.24.0)
         ['name' => 'list#favorites', 'url' => '/api/favorites', 'verb' => 'GET'],
         ['name' => 'list#setFavorite', 'url' => '/api/favorite', 'verb' => 'POST'],

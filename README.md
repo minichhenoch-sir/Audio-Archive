@@ -1677,3 +1677,37 @@ Vikunja #5 (Rückmeldungen von Hans, 2026-10-02 abends).
 
 PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.37.0: Text mit Formatierung, Hilfe und Kontakt, ohne BETA-Schild
+
+Vikunja #49, #27, #39.
+
+- **Text über den Aufnahmen mit Formatierung (#49):** In der Verwaltung, im
+  Zahnrad (eigene Ansicht) und beim Teilen je Link gibt es statt des
+  einfachen Felds einen Editor mit Knopfleiste (`js/rich-text.js`,
+  `css/rich-text.css`): Schriftart, Größe, fett, kursiv, unterstrichen,
+  durchgestrichen, Farbe, Ausrichtung, Listen, Link, Formatierung entfernen.
+  Gespeichert wird HTML. `RichText.php` lässt beim Speichern **und** beim
+  Ausliefern nur eine feste Auswahl an Elementen, Attributen und
+  CSS-Eigenschaften durch (keine Skripte, Ereignis-Attribute, Bilder,
+  `url()`; Links nur http/https/mailto). Alter reiner Text wird mit
+  Zeilenumbrüchen übernommen. Einfügen aus der Zwischenablage nur als reiner
+  Text.
+- **Hilfe und Kontakt (#27):** Neuer Abschnitt in der Verwaltung: Gruppe für
+  Nachrichten und optional eine E-Mail-Adresse. Ist eins davon gesetzt,
+  erscheint oben ein Knopf (i) – in der App und auf allen Links – und in der
+  Anleitung „App installieren“ der Verweis „Hilfe und Kontakt“. Das Fenster
+  bietet „Per E-Mail schreiben“ (`mailto:` mit Betreff und Angaben, wo man
+  gerade ist) und/oder ein Textfenster: `POST api/help` schickt jedem
+  Mitglied der Gruppe eine Nextcloud-Benachrichtigung (Name, Antwort-Adresse,
+  Seite/Ordner/Aufnahme/Gerät). Zugang wie bei Kommentaren, begrenzt auf 5
+  Nachrichten je 10 Minuten ohne Anmeldung.
+- **App installieren (#27):** Ausklappbare Übersicht „Welche Browser können
+  das?“ für iPhone/iPad, Android und Rechner; eigene Schritte für Chrome,
+  Edge und Firefox auf dem iPhone sowie für Firefox unter Windows.
+- **BETA-Schild entfernt (#39):** Haken in der Verwaltung und Schild in der
+  Kopfzeile gibt es nicht mehr. Der gespeicherte Wert `beta_enabled` wird nur
+  noch gelesen, damit „Diesen Text anzeigen“ wie bisher vorbelegt bleibt.
+
+PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
+Datenbankänderung. Nach dem Einspielen Container neu starten.

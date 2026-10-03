@@ -72,6 +72,14 @@ class Application extends App implements IBootstrap {
     public const SETTING_PUBLIC_COMMENTS = 'public_comments';
     /** Nextcloud-Gruppe, die bei neuen Kommentaren benachrichtigt wird ('' = niemand) */
     public const SETTING_COMMENT_NOTIFY_GROUP = 'comment_notify_group';
+    /*
+     * Hilfe und Kontakt (ab 0.37.0, Vikunja #27): Gruppe, die Nachrichten aus
+     * dem Hilfe-Fenster als Nextcloud-Benachrichtigung bekommt, und eine
+     * E-Mail-Adresse fuer "Per E-Mail schreiben". Beides optional; ohne
+     * beides gibt es keinen Hilfe-Knopf.
+     */
+    public const SETTING_HELP_GROUP = 'help_group';
+    public const SETTING_HELP_EMAIL = 'help_email';
     /** Persoenlich: Kommentare bzw. Bewertung in der eigenen Ansicht ('0' = aus) */
     public const USER_COMMENTS = 'comments';
     public const USER_RATING = 'rating';
@@ -161,8 +169,12 @@ class Application extends App implements IBootstrap {
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
 
-    // "BETA"-Schild neben dem Titel. Bis 0.30 schaltete es auch den
-    // Textstreifen; seit 0.31.0 (Vikunja #39) nur noch das Schild.
+    /*
+     * Frueher: "BETA"-Schild neben dem Titel (bis 0.30 auch der Textstreifen,
+     * 0.31.0-0.36.0 nur das Schild). Seit 0.37.0 (Vikunja #39) ganz entfernt;
+     * der Schluessel wird nur noch gelesen, damit ein nie gespeicherter
+     * "Text anzeigen"-Haken wie bisher vorbelegt bleibt (noticeEnabled()).
+     */
     public const SETTING_BETA_ENABLED = 'beta_enabled';
     /*
      * Text ueber den Aufnahmen (bis 0.30 "Beta-Hinweis"): Vorgabe des
@@ -177,7 +189,7 @@ class Application extends App implements IBootstrap {
     /** Persoenlich: eigener Text ueber den Aufnahmen, leer = Vorgabe (ab 0.31.0) */
     public const USER_NOTICE = 'notice';
 
-    /** Zeigt der Administrator seinen Text? Ungesetzt: wie das BETA-Schild bis 0.30. */
+    /** Zeigt der Administrator seinen Text? Ungesetzt: wie das fruehere BETA-Schild bis 0.30. */
     public static function noticeEnabled(\OCP\IAppConfig $appConfig): bool {
         return $appConfig->getValueBool(self::APP_ID, self::SETTING_NOTICE_ENABLED,
             $appConfig->getValueBool(self::APP_ID, self::SETTING_BETA_ENABLED, false));

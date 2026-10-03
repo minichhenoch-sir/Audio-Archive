@@ -44,12 +44,21 @@ class PlayerPage {
     }
 
     /** Favoriten fuer diese Seite? Verwaltung ein und - angemeldet - nicht selbst abgeschaltet. */
+    /** Gibt es die Gruppe fuer Hilfe-Nachrichten (ab 0.37.0, Vikunja #27)? */
+    private function helpGroupExists(): bool {
+        $gid = $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_GROUP, '');
+        return $gid !== '' && \OCP\Server::get(\OCP\IGroupManager::class)->groupExists($gid);
+    }
+
     /**
      * Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), spezifischste Ebene:
      *   Link-Seite: Text der Freigabe, angemeldet: eigener Text,
      *   sonst (und beim Administrator-Link) der Text des Administrators,
      *   sofern er ihn eingeschaltet hat. Ein Link (Adresse) gibt es nur beim
      *   Text des Administrators.
+     *
+     * Seit 0.37.0 (Vikunja #49) ist der Text formatiertes HTML; es wird hier
+     * bereinigt (RichText) und in der Seite per innerHTML eingesetzt.
      *
      * @return array{noticeText: string, noticeLinkUrl: string, noticeLinkLabel: string}
      */
@@ -61,13 +70,13 @@ class PlayerPage {
             $own = trim($this->config->getUserValue($uid, Application::APP_ID, Application::USER_NOTICE, ''));
         }
         if ($own !== '') {
-            return ['noticeText' => $own, 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
+            return ['noticeText' => RichText::toHtml($own), 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
         }
         if (!Application::noticeEnabled($this->appConfig)) {
             return ['noticeText' => '', 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
         }
         return [
-            'noticeText' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_TEXT, ''),
+            'noticeText' => RichText::toHtml($this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_TEXT, '')),
             'noticeLinkUrl' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_LINK_URL, ''),
             'noticeLinkLabel' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_BETA_LINK_LABEL, ''),
         ];
@@ -333,10 +342,9 @@ class PlayerPage {
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
             'cspNonce' => $this->cspNonce(),
-            // "BETA"-Schild neben dem Titel - nur der Administrator (seit 0.31.0 ohne Text)
-            'betaEnabled' => $this->appConfig->getValueBool(
-                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
-            ) ? '1' : '',
+            // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
+            'helpEmail' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_EMAIL, ''),
+            'helpMessage' => $this->helpGroupExists() ? '1' : '',
             // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), siehe notice()
             ...$this->notice($uid, $shareSettings),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
@@ -406,9 +414,11 @@ class PlayerPage {
         $files = [
             '/../../css/style.css',
             '/../../css/style-editor.css',
+            '/../../css/rich-text.css',
             '/../../js/config.js',
             '/../../js/style-tokens.js',
             '/../../js/player.js',
+            '/../../js/rich-text.js',
             '/../../js/app.js',
         ];
 

@@ -78,8 +78,10 @@ const AudioArchive = (() => {
     assetBase: el.dataset.assetBase || '',
     backgroundUrl: el.dataset.background || '',
     appVersion: el.dataset.appVersion || '',
-    betaEnabled: el.dataset.beta === '1',
     // Text ueber den Aufnahmen (ab 0.31.0; vorher betaText/betaLink*)
+    // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
+    helpEmail: el.dataset.helpEmail || '',
+    helpMessage: el.dataset.helpMessage === '1',
     noticeText: el.dataset.noticeText || '',
     noticeLinkUrl: el.dataset.noticeLinkUrl || '',
     noticeLinkLabel: el.dataset.noticeLinkLabel || '',

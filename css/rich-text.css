@@ -1,0 +1,110 @@
+/*
+ * Editor fuer den "Text ueber den Aufnahmen" (ab 0.37.0, Vikunja #49).
+ * Wird im Player (beide Gestaltungen) und in der Verwaltung verwendet -
+ * deshalb nur mit eigenen Klassen und Farben, die ueberall lesbar sind.
+ */
+:is(#audioarchive, #audioarchive-settings) .aa-rt {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid rgba(0, 0, 0, 0.22);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #222;
+  overflow: hidden;
+  max-width: 640px;
+  width: 100%;
+  box-sizing: border-box;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt:focus-within { border-color: #8a6a4a; box-shadow: 0 0 0 1px #8a6a4a; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+  background: rgba(0, 0, 0, 0.04);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt-group { display: inline-flex; flex-wrap: wrap; gap: 2px; align-items: center; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  min-width: 30px;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: #222;
+  font: 14px/1 system-ui, sans-serif;
+  cursor: pointer;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-btn:hover,
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-btn:focus-visible { background: rgba(0, 0, 0, 0.08); border-color: rgba(0, 0, 0, 0.15); }
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-select {
+  min-height: 30px;
+  height: 30px;
+  margin: 0;
+  padding: 0 4px;
+  max-width: 9.5em;
+  border: 1px solid rgba(0, 0, 0, 0.18);
+  border-radius: 6px;
+  background: #fff;
+  color: #222;
+  font: 13px system-ui, sans-serif;
+}
+/* Farbe: Buchstabe A mit Farbbalken, der eigentliche Waehler liegt unsichtbar darueber */
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-colorbtn span { font-weight: 700; border-bottom: 3px solid #b0302a; line-height: 1.1; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-color {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+  cursor: pointer;
+  border: 0;
+  padding: 0;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt-linkrow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 6px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.12);
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt-linkrow[hidden] { display: none !important; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-linkinput {
+  flex: 1 1 12em;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  background: #fff;
+  color: #222;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-linkok { background: rgba(0, 0, 0, 0.08); }
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area {
+  min-height: 4.5em;
+  max-height: 18em;
+  overflow: auto;
+  padding: 8px 12px;
+  outline: none;
+  line-height: 1.45;
+  text-align: left;
+  font-size: 15px;
+  cursor: text;
+  word-break: break-word;
+}
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area p,
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area div { margin: 0 0 0.4em; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area ul,
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area ol { margin: 0.2em 0 0.4em; padding-left: 1.6em; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area a { color: #1a5fb4; text-decoration: underline; }
+:is(#audioarchive, #audioarchive-settings) .aa-rt-area.is-empty::before {
+  content: attr(data-placeholder);
+  color: rgba(0, 0, 0, 0.45);
+  pointer-events: none;
+}

@@ -133,6 +133,8 @@ class Admin implements ISettings {
             'publicComments' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_PUBLIC_COMMENTS, false
             ),
+            'helpGroup' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_GROUP, ''),
+            'helpEmail' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_EMAIL, ''),
             'commentNotifyGroup' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_COMMENT_NOTIFY_GROUP, ''
             ),
@@ -145,9 +147,6 @@ class Admin implements ISettings {
             ),
             'repeatDefault' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'
-            ),
-            'betaEnabled' => $this->appConfig->getValueBool(
-                Application::APP_ID, Application::SETTING_BETA_ENABLED, false
             ),
             'noticeEnabled' => Application::noticeEnabled($this->appConfig),
             'betaText' => $this->appConfig->getValueString(
@@ -187,9 +186,11 @@ class Admin implements ISettings {
         // vergibt Nextcloud das CSP-Nonce von sich aus.
         // style-tokens zuerst: settings.js nutzt dessen Editor (window.AAStyle)
         Util::addScript(Application::APP_ID, 'style-tokens');
+        Util::addScript(Application::APP_ID, 'rich-text'); // Editor fuer den Text (ab 0.37.0, Vikunja #49)
         Util::addScript(Application::APP_ID, 'settings');
         Util::addScript(Application::APP_ID, 'comments-overview'); // ab 0.35.0 (Vikunja #5)
         Util::addStyle(Application::APP_ID, 'settings');
+        Util::addStyle(Application::APP_ID, 'rich-text');
         Util::addStyle(Application::APP_ID, 'style-editor');
 
         return new TemplateResponse(Application::APP_ID, 'settings-admin', [

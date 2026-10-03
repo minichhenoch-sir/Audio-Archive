@@ -41,9 +41,9 @@
   const accent = el('aa-accent');
   const bar = el('aa-bar');
   const base = el('aa-base');
-  const betaEnabled = el('aa-beta-enabled');
   const noticeEnabled = el('aa-notice-enabled'); // ab 0.31.0 (Vikunja #39)
-  const betaText = el('aa-beta-text');
+  // Ab 0.37.0 (Vikunja #49) mit Formatierungsleiste; .value liefert HTML
+  const betaText = window.AARichText ? window.AARichText.attach(el('aa-beta-text')) : el('aa-beta-text');
   const betaLinkUrl = el('aa-beta-link-url');
   const betaLinkLabel = el('aa-beta-link-label');
   const customDesign = el('aa-custom-design');
@@ -68,6 +68,9 @@
   const featureRating = el('aa-feature-rating');
   const publicComments = el('aa-public-comments');
   const commentGroup = el('aa-comment-group');
+  // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
+  const helpGroup = el('aa-help-group');
+  const helpEmail = el('aa-help-email');
   const repeatDefault = el('aa-repeat-default');
   const featureFavorites = el('aa-feature-favorites');
   const featureFolderDownload = el('aa-feature-folder-download');
@@ -85,7 +88,6 @@
   accent.value = state.themeAccent || '#b9793f';
   bar.value = state.themeBar || '#291c12';
   base.value = state.themeBase || '#a86a3d';
-  betaEnabled.checked = state.betaEnabled === true;
   noticeEnabled.checked = state.noticeEnabled === true;
   betaText.value = state.betaText || '';
   betaLinkUrl.value = state.betaLinkUrl || '';
@@ -182,6 +184,14 @@
     commentGroup.appendChild(opt);
   });
   commentGroup.value = state.commentNotifyGroup || '';
+  [{ id: '', name: '– niemanden (kein Textfenster) –' }].concat(state.groups || []).forEach((g) => {
+    const opt = document.createElement('option');
+    opt.value = g.id;
+    opt.textContent = g.name || g.id;
+    helpGroup.appendChild(opt);
+  });
+  helpGroup.value = state.helpGroup || '';
+  helpEmail.value = state.helpEmail || '';
   const syncCommentOptions = () => {
     el('aa-comments-options').classList.toggle('aa-inactive', !featureComments.checked);
   };
@@ -544,13 +554,14 @@
       featureRating: featureRating.checked,
       publicComments: publicComments.checked,
       commentNotifyGroup: commentGroup.value,
+      helpGroup: helpGroup.value,
+      helpEmail: helpEmail.value,
       repeatDefault: repeatDefault.value,
       featureFavorites: featureFavorites.checked,
       featureFolderDownload: featureFolderDownload.checked,
       transcode: transcode.checked,
       rememberDays: parseInt(rememberDays.value, 10) || 0,
       sharedLabel: sharedLabel.value,
-      betaEnabled: betaEnabled.checked,
       noticeEnabled: noticeEnabled.checked,
       betaText: betaText.value,
       betaLinkUrl: betaLinkUrl.value,
