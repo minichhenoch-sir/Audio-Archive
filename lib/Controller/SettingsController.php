@@ -398,7 +398,7 @@ class SettingsController extends Controller {
         }
         if ($sortDefault !== null) {
             $this->appConfig->setValueString(
-                Application::APP_ID, Application::SETTING_SORT_DEFAULT, $sortDefault === 'newest' ? 'newest' : 'name'
+                Application::APP_ID, Application::SETTING_SORT_DEFAULT, in_array($sortDefault, ['newest', 'random'], true) ? $sortDefault : 'name'
             );
         }
         if ($showFolderCount !== null) {

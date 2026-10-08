@@ -165,7 +165,7 @@
   userShares.checked = state.userShares !== false;
   featureOffline.checked = state.featureOffline !== false;
   featureDownload.checked = state.featureDownload === true;
-  sortDefault.value = state.sortDefault === 'newest' ? 'newest' : 'name';
+  sortDefault.value = ['newest', 'random'].includes(state.sortDefault) ? state.sortDefault : 'name';
   showFolderCount.checked = state.showFolderCount === true;
   showFolderDate.checked = state.showFolderDate !== false;
   showTrackDuration.checked = state.showTrackDuration !== false;

@@ -32,7 +32,7 @@ const AudioArchive = (() => {
     requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
     nextcloudUrl: el.dataset.nextcloudUrl || '',
-    sortDefault: el.dataset.sortDefault === 'newest' ? 'newest' : 'name',
+    sortDefault: ['newest', 'random'].includes(el.dataset.sortDefault) ? el.dataset.sortDefault : 'name',
     // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
     showFolderCount: el.dataset.showFolderCount === '1',
     // Was in den Zeilen steht und wie Namen erscheinen (ab 0.33.0, Vikunja #50, #44)

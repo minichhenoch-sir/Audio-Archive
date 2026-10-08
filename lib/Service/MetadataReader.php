@@ -169,13 +169,18 @@ class MetadataReader {
 
         $result = ['duration' => null, 'artist' => null, 'album' => null, 'title' => null, 'cover' => false];
 
+        // Nicht lesbare Datei (ab 0.38.0, Vikunja #52): eine Stunde lang nicht
+        // erneut versuchen - sonst haelt sie jede Suche als "ungelesen" auf.
+        // Nicht dauerhaft speichern, der Fehler kann voruebergehend sein.
         try {
             $fh = $file->fopen('r');
         } catch (\Throwable $e) {
+            $this->cache->set($key, (string)json_encode($result), 3600);
             return $result;
         }
 
         if ($fh === false) {
+            $this->cache->set($key, (string)json_encode($result), 3600);
             return $result;
         }
 

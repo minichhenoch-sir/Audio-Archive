@@ -292,9 +292,10 @@ class PlayerPage {
                 Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'
             ),
             // Vorgabe fuer die Sortierung der Liste (ab 0.22.0, Vikunja #30)
-            'sortDefault' => $this->appConfig->getValueString(
-                Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name'
-            ) === 'newest' ? 'newest' : 'name',
+            // ab 0.38.0 auch "random" (Vikunja #30)
+            'sortDefault' => (static fn (string $v): string => in_array($v, ['newest', 'random'], true) ? $v : 'name')(
+                $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_SORT_DEFAULT, 'name')
+            ),
             // Anzahl der Aufnahmen neben Ordnern (ab 0.30.0, Vikunja #42)
             'showFolderCount' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_SHOW_FOLDER_COUNT, false

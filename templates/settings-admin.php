@@ -247,10 +247,12 @@
         <select id="aa-sort-default">
             <option value="name">Name (A–Z)</option>
             <option value="newest">Neueste zuerst</option>
+            <option value="random">Zufällig (Aufnahmen gemischt)</option>
         </select>
         <p class="settings-hint">
             Gilt für Ordner und Aufnahmen. Jeder Hörer kann in der App
-            umschalten; seine Wahl merkt sich sein Gerät.
+            umschalten und mit dem Pfeil daneben die Richtung wechseln; seine
+            Wahl merkt sich sein Gerät.
         </p>
     </div>
     <!-- Anzeige in der Liste (ab 0.33.0, Vikunja #50; Anzahl ab 0.30.0, #42) -->

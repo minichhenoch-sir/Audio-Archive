@@ -141,6 +141,14 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       die Installation anbietet. Eigenstaendig: erscheint nur, wenn der
       Browser die Installation direkt anbietet (beforeinstallprompt).
     -->
+    <!-- Seite neu laden (ab 0.38.0, Vikunja #50): vor allem fuer die installierte App ohne Browserleiste -->
+    <button id="reload-btn" class="icon-btn glass-pill" type="button"
+            title="Seite neu laden" aria-label="Seite neu laden">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <path d="M20 11a8 8 0 1 0-2.3 5.7"/>
+        <polyline points="20 4 20 11 13 11"/>
+      </svg>
+    </button>
     <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27): nur, wenn in der Verwaltung eingerichtet -->
     <button id="help-btn" class="icon-btn glass-pill" type="button"
             title="Hilfe und Kontakt" aria-label="Hilfe und Kontakt" hidden>

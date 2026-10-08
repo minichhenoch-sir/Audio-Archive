@@ -87,6 +87,20 @@
 }
 :is(#audioarchive, #audioarchive-settings) .aa-rt .aa-rt-linkok { background: rgba(0, 0, 0, 0.08); }
 :is(#audioarchive, #audioarchive-settings) .aa-rt-area {
+  /* Nextcloud gibt jedem div[contenteditable] 130 px Breite, Rahmen und
+     Abstand mit - das Feld war dadurch nur ein schmaler Streifen
+     (ab 0.38.0 behoben, Vikunja #49). */
+  display: block;
+  width: auto;
+  max-width: none;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  color: inherit;
+  box-sizing: border-box;
+  align-self: stretch;
   min-height: 4.5em;
   max-height: 18em;
   overflow: auto;

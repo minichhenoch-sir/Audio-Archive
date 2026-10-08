@@ -55,10 +55,19 @@
   let favApi = null;
   // Sortierung der Liste (ab 0.22.0), siehe "Datum und Sortierung"
   const SORT_KEY = 'audioarchive_sort';
-  let sortMode = AudioArchive.sortDefault === 'newest' ? 'newest' : 'name';
+  // ab 0.38.0 (Vikunja #30): Name / Neueste / Zufaellig, dazu die Richtung
+  const SORT_MODES = ['name', 'newest', 'random'];
+  const SORT_DIR_KEY = 'audioarchive_sort_dir';
+  const SORT_SEED_KEY = 'audioarchive_sort_seed';
+  let sortMode = SORT_MODES.includes(AudioArchive.sortDefault) ? AudioArchive.sortDefault : 'name';
+  let sortDesc = false; // false = gewohnte Richtung (A-Z, neueste zuerst)
+  let sortSeed = Math.floor(Math.random() * 1e9);
   try {
     const stored = localStorage.getItem(SORT_KEY);
-    if (stored === 'name' || stored === 'newest') sortMode = stored;
+    if (SORT_MODES.includes(stored)) sortMode = stored;
+    sortDesc = localStorage.getItem(SORT_DIR_KEY) === 'desc';
+    const seed = parseInt(localStorage.getItem(SORT_SEED_KEY) || '', 10);
+    if (seed > 0) sortSeed = seed;
   } catch (e) { /* ohne Speicher: Vorgabe */ }
   let view = { source: 'shared', path: '' };
 
@@ -1569,9 +1578,40 @@
   });
 
   // ------------------------------------------------------------------
+  // Seite neu laden (ab 0.38.0, Vikunja #50)
+  //
+  // Die installierte App hat keine Browserleiste und damit keinen
+  // Neu-laden-Knopf. Vorher kurz nach einer neuen Fassung der App fragen
+  // (Service Worker), damit ein Neuladen auch eine haengende alte Fassung
+  // abloest. Die Stelle der laufenden Aufnahme merkt sich der Player beim
+  // Verlassen der Seite selbst.
+  // ------------------------------------------------------------------
+  const reloadBtn = document.getElementById('reload-btn');
+  if (reloadBtn) {
+    reloadBtn.addEventListener('click', async () => {
+      reloadBtn.disabled = true;
+      reloadBtn.classList.add('is-busy');
+      try {
+        if ('serviceWorker' in navigator && navigator.onLine !== false) {
+          const reg = await navigator.serviceWorker.getRegistration();
+          if (reg) {
+            await Promise.race([
+              reg.update().catch(() => {}),
+              new Promise((resolve) => window.setTimeout(resolve, 3000)),
+            ]);
+          }
+        }
+      } catch (e) { /* trotzdem neu laden */ }
+      window.location.reload();
+    });
+  }
+
+  // ------------------------------------------------------------------
   // Logout
   // ------------------------------------------------------------------
   logoutBtn.addEventListener('click', async () => {
+    // Nach dem Abmelden soll nichts weiterlaufen (ab 0.38.0, Vikunja #54)
+    Player.stop();
     setRememberUntil(0);
     try {
       await fetch(AudioArchive.logoutUrl(), { method: 'POST', credentials: 'same-origin' });
@@ -1872,29 +1912,80 @@
   });
   crumbRow.append(crumbBack, breadcrumbEl);
 
-  // Umschalter Name / Neueste (ab 0.22.0)
-  const sortBtn = document.createElement('button');
-  sortBtn.type = 'button';
+  // Sortierung (ab 0.22.0; ab 0.38.0 Auswahl Name/Neueste/Zufaellig und
+  // Richtungspfeil, Vikunja #30). Die Auswahl ist ein echtes <select> ueber
+  // der Pille - auf dem Telefon erscheint so die gewohnte Systemauswahl.
+  const SORT_LABELS = { name: 'Name', newest: 'Neueste', random: 'Zufällig' };
+  const sortBox = document.createElement('div');
+  sortBox.className = 'sort-control';
+  const sortBtn = document.createElement('label');
   sortBtn.className = 'sort-toggle';
-  function updateSortBtn() {
-    const label = sortMode === 'newest' ? 'Neueste' : 'Name';
-    sortBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" '
-      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 4v16M7 20l-3-3M7 20l3-3"/>'
-      + '<path d="M14 6h7M14 12h5M14 18h3"/></svg><span>' + label + '</span>';
-    const next = sortMode === 'newest' ? 'nach Name' : 'neueste zuerst';
-    sortBtn.title = 'Sortiert: ' + label + ' – tippen für ' + next;
-    sortBtn.setAttribute('aria-label', 'Sortierung: ' + label + '. Umschalten auf ' + next);
-  }
-  updateSortBtn();
-  sortBtn.addEventListener('click', () => {
-    sortMode = sortMode === 'newest' ? 'name' : 'newest';
+  const sortLabel = document.createElement('span');
+  const sortSelect = document.createElement('select');
+  sortSelect.className = 'sort-select';
+  sortSelect.setAttribute('aria-label', 'Sortierung');
+  SORT_MODES.forEach((m) => {
+    const o = document.createElement('option');
+    o.value = m;
+    o.textContent = SORT_LABELS[m];
+    sortSelect.appendChild(o);
+  });
+  sortBtn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" '
+    + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">'
+    + '<path d="M4 6h16M7 12h10M10 18h4"/></svg>';
+  sortBtn.append(sortLabel, sortSelect);
+  const sortDirBtn = document.createElement('button');
+  sortDirBtn.type = 'button';
+  sortDirBtn.className = 'sort-toggle sort-dir';
+
+  function saveSort() {
     try {
       localStorage.setItem(SORT_KEY, sortMode);
+      localStorage.setItem(SORT_DIR_KEY, sortDesc ? 'desc' : 'asc');
+      localStorage.setItem(SORT_SEED_KEY, String(sortSeed));
     } catch (e) { /* nur fuer diese Sitzung */ }
+  }
+
+  function updateSortBtn() {
+    sortSelect.value = sortMode;
+    sortLabel.textContent = SORT_LABELS[sortMode];
+    sortBtn.title = 'Sortiert: ' + SORT_LABELS[sortMode] + ' – tippen zum Ändern';
+    const icon = (d) => '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" '
+      + 'stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + d + '</svg>';
+    let hint;
+    if (sortMode === 'random') {
+      sortDirBtn.innerHTML = icon('<path d="M16 3h5v5M4 20 21 3M21 16v5h-5M15 15l6 6M4 4l5 5"/>');
+      hint = 'Neu mischen';
+    } else {
+      // Pfeil zeigt, wo das "Groessere" steht: nach unten = A-Z bzw. neueste oben
+      sortDirBtn.innerHTML = icon(sortDesc ? '<path d="M12 19V5M5 12l7-7 7 7"/>' : '<path d="M12 5v14M5 12l7 7 7-7"/>');
+      hint = sortMode === 'newest'
+        ? (sortDesc ? 'Älteste zuerst – tippen für neueste zuerst' : 'Neueste zuerst – tippen für älteste zuerst')
+        : (sortDesc ? 'Z bis A – tippen für A bis Z' : 'A bis Z – tippen für Z bis A');
+    }
+    sortDirBtn.title = hint;
+    sortDirBtn.setAttribute('aria-label', 'Richtung: ' + hint);
+  }
+  updateSortBtn();
+  sortSelect.addEventListener('change', () => {
+    sortMode = SORT_MODES.includes(sortSelect.value) ? sortSelect.value : 'name';
+    sortDesc = false; // neue Art beginnt in der gewohnten Richtung
+    saveSort();
     updateSortBtn();
     renderEntries();
   });
-  crumbRow.appendChild(sortBtn);
+  sortDirBtn.addEventListener('click', () => {
+    if (sortMode === 'random') {
+      sortSeed = Math.floor(Math.random() * 1e9) + 1;
+    } else {
+      sortDesc = !sortDesc;
+    }
+    saveSort();
+    updateSortBtn();
+    renderEntries();
+  });
+  sortBox.append(sortBtn, sortDirBtn);
+  crumbRow.appendChild(sortBox);
 
   // ------------------------------------------------------------------
   // Suche (ab 0.22.0, Vikunja #32)
@@ -1924,6 +2015,9 @@
     let complete = true;
     let loading = false;
     let reading = false;   // Server liest noch Angaben, Treffer kommen nach
+    let limited = false;   // zu viele Treffer: nur die ersten gezeigt (ab 0.38.0)
+    let unread = 0;        // Aufnahmen, deren Angaben noch nicht gelesen sind (ab 0.38.0)
+    let shownKey = '';     // zuletzt gezeigte Trefferliste - gegen Flackern (ab 0.38.0)
     let failed = '';       // Fehler der letzten Suche (z. B. "404"), sonst leer
     let timer = 0;
     let seq = 0;
@@ -1971,8 +2065,14 @@
       return found;
     }
 
-    /** Wie oft die Suche hoechstens selbst nachfragt, solange der Server noch Angaben liest. */
-    const MAX_FOLLOW_UPS = 12;
+    /*
+     * Nachfragen, solange der Server noch Angaben liest (ab 0.38.0, Vikunja
+     * #52): weiter, solange es vorangeht (weniger ungelesene Aufnahmen),
+     * hoechstens aber etwa drei Minuten. Vorher war nach 12 Runden Schluss,
+     * und jede Runde baute die Liste neu auf - die Ansicht blinkte.
+     */
+    const MAX_FOLLOW_UPS = 40;
+    const MAX_STALLED = 3;
 
     async function run() {
       const mySeq = ++seq;
@@ -1984,10 +2084,14 @@
       render();
       let list = [];
       let done = true;
+      limited = false;
+      unread = 0;
       try {
         if (offlineMode) {
           list = await offlineSearch(q);
         } else {
+          let stalled = 0;
+          let lastUnread = Infinity;
           const url = new URL(AudioArchive.api('search') + '?' + AudioArchive.sourceQuery(view.source)
             + 'q=' + encodeURIComponent(q)
             + (searchBase !== '' ? '&path=' + encodeURIComponent(searchBase) : ''), location.href).href;
@@ -2002,14 +2106,23 @@
             if (mySeq !== seq) return; // inzwischen weitergetippt
             list = Array.isArray(data.results) ? data.results : [];
             done = data.complete !== false;
+            limited = data.limited === true;
+            unread = Number(data.unread) || 0;
             // Der Server liest die Angaben der Aufnahmen (Titel, Kuenstler, Album)
             // nur eine Weile am Stueck; solange er dabei ist, weiter nachfragen
             // und die bisherigen Treffer schon zeigen.
             if (!data.pending || attempt >= MAX_FOLLOW_UPS) break;
+            // Aeltere Server melden keine Anzahl: wie bisher hoechstens 12 Runden
+            if (data.unread === undefined && attempt >= 12) break;
+            if (data.unread !== undefined) {
+              stalled = unread < lastUnread ? 0 : stalled + 1;
+              lastUnread = unread;
+              if (stalled >= MAX_STALLED) break;
+            }
             results = tagEntries(list, view.source);
             complete = false;
             reading = true;
-            render();
+            render(true);
           }
         }
       } catch (err) {
@@ -2024,35 +2137,52 @@
       complete = done;
       loading = false;
       reading = false;
-      render();
+      render(true);
     }
 
-    function render() {
-      listContainer.innerHTML = '';
+    /** keepSame = Liste nicht neu aufbauen, wenn sich die Treffer nicht geaendert haben. */
+    function render(keepSame = false) {
       libraryStatus.hidden = false;
       if (loading && !reading) {
+        listContainer.innerHTML = '';
+        shownKey = '';
         libraryStatus.textContent = 'Suche \u2026';
         return;
       }
       if (failed) {
+        listContainer.innerHTML = '';
+        shownKey = '';
         libraryStatus.textContent = 'Die Suche hat nicht geklappt (Fehler ' + failed + '). '
           + 'Bitte die Seite neu laden. Bleibt der Fehler, bitte dem Administrator Bescheid geben.';
         return;
       }
       const n = results.length;
+      const where = searchBase !== '' ? ' in „' + prettyFolderName(searchBase.split('/').pop()) + '“' : '';
       if (reading) {
         libraryStatus.textContent = (n === 0 ? 'Suche läuft' : n + ' Treffer bisher')
-          + ' – die Angaben der Aufnahmen werden noch gelesen \u2026';
-      } else if (n === 0) {
-        libraryStatus.textContent = complete
-          ? 'Nichts gefunden für „' + query + '“.'
-          : 'Bisher nichts gefunden für „' + query + '“ – es wurde nicht alles durchsucht. Bitte gleich noch einmal suchen.';
+          + ' – Titel und Künstler werden noch gelesen'
+          + (unread > 0 ? ' (noch ' + unread + (unread === 1 ? ' Aufnahme' : ' Aufnahmen') + ')' : '')
+          + ' \u2026';
+      } else if (complete) {
+        libraryStatus.textContent = n === 0
+          ? 'Nichts gefunden für „' + query + '“' + where + '.'
+          : n + ' Treffer für „' + query + '“' + where + (offlineMode ? ' (nur offline gespeicherte)' : '');
+      } else if (limited) {
+        libraryStatus.textContent = 'Mehr als ' + n + ' Treffer für „' + query + '“' + where
+          + ' – nur die ersten werden gezeigt. Bitte genauer suchen (mehrere Wörter möglich).';
       } else {
-        libraryStatus.textContent = n + ' Treffer für „' + query + '“'
-          + (searchBase !== '' ? ' in „' + prettyFolderName(searchBase.split('/').pop()) + '“' : '')
-          + (complete ? '' : ' – nicht alles durchsucht, bitte genauer suchen')
-          + (offlineMode ? ' (nur offline gespeicherte)' : '');
+        // Nur Titel/Kuenstler/Album einiger Aufnahmen fehlen noch; Datei- und
+        // Ordnernamen sind vollstaendig durchsucht (ab 0.38.0, Vikunja #52)
+        libraryStatus.textContent = (n === 0 ? 'Nichts gefunden für „' + query + '“' + where : n + ' Treffer für „' + query + '“' + where)
+          + '. Datei- und Ordnernamen sind ganz durchsucht; bei '
+          + (unread > 0 ? unread + (unread === 1 ? ' Aufnahme' : ' Aufnahmen') : 'einigen Aufnahmen')
+          + ' sind Titel und Künstler noch nicht gelesen – das holt Nextcloud im Hintergrund nach. Später findet die Suche dort evtl. mehr.';
       }
+      // Gleiche Treffer wie zuletzt: Liste stehen lassen (kein Flackern)
+      const key = results.map((e) => e.type + ':' + e.path).join('\n') + '|' + sortMode + sortDesc + sortSeed;
+      if (keepSame && key === shownKey && listContainer.childElementCount > 0) return;
+      shownKey = key;
+      listContainer.innerHTML = '';
       const files = sortEntries(results).filter((e) => e.type === 'file');
       sortEntries(results).forEach((entry) => {
         const where = entry.path.includes('/') ? entry.path.slice(0, entry.path.lastIndexOf('/')) : '';
@@ -2647,14 +2777,34 @@
     ].filter(Boolean).join(' \u00b7 ');
   }
 
+  /** Fester Zufallswert je Eintrag: gleiche Mischung, bis neu gemischt wird. */
+  function shuffleRank(entry) {
+    let h = sortSeed >>> 0;
+    const key = String(entry.path || entry.name || '');
+    for (let i = 0; i < key.length; i++) {
+      h = Math.imul(h ^ key.charCodeAt(i), 2654435761) >>> 0;
+    }
+    h ^= h >>> 16;
+    return Math.imul(h, 2246822507) >>> 0;
+  }
+
   function sortEntries(entries) {
-    if (sortMode !== 'newest') return entries;
-    const when = (e) => (e.type === 'dir' ? e.added : e.mtime) || 0;
-    const byNewest = (a, b) => (when(b) - when(a)) || String(a.name).localeCompare(String(b.name), 'de', { numeric: true });
-    return [
-      ...entries.filter((e) => e.type === 'dir').sort(byNewest),
-      ...entries.filter((e) => e.type !== 'dir').sort(byNewest),
-    ];
+    const dirs = entries.filter((e) => e.type === 'dir');
+    const files = entries.filter((e) => e.type !== 'dir');
+    const byName = (a, b) => String(a.name).localeCompare(String(b.name), 'de', { numeric: true, sensitivity: 'base' });
+    let cmp;
+    if (sortMode === 'newest') {
+      const when = (e) => (e.type === 'dir' ? e.added : e.mtime) || 0;
+      cmp = (a, b) => (when(b) - when(a)) || byName(a, b);
+    } else if (sortMode === 'random') {
+      // Zufaellig (ab 0.38.0): die Aufnahmen werden gemischt (und so auch
+      // abgespielt), Ordner bleiben zum Wiederfinden nach Name geordnet
+      return [...dirs.sort(byName), ...files.sort((a, b) => shuffleRank(a) - shuffleRank(b) || byName(a, b))];
+    } else {
+      cmp = byName;
+    }
+    const dirCmp = sortDesc ? (a, b) => cmp(b, a) : cmp;
+    return [...dirs.sort(dirCmp), ...files.sort(dirCmp)];
   }
 
   /** Anzeigetext rechts in der Zeile: bevorzugt die Laenge, sonst die Groesse. */

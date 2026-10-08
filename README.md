@@ -1711,3 +1711,47 @@ Vikunja #49, #27, #39.
 
 PHP, JavaScript, CSS, Vorlagen, Routen und `info.xml` geändert; keine
 Datenbankänderung. Nach dem Einspielen Container neu starten.
+
+## 0.38.0: Sortieren, Neu laden, Suche und Wiedergabe verbessert
+
+Vikunja #30, #49, #50, #51, #52, #54.
+
+- **Sortieren (#30):** Statt des Umschalters Name/Neueste gibt es eine Auswahl
+  **Name / Neueste / Zufällig** (echtes `<select>` über der Pille, auf dem
+  Telefon mit der gewohnten Systemauswahl) und daneben einen **Pfeil für die
+  Richtung** (A–Z ↔ Z–A, neueste ↔ älteste zuerst). Bei „Zufällig“ wird der
+  Pfeil zum Knopf „Neu mischen“: Gemischt werden die Aufnahmen (und so auch
+  abgespielt), Ordner bleiben nach Name. Die Mischung bleibt gleich, bis neu
+  gemischt wird (fester Startwert im Gerät). Beim Wechsel der Art beginnt die
+  Richtung wieder in der gewohnten Reihenfolge. Die Vorgabe in der Verwaltung
+  kennt jetzt auch „Zufällig“.
+- **Seite neu laden (#50):** Neuer Knopf in der Kopfzeile (Pfeil im Kreis),
+  vor allem für die installierte App ohne Browserleiste. Fragt vorher bis zu
+  3 s nach einer neuen Fassung des Service Workers und lädt dann neu.
+- **Textfeld in voller Breite (#49):** Nextcloud gibt jedem
+  `div[contenteditable]` 130 px Breite und einen eigenen Rahmen – der Editor
+  für „Text über den Aufnahmen“ war dadurch ein schmaler Streifen.
+  `css/rich-text.css` setzt Breite, Rahmen und Abstand zurück.
+- **Nächster Titel beginnt vorne (#51):** Beim automatischen Weiterspielen,
+  beim Überspringen und bei Vor/Zurück startet der Titel am Anfang, eine
+  früher gemerkte Stelle dieses Titels wird verworfen. Weiterhören an der
+  gemerkten Stelle gilt nur noch, wenn man den Titel selbst antippt (und für
+  die Karte „Weiterhören“).
+- **Suche (#52):** Die Ansicht blinkte, weil die Liste bei jedem Nachfragen
+  (solange der Server Titel/Künstler liest) neu aufgebaut wurde, und nach
+  12 Runden kam „nicht alles durchsucht, bitte genauer suchen“ – auch bei
+  wenigen Treffern. Jetzt: `api/search` meldet `limited` (zu viele Treffer)
+  und `unread` (Aufnahmen, deren Angaben noch fehlen). Die Oberfläche fragt
+  nach, solange `unread` sinkt (höchstens 40 Runden), zeigt „noch N
+  Aufnahmen“ und baut die Liste nur neu auf, wenn sich die Treffer ändern.
+  Die Schlussmeldung unterscheidet „zu viele Treffer – genauer suchen“ von
+  „Datei- und Ordnernamen ganz durchsucht, bei N Aufnahmen fehlen noch Titel
+  und Künstler“. Nicht lesbare Dateien werden eine Stunde lang nicht erneut
+  versucht (nur Zwischenspeicher, nicht dauerhaft).
+- **Abmelden stoppt die Wiedergabe (#54):** `Player.stop()` merkt die Stelle,
+  hält an, entfernt die Quelle, blendet die Leiste aus und meldet der
+  Sperrbildschirm-Steuerung „none“.
+
+Geprüft in Nextcloud 35.0.1 (Sandbox, Playwright). Einspielen wie gewohnt mit
+Container-Neustart (PHP-Dateien geändert); keine Datenbank-Änderung, keine
+neuen Routen.

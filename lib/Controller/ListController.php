@@ -566,6 +566,8 @@ class ListController extends Controller {
         // Angaben noch nicht gelesener Dateien fehlen nur wegen des Zeitbudgets;
         // die naechste Anfrage liest weiter (die Oberflaeche fragt dann selbst nach)
         $pending = false;
+        // Wie viele Aufnahmen wegen des Zeitbudgets noch ungelesen blieben (ab 0.38.0)
+        $unread = 0;
         $folders = 0;
         $seenFiles = 0;
         $queue = [[$start, $base]];
@@ -623,6 +625,7 @@ class ListController extends Controller {
                         if (microtime(true) > $deadline) {
                             $complete = false;
                             $pending = true;
+                            $unread++;
                             continue;
                         }
                         $meta = $this->metadata->read($child);
@@ -645,11 +648,18 @@ class ListController extends Controller {
         usort($dirs, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
         usort($files, static fn ($a, $b) => strnatcasecmp($a['path'], $b['path']));
 
+        $limited = count($files) >= self::SEARCH_MAX_RESULTS || count($dirs) >= self::SEARCH_MAX_RESULTS
+            || $folders > self::SEARCH_MAX_FOLDERS || $seenFiles > self::SEARCH_MAX_FILES;
         return new DataResponse([
             'results' => array_merge($dirs, $files),
-            'complete' => $complete && count($files) < self::SEARCH_MAX_RESULTS && count($dirs) < self::SEARCH_MAX_RESULTS,
+            'complete' => $complete && !$limited,
             // ab 0.25.1: true = erneut fragen lohnt sich (Angaben werden noch gelesen)
             'pending' => $pending && count($files) < self::SEARCH_MAX_RESULTS,
+            // ab 0.38.0 (Vikunja #52): Grund fuer "nicht vollstaendig" getrennt
+            // melden - zu viele Treffer (genauer suchen) oder noch ungelesene
+            // Angaben (Anzahl, damit die Oberflaeche den Fortschritt zeigt)
+            'limited' => $limited,
+            'unread' => $unread,
         ]);
     }
 

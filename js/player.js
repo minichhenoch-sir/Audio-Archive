@@ -876,7 +876,12 @@ const Player = (() => {
     }
   }
 
-  function loadTrack(index, autoplay = true) {
+  /**
+   * fromStart (ab 0.38.0, Vikunja #51): Beim automatischen Weiterspielen und
+   * bei Vor/Zurueck beginnt der Titel vorne - eine frueher gemerkte Stelle
+   * gilt nur, wenn der Titel selbst angetippt wird.
+   */
+  function loadTrack(index, autoplay = true, fromStart = false) {
     if (index < 0 || index >= playlist.length) return;
     // Stelle des bisherigen Titels sichern (ab 0.23.0)
     rememberPosition(true);
@@ -914,7 +919,11 @@ const Player = (() => {
     }
 
     // Weiterhoeren (ab 0.23.0): an der gemerkten Stelle beginnen
-    const startAt = savedPosition(track);
+    if (fromStart && positions[posKey(track)]) {
+      delete positions[posKey(track)];
+      savePositions();
+    }
+    const startAt = fromStart ? 0 : savedPosition(track);
     if (startAt > 0) {
       resumeAt = startAt;
       resumePlay = false;
@@ -1090,7 +1099,7 @@ const Player = (() => {
        * Medien-Benachrichtigung in dieser Luecke weg - der Ton laeuft dann
        * zwar weiter, aber ohne Steuerung am Sperrbildschirm.
        */
-      loadTrack(nextIndex, true);
+      loadTrack(nextIndex, true, true);
       return;
     }
     // Ende des Ordners: je nach Wiederholen-Stufe
@@ -1105,7 +1114,7 @@ const Player = (() => {
     if (repeatMode === 'folder' && playlist.length > 0) {
       const first = playableIndex(0, 1);
       if (first !== -1) {
-        loadTrack(first, true);
+        loadTrack(first, true, true);
         return;
       }
     }
@@ -1121,7 +1130,7 @@ const Player = (() => {
         preparedNext = null;
         showToast('Weiter mit: ' + (next.label || 'nächster Ordner'));
         const start = playableIndex(0, 1);
-        loadTrack(start === -1 ? 0 : start, true);
+        loadTrack(start === -1 ? 0 : start, true, true);
         if (typeof next.onStart === 'function') next.onStart();
         return;
       }
@@ -1984,7 +1993,7 @@ const Player = (() => {
           const next = wanted && key !== tappedKey ? playableIndex(currentIndex + 1, 1) : -1;
           if (next !== -1) {
             showToast(formatHint(track) + ' – übersprungen');
-            loadTrack(next, true);
+            loadTrack(next, true, true);
           } else {
             loadTrack(currentIndex, false); // zeigt den Hinweis an
           }
@@ -2101,7 +2110,7 @@ const Player = (() => {
     const next = playableIndex(currentIndex + 1, 1);
     if (next !== -1) {
       showToast('Nicht offline gespeichert – übersprungen');
-      loadTrack(next, true);
+      loadTrack(next, true, true);
       return;
     }
     shouldPlay = false;
@@ -2695,10 +2704,32 @@ const Player = (() => {
       audio.pause();
     },
 
+    /**
+     * Wiedergabe ganz beenden, z. B. beim Abmelden (ab 0.38.0, Vikunja #54):
+     * Stelle merken, Ton aus, Leiste und Sperrbildschirm-Steuerung weg.
+     */
+    stop() {
+      rememberPosition(true);
+      shouldPlay = false;
+      resetRecovery();
+      audio.pause();
+      audio.removeAttribute('src');
+      audio.load();
+      playlist = [];
+      currentIndex = -1;
+      els.bar.hidden = true;
+      updatePlayerBarSpace();
+      updatePlayPauseIcon();
+      setMediaSessionPlaybackState('none');
+      if ('mediaSession' in navigator) {
+        try { navigator.mediaSession.metadata = null; } catch (e) { /* egal */ }
+      }
+    },
+
     prev() {
       const prevIndex = currentIndex > 0 ? playableIndex(currentIndex - 1, -1) : -1;
       if (prevIndex !== -1) {
-        loadTrack(prevIndex, true);
+        loadTrack(prevIndex, true, true);
       } else {
         audio.currentTime = 0;
       }
@@ -2707,14 +2738,14 @@ const Player = (() => {
     next() {
       const nextIndex = playableIndex(currentIndex + 1, 1);
       if (nextIndex !== -1) {
-        loadTrack(nextIndex, true);
+        loadTrack(nextIndex, true, true);
         return;
       }
       // Am Ende des Ordners wie beim natuerlichen Ende - ausser bei
       // "Titel wiederholen": Dort soll "Naechster" nicht haengen bleiben
       if (repeatMode === 'folder' || repeatMode === 'one') {
         const first = playableIndex(0, 1);
-        if (first !== -1) loadTrack(first, true);
+        if (first !== -1) loadTrack(first, true, true);
       } else if (repeatMode === 'next') {
         finishQueue(false);
       }
