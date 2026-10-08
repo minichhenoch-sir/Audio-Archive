@@ -53,6 +53,7 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-can-share="<?php echo $escape($_['canShare']); ?>"
      data-api-token="<?php echo $escape($_['apiToken']); ?>"
      data-open-access="<?php echo $escape($_['openAccess']); ?>"
+     data-offline-open="<?php echo $escape($_['offlineOpen'] ?? ''); ?>"
      data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
      data-standalone-url="<?php echo $escape($_['standaloneUrl']); ?>"
@@ -283,7 +284,13 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
     <!-- Kurzanleitung "App installieren" fuer geteilte Links (ab 0.21.1, Vikunja #27) -->
     <section id="install-help" class="panel install-help" hidden>
       <h2 class="panel-title">Als App installieren</h2>
-      <ol id="install-help-steps" class="install-help-steps"></ol>
+      <!-- Browser bietet die Installation selbst an (ab 0.39.0, Vikunja #27) -->
+      <div id="install-now-row" class="panel-row" hidden>
+        <button type="button" class="panel-button install-now" id="install-now">📲 Jetzt installieren</button>
+      </div>
+      <div id="install-help-manual">
+        <ol id="install-help-steps" class="install-help-steps"></ol>
+      </div>
       <p class="panel-hint">Danach startet der Player wie eine App vom Startbildschirm – auch ohne Browserleiste.</p>
       <!-- Welche Browser koennen das? (ab 0.37.0, Vikunja #27) -->
       <details class="install-browsers">

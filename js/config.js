@@ -29,6 +29,8 @@ const AudioArchive = (() => {
     // Nur auf der Seite einer Nutzer-Freigabe gesetzt (siehe PlayerPage)
     apiToken: el.dataset.apiToken || '',
     openAccess: el.dataset.openAccess === '1',
+    // ab 0.39.0 (Vikunja #53): offline ohne Passwort/PIN
+    offlineOpen: el.dataset.offlineOpen === '1',
     requestToken: el.dataset.requesttoken || '',
     standaloneUrl: el.dataset.standaloneUrl || '',
     nextcloudUrl: el.dataset.nextcloudUrl || '',

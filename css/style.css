@@ -3410,3 +3410,7 @@ body > .aa-comment-notice {
 /* Neu-laden-Knopf dreht sich, bis die Seite neu geladen ist (ab 0.38.0, Vikunja #50) */
 @keyframes aa-spin { to { transform: rotate(360deg); } }
 #audioarchive #reload-btn.is-busy svg { animation: aa-spin 0.9s linear infinite; }
+/* Installieren: Direkt-Knopf oder Anleitung (ab 0.39.0, Vikunja #27) */
+#audioarchive #install-now-row[hidden],
+#audioarchive #install-help-manual[hidden] { display: none !important; }
+#audioarchive .install-now { font-weight: 700; }

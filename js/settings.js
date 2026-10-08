@@ -52,6 +52,7 @@
   const userCustomization = el('aa-user-customization');
   const userShares = el('aa-user-shares');
   const featureOffline = el('aa-feature-offline');
+  const offlineOpen = el('aa-offline-open');
   const featureDownload = el('aa-feature-download');
   const sortDefault = el('aa-sort-default');
   const showFolderCount = el('aa-show-folder-count'); // ab 0.30.0 (Vikunja #42)
@@ -164,6 +165,7 @@
   userCustomization.checked = state.userCustomization !== false;
   userShares.checked = state.userShares !== false;
   featureOffline.checked = state.featureOffline !== false;
+  offlineOpen.checked = state.offlineOpen !== false;
   featureDownload.checked = state.featureDownload === true;
   sortDefault.value = ['newest', 'random'].includes(state.sortDefault) ? state.sortDefault : 'name';
   showFolderCount.checked = state.showFolderCount === true;
@@ -540,6 +542,7 @@
       userCustomization: userCustomization.checked,
       userShares: userShares.checked,
       featureOffline: featureOffline.checked,
+      offlineOpen: offlineOpen.checked,
       featureDownload: featureDownload.checked,
       sortDefault: sortDefault.value,
       showFolderCount: showFolderCount.checked,

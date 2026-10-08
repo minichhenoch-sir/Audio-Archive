@@ -383,6 +383,19 @@
         Aufnahmen werden in der App gespeichert und bleiben ohne Verbindung
         hörbar. Sie landen nicht im Download-Ordner des Geräts.
     </p>
+    <!-- ab 0.39.0, Vikunja #53 -->
+    <p>
+        <input type="checkbox" id="aa-offline-open" class="checkbox">
+        <label for="aa-offline-open">Offline ohne Passwort öffnen</label>
+    </p>
+    <p class="settings-hint">
+        Gespeicherte Aufnahmen öffnen sich ohne Verbindung direkt – ohne
+        Passwort und ohne eigene Offline-PIN. Wer sich in der App ausdrücklich
+        abmeldet, braucht danach wieder das Passwort. Ausgeschaltet: offline wie
+        bisher mit dem Passwort des Links bzw. einer PIN für angemeldete Nutzer.
+        Hinweis: Wer das Gerät in der Hand hat, kann die gespeicherten Aufnahmen
+        dann ohne Passwort anhören.
+    </p>
     <p>
         <input type="checkbox" id="aa-feature-download" class="checkbox">
         <label for="aa-feature-download">Herunterladen als Datei erlauben</label>

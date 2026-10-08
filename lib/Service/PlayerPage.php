@@ -331,6 +331,10 @@ class PlayerPage {
             'apiToken' => $share !== null ? $share['token'] : '',
             // Freigabe ohne Passwort: kein Anmelde-Bildschirm, auch offline
             'openAccess' => ($share !== null && !$share['hasPassword']) ? '1' : '',
+            // Offline Gespeichertes ohne Passwort/PIN oeffnen (ab 0.39.0, Vikunja #53)
+            'offlineOpen' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_OFFLINE_OPEN, true
+            ) ? '1' : '',
             'manifestUrl' => $this->urlGenerator->linkToRoute(
                 Application::APP_ID . '.asset.manifest'
             ) . ($publicToken !== '' ? '?s=' . urlencode($share !== null ? $share['token'] : $publicToken) : ''),

@@ -1755,3 +1755,30 @@ Vikunja #30, #49, #50, #51, #52, #54.
 Geprüft in Nextcloud 35.0.1 (Sandbox, Playwright). Einspielen wie gewohnt mit
 Container-Neustart (PHP-Dateien geändert); keine Datenbank-Änderung, keine
 neuen Routen.
+
+## 0.39.0: Offline ohne Passwort, Installieren direkt
+
+Vikunja #53, #27.
+
+- **Offline ohne Passwort (#53):** Neue Einstellung in der Verwaltung
+  „Offline ohne Passwort öffnen“ (`offline_open`, Vorgabe **an**). Dann
+  öffnen sich offline gespeicherte Aufnahmen ohne Verbindung direkt – auf
+  geteilten Links ohne Passwortabfrage, angemeldete Nutzer vergeben beim
+  Offline-Speichern keine PIN mehr. Wer sich auf einem Link ausdrücklich
+  abmeldet, sperrt den Offline-Zugang auf diesem Gerät
+  (`audioarchive_offline_locked[:token]`), bis er sich online wieder
+  anmeldet. Ausgeschaltet verhält sich alles wie bisher (Link-Passwort bzw.
+  PIN). Hinweis in der Verwaltung: Wer das Gerät hat, kann das Gespeicherte
+  dann ohne Passwort hören.
+- **App installieren (#27):** In Browsern mit eigenem Installieren-Dialog
+  (Chrome, Edge, Samsung Internet, Opera) erscheint der Knopf erst, wenn der
+  Browser `beforeinstallprompt` meldet – also nur, wenn die App installierbar
+  und noch nicht installiert ist; ein Tipp öffnet sofort den Dialog statt der
+  Anleitung. In Safari/Firefox bleibt die Anleitung (jetzt auch angemeldet
+  ohne Nextcloud-Leiste). Innerhalb von Nextcloud führt der Knopf zu
+  `…/app#install`; dort öffnet sich gleich das Fenster mit „📲 Jetzt
+  installieren“ (ein Tipp ist nötig, Browser erlauben keine Installation ohne
+  Nutzeraktion) bzw. nach 4 s ohne Meldung die Anleitung.
+
+Geprüft in Nextcloud 35.0.1 (Sandbox, Playwright). Einspielen mit
+Container-Neustart; keine Datenbank-Änderung, keine neuen Routen.

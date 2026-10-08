@@ -112,7 +112,6 @@
    * bisher.
    */
   const installHelp = document.getElementById('install-help');
-  const alwaysOfferInstall = AudioArchive.isPublic() && !runsAsInstalledApp && !!installHelp;
 
   function installSteps() {
     const ua = navigator.userAgent || '';
@@ -167,48 +166,90 @@
     ];
   }
 
-  function showInstallHelp() {
-    const list = document.getElementById('install-help-steps');
-    list.innerHTML = installSteps().map((step) => '<li>' + step + '</li>').join('');
-    installHelp.hidden = false;
-    installHelp.scrollIntoView({ block: 'nearest' });
-  }
-
   if (installHelp) {
     document.getElementById('install-help-close').addEventListener('click', () => {
       installHelp.hidden = true;
     });
   }
 
+  /*
+   * Ab 0.39.0 (Vikunja #27, Wunsch: "automatisch erkennen, ob man
+   * installieren kann, und dann direkt installieren statt Hinweis"):
+   * - Browser mit eigenem Installieren-Dialog (Chrome, Edge, Samsung
+   *   Internet, Opera): Der Knopf erscheint erst, wenn der Browser meldet,
+   *   dass die App installierbar und noch NICHT installiert ist - ein Tipp
+   *   oeffnet sofort den Installieren-Dialog. Ist sie schon installiert,
+   *   meldet der Browser nichts, und der Knopf bleibt weg.
+   * - Andere Browser (Safari, Firefox) koennen das nicht melden: Dort bleibt
+   *   es bei der kurzen Anleitung.
+   * - Innerhalb von Nextcloud fuehrt der Knopf zur Fassung ohne Leiste
+   *   (#install). Dort erscheint gleich das Fenster mit "Jetzt installieren"
+   *   - einen Tipp braucht es, ohne erlaubt kein Browser die Installation.
+   */
+  const canPromptInstall = 'onbeforeinstallprompt' in window;
+  const installNow = document.getElementById('install-now');
+  const installNowRow = document.getElementById('install-now-row');
+  const installStepsBox = document.getElementById('install-help-manual');
+  const wantsInstall = location.hash === '#install';
+  if (wantsInstall) {
+    try { history.replaceState(null, '', location.pathname + location.search); } catch (e) { /* egal */ }
+  }
+
+  async function runInstallPrompt() {
+    if (!installPrompt) return false;
+    const prompt = installPrompt;
+    installPrompt = null;
+    if (installHelp) installHelp.hidden = true;
+    prompt.prompt();
+    try {
+      const choice = await prompt.userChoice;
+      if (choice && choice.outcome === 'accepted') installBtn.hidden = true;
+    } catch (e) {
+      // Abgebrochen - nichts weiter zu tun
+    }
+    return true;
+  }
+
+  /** Fenster "Als App installieren": mit Direkt-Knopf oder mit Anleitung. */
+  function openInstallPanel() {
+    if (!installHelp) return;
+    const direct = !!installPrompt;
+    if (installNowRow) installNowRow.hidden = !direct;
+    if (installStepsBox) installStepsBox.hidden = direct;
+    if (!direct) {
+      const list = document.getElementById('install-help-steps');
+      list.innerHTML = installSteps().map((step) => '<li>' + step + '</li>').join('');
+    }
+    installHelp.hidden = false;
+    installHelp.scrollIntoView({ block: 'nearest' });
+  }
+
+  if (installNow) {
+    installNow.addEventListener('click', () => { runInstallPrompt(); });
+  }
+
   if (installBtn) {
     if (AudioArchive.isEmbedded()) {
-      installBtn.href = AudioArchive.standaloneUrl;
+      installBtn.href = AudioArchive.standaloneUrl + '#install';
       installBtn.hidden = false;
     } else if (!runsAsInstalledApp) {
-      if (alwaysOfferInstall) installBtn.hidden = false;
+      // Ohne eigenen Installieren-Dialog: Knopf mit Anleitung (wie bisher auf
+      // geteilten Links, ab 0.39.0 auch angemeldet ohne Nextcloud-Leiste)
+      if (!canPromptInstall && installHelp) installBtn.hidden = false;
 
       window.addEventListener('beforeinstallprompt', (event) => {
         event.preventDefault();
         installPrompt = event;
         installBtn.hidden = false;
+        // Vom Knopf in Nextcloud hierher gekommen: gleich anbieten
+        if (wantsInstall) openInstallPanel();
       });
 
       installBtn.addEventListener('click', async (event) => {
         event.preventDefault();
-        if (!installPrompt) {
-          if (alwaysOfferInstall) {
-            if (installHelp.hidden) showInstallHelp(); else installHelp.hidden = true;
-          }
-          return;
-        }
-        const prompt = installPrompt;
-        installPrompt = null;
-        installBtn.hidden = !alwaysOfferInstall;
-        prompt.prompt();
-        try {
-          await prompt.userChoice;
-        } catch (e) {
-          // Abgebrochen - nichts weiter zu tun
+        if (await runInstallPrompt()) return;
+        if (installHelp) {
+          if (installHelp.hidden) openInstallPanel(); else installHelp.hidden = true;
         }
       });
 
@@ -217,6 +258,14 @@
         installBtn.hidden = true;
         if (installHelp) installHelp.hidden = true;
       });
+
+      // Aus Nextcloud hierher geschickt, aber kein Direkt-Dialog moeglich
+      // (Safari/Firefox, oder der Browser meldet sich nicht): Anleitung zeigen
+      if (wantsInstall) {
+        window.setTimeout(() => {
+          if (!installPrompt && installHelp && installHelp.hidden) openInstallPanel();
+        }, canPromptInstall ? 4000 : 300);
+      }
     }
   }
 
@@ -1041,6 +1090,31 @@
   const LS_AUTH = 'audioarchive_offline_auth'
     + (AudioArchive.apiToken ? ':' + AudioArchive.apiToken : '');
   const LS_INDEX = 'audioarchive_offline_index';
+  /*
+   * Offline ohne Passwort (ab 0.39.0, Vikunja #53): Ist es in der Verwaltung
+   * eingeschaltet (Vorgabe), oeffnen sich gespeicherte Aufnahmen ohne
+   * Verbindung direkt, und angemeldete Nutzer vergeben keine PIN mehr. Nur
+   * wer sich ausdruecklich abmeldet, sperrt den Offline-Zugang wieder, bis
+   * er sich online erneut anmeldet.
+   */
+  const LS_OFFLINE_LOCK = 'audioarchive_offline_locked'
+    + (AudioArchive.apiToken ? ':' + AudioArchive.apiToken : '');
+
+  function offlineLocked() {
+    try { return localStorage.getItem(LS_OFFLINE_LOCK) === '1'; } catch (e) { return false; }
+  }
+
+  function setOfflineLocked(locked) {
+    try {
+      if (locked) localStorage.setItem(LS_OFFLINE_LOCK, '1');
+      else localStorage.removeItem(LS_OFFLINE_LOCK);
+    } catch (e) { /* ohne Speicher: dann eben nicht */ }
+  }
+
+  /** Darf Gespeichertes ohne Verbindung ohne Abfrage geoeffnet werden? */
+  function offlineOpenAllowed() {
+    return AudioArchive.offlineOpen && !offlineLocked();
+  }
 
   let offlineMode = false;
 
@@ -1451,6 +1525,7 @@
       const data = await res.json();
 
       if (data.authenticated) {
+        setOfflineLocked(false);
         showMain();
       } else {
         showLogin();
@@ -1460,8 +1535,9 @@
       // Pruefwert hinterlegt, ist die Anmeldung trotzdem moeglich.
       await rebuildOfflineIndexFromCache();
 
-      if (AudioArchive.openAccess && hasOfflineContent()) {
-        // Freigabe ohne Passwort: direkt zu den gespeicherten Aufnahmen
+      if ((AudioArchive.openAccess || offlineOpenAllowed()) && hasOfflineContent()) {
+        // Freigabe ohne Passwort bzw. "Offline ohne Passwort öffnen" (ab
+        // 0.39.0): direkt zu den gespeicherten Aufnahmen
         enterOfflineMode();
         showMain();
         return;
@@ -1553,6 +1629,7 @@
         // Fuer die spaetere Anmeldung ohne Verbindung merken
         await rememberPasswordForOffline(entered);
         setRememberUntil(Number(data.rememberUntil) || 0);
+        setOfflineLocked(false);
         loginPassword.value = '';
         showMain();
       } else {
@@ -1613,6 +1690,8 @@
     // Nach dem Abmelden soll nichts weiterlaufen (ab 0.38.0, Vikunja #54)
     Player.stop();
     setRememberUntil(0);
+    // Offline nicht mehr ohne Passwort oeffnen (ab 0.39.0, Vikunja #53)
+    setOfflineLocked(true);
     try {
       await fetch(AudioArchive.logoutUrl(), { method: 'POST', credentials: 'same-origin' });
     } catch (err) {
@@ -3038,7 +3117,8 @@
      * Offline-Anmeldung moeglich ist. Ohne sie waeren die Aufnahmen zwar
      * gespeichert, aber ohne Verbindung nicht erreichbar.
      */
-    if (!removing && !storedAuth() && !AudioArchive.openAccess) {
+    // Ab 0.39.0 (Vikunja #53) ohne PIN, wenn offline ohne Passwort geoeffnet wird
+    if (!removing && !storedAuth() && !AudioArchive.openAccess && !AudioArchive.offlineOpen) {
       const pin = await askOfflinePin();
       if (pin === null) return;
       await rememberPasswordForOffline(pin);

@@ -179,6 +179,9 @@ class Admin implements ISettings {
             'featureDownload' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_DOWNLOAD, false
             ),
+            'offlineOpen' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_OFFLINE_OPEN, true
+            ),
         ]);
 
         // Ueber addScript/addStyle eingebunden, nicht als eigenes <script>-Tag:

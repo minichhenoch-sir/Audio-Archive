@@ -156,6 +156,7 @@ class SettingsController extends Controller {
         ?bool $transcode = null,
         ?array $extraSources = null,
         ?array $shareGroups = null,
+        ?bool $offlineOpen = null,
     ): DataResponse {
 
         // ---------- Quellordner ----------
@@ -373,6 +374,11 @@ class SettingsController extends Controller {
         if ($featureOffline !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_FEATURE_OFFLINE, $featureOffline
+            );
+        }
+        if ($offlineOpen !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_OFFLINE_OPEN, $offlineOpen
             );
         }
         if ($rememberDays !== null) {

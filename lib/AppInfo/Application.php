@@ -168,6 +168,8 @@ class Application extends App implements IBootstrap {
     public const SHARE_KIND_INTERNAL = 'internal';
     public const SETTING_FEATURE_OFFLINE = 'feature_offline';
     public const SETTING_FEATURE_DOWNLOAD = 'feature_download';
+    /** Offline Gespeichertes ohne Passwort/PIN oeffnen (ab 0.39.0, Vikunja #53) */
+    public const SETTING_OFFLINE_OPEN = 'offline_open';
 
     /*
      * Frueher: "BETA"-Schild neben dem Titel (bis 0.30 auch der Textstreifen,
