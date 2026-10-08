@@ -1782,3 +1782,12 @@ Vikunja #53, #27.
 
 Geprüft in Nextcloud 35.0.1 (Sandbox, Playwright). Einspielen mit
 Container-Neustart; keine Datenbank-Änderung, keine neuen Routen.
+
+## 0.39.1: Leertaste = Abspielen/Pause
+
+Wunsch von Henoch (Chat, 08.10.2026). Am Rechner schaltet die Leertaste
+zwischen Abspielen und Pause um – sobald eine Aufnahme geladen ist und nicht
+gerade in ein Feld (Suche, Kommentar, Editor) getippt wird. Die Seite scrollt
+dabei nicht, und ein Knopf mit Fokus (z. B. die zuletzt angetippte Zeile)
+wird nicht erneut ausgelöst. Nur `js/player.js` und die Versionsnummer in
+`info.xml` geändert; Einspielen wie gewohnt.

@@ -2608,6 +2608,22 @@ const Player = (() => {
   });
 
   /*
+   * Leertaste = Abspielen/Pause (ab 0.39.1), wie bei anderen Playern -
+   * nur, wenn schon eine Aufnahme geladen ist und nicht gerade in ein Feld
+   * getippt wird. Die Seite scrollt dabei nicht, und ein Knopf mit dem
+   * Fokus (z. B. die zuletzt angetippte Zeile) wird nicht erneut ausgeloest.
+   */
+  document.addEventListener('keydown', (event) => {
+    if (event.code !== 'Space' && event.key !== ' ') return;
+    if (event.repeat || event.ctrlKey || event.altKey || event.metaKey || event.shiftKey) return;
+    const t = event.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (!playlist[currentIndex] || els.bar.hidden) return;
+    event.preventDefault();
+    els.btnPlayPause.click();
+  });
+
+  /*
    * Laeuft VOR dem Handler in app.js (player.js wird zuerst geladen). Ist
    * der Player offen, schliesst Zurueck nur ihn - die Ordneransicht soll
    * davon nichts merken, deshalb stopImmediatePropagation.
