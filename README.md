@@ -30,7 +30,7 @@ planned – help is welcome.
 
 ## Requirements
 
-- Nextcloud 33–36, PHP 8.1 or newer
+- Nextcloud 29–36, PHP 8.1 or newer
 - Recommended: background jobs via **cron** (reads title/artist of large
   archives in the background)
 - Optional: `ffmpeg` on the server for MP3 conversion

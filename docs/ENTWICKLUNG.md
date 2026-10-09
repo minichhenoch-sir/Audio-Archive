@@ -1815,3 +1815,18 @@ wird nicht erneut ausgelöst. Nur `js/player.js` und die Versionsnummer in
   `info.xml`, kein `.git`, Changelog-Abschnitt, und signiert mit
   `../.certificates/audioarchive.key` (prüft die Signatur gegen das
   Zertifikat, sobald `audioarchive.crt` daneben liegt).
+
+## 1.0.1: Nextcloud 29 bis 36
+
+- **Wunsch von Henoch:** Im Store soll auch Nextcloud 29–32 stehen →
+  `min-version="29"`. Lizenz deshalb wieder `agpl`: Der Store nimmt
+  SPDX-Bezeichner (`AGPL-3.0-or-later`) nur bei `min-version` ab 31 an
+  (`info.xsd`).
+- **Fehler auf Nextcloud 29 gefunden und behoben:** Der Player lud keine
+  Skripte („Refused to load the script … Content Security Policy“). Nextcloud
+  29 bildet das Nonce als `base64(gesamter Anfrage-Token)`, ab 30 nur aus dem
+  hinteren Teil des Tokens. `PlayerPage::cspNonce()` richtet sich jetzt nach
+  `OCP\Util::getVersion()`; ein vom Webserver gesetztes `CSP_NONCE` hat
+  Vorrang (wie in Nextcloud selbst).
+- Geprüft mit Playwright auf 29.0.16, 31.0.9, 33.0.8 und 35.0.1.
+

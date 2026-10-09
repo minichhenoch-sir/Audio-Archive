@@ -36,8 +36,9 @@ Optional: ffmpeg in the Nextcloud container for MP3 conversion; a working backgr
 
 Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
     ]]></description>
-    <version>1.0.0</version>
-    <licence>AGPL-3.0-or-later</licence>
+    <version>1.0.1</version>
+    <!-- "agpl": SPDX identifiers are only accepted by the App Store for min-version >= 31 -->
+    <licence>agpl</licence>
     <author homepage="https://github.com/minichhenoch-sir">Henoch Minich</author>
     <namespace>AudioArchive</namespace>
     <category>multimedia</category>
@@ -55,10 +56,10 @@ Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
         <php min-version="8.1"/>
         <!--
           Store rule: max-version may be at most the latest Nextcloud release + 1.
-          Tested on 33 and 35. Raise max-version with every new major release,
+          Tested on 29, 33 and 35. Raise max-version with every new major release,
           otherwise Nextcloud disables the app after its upgrade.
         -->
-        <nextcloud min-version="33" max-version="36"/>
+        <nextcloud min-version="29" max-version="36"/>
     </dependencies>
 
     <!-- Reads title/artist of recordings in the background -->

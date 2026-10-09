@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.1 – 2026-10-09
+
+### Changed
+- Supports Nextcloud 29 to 36 (tested on 29, 31, 33 and 35)
+
+### Fixed
+- Player did not start on Nextcloud 29 (script nonce is computed differently there)
+
 ## 1.0.0 – 2026-10-08
 
 First release in the Nextcloud App Store.

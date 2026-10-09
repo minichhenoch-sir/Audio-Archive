@@ -453,13 +453,25 @@ class PlayerPage {
         }
     }
 
+    /**
+     * Nonce for the script tags, computed the same way as Nextcloud's nonce
+     * manager: a CSP_NONCE given by the web server wins; otherwise Nextcloud
+     * 30+ uses the secret part of the request token, Nextcloud 29 the whole
+     * token, base64-encoded.
+     */
     private function cspNonce(): string {
+        if (!empty($_SERVER['CSP_NONCE'])) {
+            return (string)$_SERVER['CSP_NONCE'];
+        }
         try {
             $token = \OCP\Util::callRegister();
         } catch (\Throwable $e) {
             return '';
         }
 
+        if ((int)(\OCP\Util::getVersion()[0] ?? 0) < 30) {
+            return base64_encode($token);
+        }
         $parts = explode(':', $token);
         return (string)end($parts);
     }
