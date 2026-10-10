@@ -1830,3 +1830,51 @@ wird nicht erneut ausgelöst. Nur `js/player.js` und die Versionsnummer in
   Vorrang (wie in Nextcloud selbst).
 - Geprüft mit Playwright auf 29.0.16, 31.0.9, 33.0.8 und 35.0.1.
 
+
+## 1.0.2: Anleitung in der App
+
+Wunsch von Henoch (Chat, 10.10.2026): Anleitung für Nutzer und Administratoren
+in der App, per Klick aus den Einstellungen, zusätzlich als PDF.
+
+- **Zwei Anleitungen als Seite** (`ManualController`, Vorlage
+  `templates/manual.php`, Inhalt `templates/manual/user.php` und `admin.php`,
+  Stylesheet `css/manual.css`, Bilder `img/manual/`):
+  - `/anleitung` – für Hörer und Nutzer, **öffentlich** (auch Hörer über einen
+    Link ohne Konto; enthält nichts Vertrauliches)
+  - `/anleitung/admin` – nur für Administratoren
+  - Ohne Skripte, damit keine Reibung mit der CSP. Farben: Akzent- und
+    Leistenfarbe der Gestaltung „Modern“ des Administrators; daraus abgeleitete
+    Töne rechnet `manual.php` selbst aus (kein CSS `color-mix()`, das ältere
+    Android-Geräte nicht kennen). Hell/Dunkel nach Gerät, Druckansicht A4.
+  - Unterstützte Nextcloud-Versionen kommen aus `info.xml` (`getAppInfo`),
+    damit die Admin-Anleitung bei neuen Versionen nicht veraltet.
+- **PDF:** `/anleitung/pdf` und `/anleitung/admin/pdf` liefern die fertigen
+  Dateien aus `manual/`. Erzeugt aus denselben Seiten mit Chromium
+  (`docs/manual-pdf.py <nextcloud>/index.php <ausgabeordner>`, meldet sich als
+  `admin`/`admin` an – Testumgebung). **Nach jeder Textänderung neu erzeugen.**
+- **„Zurück zur App“:** In der installierten App fehlt die Browserleiste. Die
+  App hängt deshalb `?back=<aktuelle Adresse>` an; der Server lässt nur
+  Adressen dieser App zu (`safeBack`: muss mit dem Pfad von `page.index`
+  beginnen, kein `//`, kein `..`, keine Steuerzeichen).
+- **Knopf (i):** heißt jetzt „Hilfe“ und erscheint **immer** (Anleitung lesen,
+  Als PDF). Mit E-Mail-Adresse oder Gruppe wie bisher „Hilfe und Kontakt“ mit
+  Mail-Knopf bzw. Formular. Weitere Links: „App installieren“ →
+  `#installieren`, Zahnrad → Anleitung.
+- **Einstellungen:** Verwaltung oben „📖 Anleitung für Administratoren“,
+  „⬇ Als PDF“, „Anleitung für Hörer und Nutzer“; neben jeder Überschrift ein
+  „?“ zur passenden Sprungmarke (`#quellen`, `#oeffentlich`, `#freigaben`,
+  `#darstellung`, `#funktionen`, `#hilfe-kontakt`, `#text`, `#kommentare`).
+  Persönlich: neuer Abschnitt „Audio Archive – Anleitung“.
+- **Offline:** Service Worker (Cache `audioarchive-shell-v13`) speichert die
+  Anleitung ohne Abfrageteil samt Stylesheet und Bildern; `app.js` lädt sie
+  einmal je App-Version voraus (`audioarchive_manual_cached`), sobald der
+  Worker die Seite steuert. Offline setzt der Worker das Ziel von
+  „Zurück zur App“ aus der aktuellen Adresse neu ein (`#m-back`).
+
+Geprüft in Nextcloud 35.0.1 (Sandbox, Playwright, 38 Prüfungen): Verwaltung
+(Links, alle „?“-Ziele vorhanden, Admin-PDF), Nutzer ohne Adminrecht (Admin-
+Anleitung und -PDF gesperrt), öffentlicher Link (Hilfe → Anleitung → zurück
+ohne neue Passwortabfrage), abgelehnte fremde Rücksprung-Adressen, offline
+aus dem Speicher mit Gestaltung und richtigem Zurück, mit/ohne Kontakt.
+Einspielen: Container-Neustart (neue PHP-Dateien und Routen); keine
+Datenbankänderung.

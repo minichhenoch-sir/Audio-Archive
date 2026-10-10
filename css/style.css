@@ -1833,6 +1833,12 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .help-form-title { margin: 4px 0 0; font-weight: 600; }
 #audioarchive .help-form textarea { min-height: 6em; resize: vertical; }
 #audioarchive #help-mail { text-decoration: none; display: inline-flex; align-items: center; }
+/* Anleitung (ab 1.0.2) */
+#audioarchive .help-manual-row { margin: 8px 0 12px; }
+#audioarchive #help-manual,
+#audioarchive #help-manual-pdf { text-decoration: none; display: inline-flex; align-items: center; }
+#audioarchive .us-manual a,
+#audioarchive .install-help-manual a { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 #audioarchive .help-status {
   margin: 0;
   padding: 8px 12px;

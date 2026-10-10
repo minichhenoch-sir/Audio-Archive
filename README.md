@@ -23,6 +23,7 @@ including listeners without a Nextcloud account.
   (expiry date, own design, offline/download on or off)
 - Comments and ratings per recording, overview and Excel export
 - Own colours, background image and cover images, or Nextcloud's look
+- Built-in manual for listeners and administrators (page and PDF, German)
 - "Help and contact" button that notifies a Nextcloud group
 
 The user interface is currently **German only**. An English translation is
@@ -48,6 +49,9 @@ Manually: extract the release archive into `custom_apps/` (folder
 recordings, optionally enable the public link and set a password, adjust the
 design. Users open the player from the app menu; listeners without an account
 use the public link.
+
+The full administrator manual (German) is linked at the top of that page
+(also as PDF); the manual for listeners opens from the (i) button in the app.
 
 ## Removing the app
 

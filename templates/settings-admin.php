@@ -5,14 +5,28 @@
  * Laeuft im normalen Nextcloud-Seitengeruest; die Werte kommen ueber den
  * Initial-State-Mechanismus, das Verhalten steckt in js/settings.js.
  */
+
+// "?" neben einer Ueberschrift: fuehrt zum passenden Abschnitt der
+// Anleitung fuer Administratoren (ab 1.0.2, Sprungmarken in
+// templates/manual/admin.php)
+$help = static function (string $anchor) use ($_): void {
+    ?><a class="aa-help-link" href="<?php p(($_['manualUrl'] ?? '') . '#' . $anchor); ?>" target="_blank" rel="noopener"
+         title="Erklärung in der Anleitung" aria-label="Erklärung in der Anleitung">?</a><?php
+};
 ?>
 <div id="audioarchive-settings" class="section">
     <h2>Audio Archive
         <span class="aa-version">Version <?php p($_['version'] ?? ''); ?></span>
     </h2>
+    <!-- Anleitung (ab 1.0.2) -->
+    <p class="aa-manual-links">
+        <a class="button" href="<?php p($_['manualUrl'] ?? ''); ?>" target="_blank" rel="noopener">📖 Anleitung für Administratoren</a>
+        <a class="button" href="<?php p($_['manualPdfUrl'] ?? ''); ?>" download>⬇ Als PDF</a>
+        <a class="aa-manual-user" href="<?php p($_['userManualUrl'] ?? ''); ?>" target="_blank" rel="noopener">Anleitung für Hörer und Nutzer</a>
+    </p>
 
     <!-- ============ Quellen (ab 0.32.0 mehrere, Vikunja #8) ============ -->
-    <h3>Quellen</h3>
+    <h3>Quellen <?php $help('quellen'); ?></h3>
     <p class="settings-hint">
         Ordner mit den Aufnahmen. Unterordner werden so angezeigt, wie sie
         angelegt sind. Der erste ist der gemeinsame Ordner mit dem öffentlichen
@@ -43,7 +57,7 @@
     </p>
 
     <!-- ============ Oeffentlicher Zugang ============ -->
-    <h3>Öffentlicher Zugang</h3>
+    <h3>Öffentlicher Zugang <?php $help('oeffentlich'); ?></h3>
     <p class="settings-hint">
         Erlaubt das Zuhören ohne Nextcloud-Konto über einen Link mit
         gemeinsamem Passwort.
@@ -99,7 +113,7 @@
     </div>
 
     <!-- ============ Freigaben durch Nutzer ============ -->
-    <h3>Freigaben durch Nutzer</h3>
+    <h3>Freigaben durch Nutzer <?php $help('freigaben'); ?></h3>
     <p>
         <input type="checkbox" id="aa-user-shares" class="checkbox">
         <label for="aa-user-shares">Angemeldete Nutzer dürfen Ordner über die App teilen</label>
@@ -131,7 +145,7 @@
     <p class="settings-hint" id="aa-shares-state">Freigaben werden geladen …</p>
 
     <!-- ============ Darstellung ============ -->
-    <h3>Darstellung</h3>
+    <h3>Darstellung <?php $help('darstellung'); ?></h3>
     <div class="aa-field">
         <label for="aa-title">Titel</label>
         <input type="text" id="aa-title" placeholder="Audio Archive">
@@ -231,7 +245,7 @@
     </p>
 
     <!-- ============ Funktionen ============ -->
-    <h3>Funktionen</h3>
+    <h3>Funktionen <?php $help('funktionen'); ?></h3>
     <p>
         <input type="checkbox" id="aa-feature-favorites" class="checkbox">
         <label for="aa-feature-favorites">Favoriten (Stern) anbieten</label>
@@ -429,12 +443,13 @@
     <p class="settings-hint" id="aa-transcode-state"></p>
 
     <!-- ============ Hilfe und Kontakt (ab 0.37.0, Vikunja #27) ============ -->
-    <h3>Hilfe und Kontakt</h3>
+    <h3>Hilfe und Kontakt <?php $help('hilfe-kontakt'); ?></h3>
     <p class="settings-hint">
-        Zeigt oben in der App und auf allen Links einen kleinen Knopf (i)
-        „Hilfe und Kontakt“ – auch in der Anleitung „App installieren“.
-        Hörer und Nutzer können darüber eine E-Mail schreiben oder direkt eine
-        Nachricht senden. Ohne Gruppe und ohne Adresse erscheint kein Knopf.
+        Oben in der App und auf allen Links steht ein kleiner Knopf (i)
+        „Hilfe“. Er führt immer zur Anleitung für Hörer und Nutzer. Ist hier
+        eine Gruppe oder Adresse eingetragen, heißt er „Hilfe und Kontakt“:
+        Hörer und Nutzer können darüber dann auch eine E-Mail schreiben oder
+        direkt eine Nachricht senden – auch aus der Anleitung „App installieren“.
     </p>
     <div class="aa-field">
         <label for="aa-help-group">Nachrichten aus dem Hilfe-Fenster an</label>
@@ -458,7 +473,7 @@
     </div>
 
     <!-- ============ Text ueber den Aufnahmen ============ -->
-    <h3>Text über den Aufnahmen</h3>
+    <h3>Text über den Aufnahmen <?php $help('text'); ?></h3>
     <p class="settings-hint">
         Ein frei formulierbarer Text über der Liste, z.&nbsp;B. ein Gruß, ein
         Zitat oder ein Hinweis. Er erscheint ohne Überschrift. Das hier ist
@@ -499,7 +514,7 @@
 
 <!-- Kommentare einsehen und exportieren (ab 0.35.0, Vikunja #5) -->
 <div class="section aa-comments-section">
-    <h2>Audio Archive – Kommentare</h2>
+    <h2>Audio Archive – Kommentare <?php $help('kommentare'); ?></h2>
     <p class="settings-hint">
         Alle Kommentare und Bewertungen zu Aufnahmen: im gemeinsamen Ordner,
         in den weiteren Quellen und in allen Freigaben der Nutzer (nur für

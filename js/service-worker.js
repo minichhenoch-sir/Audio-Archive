@@ -17,7 +17,7 @@
  *    Zweig liefert in jedem Fall eine gueltige Antwort.
  */
 
-const SHELL_CACHE = 'audioarchive-shell-v12';
+const SHELL_CACHE = 'audioarchive-shell-v13';
 
 // Beide Audio-Speicher sind bewusst NICHT versioniert: Sie sollen
 // App-Updates ueberleben, damit heruntergeladene Aufnahmen nicht verloren
@@ -139,6 +139,55 @@ async function serveAudioFromCache(request) {
   });
 }
 
+// ---------- Anleitung (ab 1.0.2) ----------
+/*
+ * Die Anleitung (/anleitung, /anleitung/admin) soll auch offline lesbar
+ * sein. Gespeichert wird sie OHNE Abfrageteil (?back=...), dazu ihr
+ * Stylesheet und ihre Bilder. Offline wird das Ziel von "Zurueck zur App"
+ * aus der aktuellen Adresse neu eingesetzt - sonst fuehrte der Knopf zu
+ * der Seite, von der aus die Anleitung zuerst gespeichert wurde.
+ */
+function isManualPage(url) {
+  return /\/audioarchive\/anleitung(\/admin)?\/?$/.test(url.pathname);
+}
+
+function manualKey(url) {
+  return url.origin + url.pathname.replace(/\/+$/, '');
+}
+
+function escapeHtml(text) {
+  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+
+/** Seite speichern, dazu Stylesheet und Bilder der App, die sie verwendet. */
+async function storeManual(url, response) {
+  const cache = await caches.open(SHELL_CACHE);
+  const html = await response.clone().text();
+  await cache.put(manualKey(url), new Response(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8' },
+  }));
+  const assets = [];
+  html.replace(/(?:href|src)="([^"]+)"/g, (match, raw) => {
+    const href = raw.replace(/&amp;/g, '&');
+    if (/\/audioarchive\/(css|img)\//.test(href)) assets.push(new URL(href, url).href);
+    return match;
+  });
+  await Promise.all(assets.map((asset) => cache.match(asset).then((hit) => hit || fetch(asset)
+    .then((res) => (res.ok ? cache.put(asset, res) : null))
+    .catch(() => null))));
+}
+
+async function manualFromCache(url) {
+  const cached = await caches.match(manualKey(url));
+  if (!cached) return null;
+  let html = await cached.text();
+  const back = url.searchParams.get('back') || '';
+  if (back.startsWith('/') && !back.startsWith('//') && back.includes('/audioarchive/')) {
+    html = html.replace(/<a id="m-back"[^>]*>/, '<a id="m-back" class="m-btn" href="' + escapeHtml(back) + '">');
+  }
+  return new Response(html, { status: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+}
+
 /**
  * Ist das eine Seite ohne Nextcloud-Leiste? Das sind die installierbare
  * Fassung (/app) und die oeffentliche Seite (/s/<token>).
@@ -157,6 +206,25 @@ self.addEventListener('fetch', (event) => {
 
   const url = new URL(request.url);
   const sameOrigin = url.origin === self.location.origin;
+
+  // ---------- Anleitung (ab 1.0.2): Seitenaufruf oder Vorausladen ----------
+  if (sameOrigin && isManualPage(url)) {
+    event.respondWith(
+      fetch(request, request.mode === 'navigate' ? { redirect: 'manual' } : {})
+        .then((response) => {
+          if (response && response.ok && response.type === 'basic') {
+            const copy = response.clone();
+            event.waitUntil(storeManual(url, copy).catch(() => null));
+          }
+          return response;
+        })
+        .catch(async () => (await manualFromCache(url)) || new Response(
+          '<!DOCTYPE html><meta charset="utf-8"><p>Keine Verbindung – die Anleitung ist noch nicht gespeichert.</p>',
+          { status: 503, headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        ))
+    );
+    return;
+  }
 
   // ---------- Seitenaufrufe ----------
   if (request.mode === 'navigate') {

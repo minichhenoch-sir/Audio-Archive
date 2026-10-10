@@ -84,6 +84,8 @@ const AudioArchive = (() => {
     // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
     helpEmail: el.dataset.helpEmail || '',
     helpMessage: el.dataset.helpMessage === '1',
+    // Anleitung (ab 1.0.2)
+    manualUrl: el.dataset.manualUrl || '',
     noticeText: el.dataset.noticeText || '',
     noticeLinkUrl: el.dataset.noticeLinkUrl || '',
     noticeLinkLabel: el.dataset.noticeLinkLabel || '',

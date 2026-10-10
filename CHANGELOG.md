@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.2 – 2026-10-10
+
+### Added
+- Built-in manual (German): one for listeners and users, one for
+  administrators – as a page in the app's look and as a PDF download
+- The (i) button is now always shown and opens "Hilfe" with the manual;
+  e-mail and message form are added when configured
+- Links to the manual in the administration and personal settings, plus a
+  "?" next to every admin heading that jumps to the matching section
+- The manual is stored for offline reading in the installed app
+
 ## 1.0.1 – 2026-10-09
 
 ### Changed

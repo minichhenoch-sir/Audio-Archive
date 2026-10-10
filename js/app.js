@@ -270,14 +270,49 @@
   }
 
   // ------------------------------------------------------------------
-  // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
+  // Anleitung (ab 1.0.2)
   // ------------------------------------------------------------------
   /*
-   * Kleiner Knopf (i) oben neben "App installieren". Je nach Verwaltung:
-   * "Per E-Mail schreiben" (oeffnet das Mailprogramm mit der eingetragenen
-   * Adresse) und/oder ein Textfenster, dessen Nachricht die Hilfe-Gruppe
-   * als Nextcloud-Benachrichtigung bekommt. Mitgeschickt wird, wo man
-   * gerade ist (Seite, Ordner, Aufnahme, Geraet) - das hilft beim Helfen.
+   * Adresse der Anleitung mit Ruecksprung hierher (?back=...): In der
+   * installierten App gibt es keine Browserleiste und damit keinen
+   * Zurueck-Knopf - die Anleitung zeigt deshalb selbst "Zurueck zur App".
+   * Der Server laesst als Ruecksprung nur Adressen dieser App zu.
+   */
+  function manualLink(anchor) {
+    if (!AudioArchive.manualUrl) return '';
+    const here = location.pathname + location.search + location.hash;
+    return AudioArchive.manualUrl + '?back=' + encodeURIComponent(here) + (anchor ? '#' + anchor : '');
+  }
+
+  (function setupManualLinks() {
+    if (!AudioArchive.manualUrl) return;
+    const links = [
+      ['install-help-manual-link', 'install-help-manual-row', 'installieren'],
+      ['us-manual', 'us-manual-row', ''],
+    ];
+    links.forEach(([linkId, rowId, anchor]) => {
+      const link = document.getElementById(linkId);
+      const row = document.getElementById(rowId);
+      if (!link || !row) return;
+      row.hidden = false;
+      // Erst beim Klick bauen: Ordner und Ansicht aendern sich laufend
+      link.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        location.href = manualLink(anchor);
+      });
+    });
+  })();
+
+  // ------------------------------------------------------------------
+  // Hilfe und Kontakt (ab 0.37.0, Vikunja #27; Anleitung ab 1.0.2)
+  // ------------------------------------------------------------------
+  /*
+   * Kleiner Knopf (i) oben neben "App installieren". Immer: die Anleitung
+   * (Seite und PDF). Je nach Verwaltung dazu: "Per E-Mail schreiben"
+   * (oeffnet das Mailprogramm mit der eingetragenen Adresse) und/oder ein
+   * Textfenster, dessen Nachricht die Hilfe-Gruppe als
+   * Nextcloud-Benachrichtigung bekommt. Mitgeschickt wird, wo man gerade
+   * ist (Seite, Ordner, Aufnahme, Geraet) - das hilft beim Helfen.
    */
   (function setupHelp() {
     const helpBtn = document.getElementById('help-btn');
@@ -285,7 +320,24 @@
     if (!helpBtn || !panel) return;
     const hasMail = /^[^\s@]+@[^\s@]+$/.test(AudioArchive.helpEmail || '');
     const hasMessage = AudioArchive.helpMessage === true;
-    if (!hasMail && !hasMessage) return;
+    const hasContact = hasMail || hasMessage;
+    const hasManual = AudioArchive.manualUrl !== '';
+    if (!hasContact && !hasManual) return;
+
+    const label = hasContact ? 'Hilfe und Kontakt' : 'Hilfe';
+    helpBtn.title = label;
+    helpBtn.setAttribute('aria-label', label);
+    document.getElementById('help-title').textContent = label;
+    document.getElementById('help-contact-hint').hidden = !hasContact;
+    if (hasManual) {
+      document.getElementById('help-manual-row').hidden = false;
+      document.getElementById('help-manual-hint').hidden = false;
+      document.getElementById('help-manual').addEventListener('click', (ev) => {
+        ev.preventDefault();
+        location.href = manualLink('');
+      });
+      document.getElementById('help-manual-pdf').href = AudioArchive.manualUrl + '/pdf';
+    }
 
     const NAME_KEY = 'audioarchive_comment_name'; // derselbe Name wie bei Kommentaren
     const form = document.getElementById('help-form');
@@ -345,7 +397,7 @@
     });
     document.getElementById('help-close').addEventListener('click', () => { panel.hidden = true; });
     const fromInstall = document.getElementById('install-help-contact');
-    if (fromInstall) {
+    if (fromInstall && hasContact) {
       fromInstall.closest('.install-help-contact').hidden = false;
       fromInstall.addEventListener('click', () => {
         const ih = document.getElementById('install-help');
@@ -411,7 +463,32 @@
       navigator.serviceWorker.register(AudioArchive.serviceWorker, { scope: AudioArchive.scope }).catch((err) => {
         console.warn('Service Worker Registrierung fehlgeschlagen:', err);
       });
+      warmManual();
     });
+  }
+
+  /*
+   * Anleitung fuer offline vorausladen (ab 1.0.2): einmal je App-Version,
+   * und nur, wenn der Service Worker die Seite schon steuert - nur dann
+   * laeuft der Abruf durch ihn und landet im Speicher (siehe
+   * service-worker.js, "Anleitung").
+   */
+  function warmManual() {
+    if (!AudioArchive.manualUrl || !navigator.serviceWorker.controller || !navigator.onLine) return;
+    const KEY = 'audioarchive_manual_cached';
+    const want = AudioArchive.appVersion || '1';
+    try {
+      if (localStorage.getItem(KEY) === want) return;
+    } catch (e) { /* ohne Speicher: jedes Mal, schadet nicht */ }
+    setTimeout(() => {
+      fetch(AudioArchive.manualUrl, { credentials: 'same-origin' })
+        .then((res) => {
+          if (res.ok) {
+            try { localStorage.setItem(KEY, want); } catch (e) { /* egal */ }
+          }
+        })
+        .catch(() => { /* naechstes Mal */ });
+    }, 4000);
   }
 
   // ------------------------------------------------------------------

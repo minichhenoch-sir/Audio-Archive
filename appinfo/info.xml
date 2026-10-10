@@ -36,7 +36,7 @@ Optional: ffmpeg in the Nextcloud container for MP3 conversion; a working backgr
 
 Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
     ]]></description>
-    <version>1.0.1</version>
+    <version>1.0.2</version>
     <!-- "agpl": SPDX identifiers are only accepted by the App Store for min-version >= 31 -->
     <licence>agpl</licence>
     <author homepage="https://github.com/minichhenoch-sir">Henoch Minich</author>

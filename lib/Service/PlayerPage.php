@@ -350,6 +350,8 @@ class PlayerPage {
             // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
             'helpEmail' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_EMAIL, ''),
             'helpMessage' => $this->helpGroupExists() ? '1' : '',
+            // Anleitung fuer Hoerer und Nutzer (ab 1.0.2), ueber den Knopf (i)
+            'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
             // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), siehe notice()
             ...$this->notice($uid, $shareSettings),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus

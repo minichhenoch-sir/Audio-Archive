@@ -15,6 +15,13 @@ return [
         // Admin-Einstellungen und wirkt wie der Link einer Dateifreigabe.
         ['name' => 'publicPlayer#index', 'url' => '/s/{token}', 'verb' => 'GET'],
 
+        // Anleitung als Seite und als PDF (ab 1.0.2): fuer Hoerer und Nutzer
+        // oeffentlich, die fuer Administratoren nur fuer Administratoren
+        ['name' => 'manual#user', 'url' => '/anleitung', 'verb' => 'GET'],
+        ['name' => 'manual#userPdf', 'url' => '/anleitung/pdf', 'verb' => 'GET'],
+        ['name' => 'manual#admin', 'url' => '/anleitung/admin', 'verb' => 'GET'],
+        ['name' => 'manual#adminPdf', 'url' => '/anleitung/admin/pdf', 'verb' => 'GET'],
+
         // Aufnahmen: Ordnerliste und Ausgabe der Audiodateien.
         // Beide sind oeffentlich erreichbar, pruefen den Zugang aber selbst
         // (angemeldeter Nutzer ODER freigeschaltete oeffentliche Sitzung).

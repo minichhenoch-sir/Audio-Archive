@@ -4,6 +4,19 @@
  * ab 0.26.0. Verhalten in js/settings-personal.js.
  */
 ?>
+<!-- Anleitung (ab 1.0.2) -->
+<div class="section aa-manual-section">
+    <h2>Audio Archive – Anleitung</h2>
+    <p class="settings-hint">
+        Alles zum Hören, Suchen, Offline-Speichern, Teilen und zur eigenen
+        Darstellung – als Seite oder zum Ausdrucken als PDF.
+    </p>
+    <p class="aa-manual-links">
+        <a class="button" href="<?php p($_['manualUrl'] ?? ''); ?>" target="_blank" rel="noopener">📖 Anleitung lesen</a>
+        <a class="button" href="<?php p($_['manualPdfUrl'] ?? ''); ?>" download>⬇ Als PDF</a>
+    </p>
+</div>
+
 <div id="audioarchive-settings" class="section aa-personal">
     <h2>Audio Archive – Meine Freigaben</h2>
     <p class="settings-hint">

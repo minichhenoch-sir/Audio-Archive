@@ -232,3 +232,44 @@
 @media (max-width: 800px) {
   .aa-comments-overview { overflow-x: auto; }
 }
+
+/* Anleitung (ab 1.0.2): Knoepfe unter der Ueberschrift und "?" neben
+   jeder Ueberschrift, das zum passenden Abschnitt fuehrt */
+.aa-manual-links {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 10px;
+    margin: 4px 0 18px;
+}
+.aa-manual-links .button {
+    display: inline-flex;
+    align-items: center;
+    min-height: 34px;
+    margin: 0;
+}
+.aa-manual-links .aa-manual-user {
+    color: var(--color-main-text);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+.aa-help-link {
+    display: inline-grid;
+    place-items: center;
+    width: 22px;
+    height: 22px;
+    margin-left: 6px;
+    border-radius: 50%;
+    border: 1px solid var(--color-border-dark, #ccc);
+    color: var(--color-text-maxcontrast) !important;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1;
+    text-decoration: none;
+    vertical-align: 3px;
+}
+.aa-help-link:hover,
+.aa-help-link:focus-visible {
+    border-color: var(--color-primary-element);
+    color: var(--color-primary-element) !important;
+}

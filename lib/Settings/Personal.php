@@ -36,7 +36,11 @@ class Personal implements ISettings {
         Util::addScript(Application::APP_ID, 'settings-personal');
         Util::addScript(Application::APP_ID, 'comments-overview'); // ab 0.35.0 (Vikunja #5)
         Util::addStyle(Application::APP_ID, 'settings');
-        return new TemplateResponse(Application::APP_ID, 'settings-personal', []);
+        return new TemplateResponse(Application::APP_ID, 'settings-personal', [
+            // Anleitung (ab 1.0.2)
+            'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
+            'manualPdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.userPdf'),
+        ]);
     }
 
     public function getSection(): string {

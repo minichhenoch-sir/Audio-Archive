@@ -198,6 +198,10 @@ class Admin implements ISettings {
 
         return new TemplateResponse(Application::APP_ID, 'settings-admin', [
             'version' => $this->appManager->getAppVersion(Application::APP_ID),
+            // Anleitung (ab 1.0.2)
+            'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.admin'),
+            'manualPdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.adminPdf'),
+            'userManualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
         ]);
     }
 

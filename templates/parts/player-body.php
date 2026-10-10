@@ -86,6 +86,7 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-theme-stylesheets="<?php echo $escape($_['themeStylesheetsJson'] ?? '[]'); ?>"
      data-help-email="<?php echo $escape($_['helpEmail'] ?? ''); ?>"
      data-help-message="<?php echo $escape($_['helpMessage'] ?? ''); ?>"
+     data-manual-url="<?php echo $escape($_['manualUrl'] ?? ''); ?>"
      data-notice-text="<?php echo $escape($_['noticeText'] ?? ''); ?>"
      data-notice-link-url="<?php echo $escape($_['noticeLinkUrl'] ?? ''); ?>"
      data-notice-link-label="<?php echo $escape($_['noticeLinkLabel'] ?? ''); ?>"
@@ -150,9 +151,9 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
         <polyline points="20 4 20 11 13 11"/>
       </svg>
     </button>
-    <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27): nur, wenn in der Verwaltung eingerichtet -->
+    <!-- Hilfe (ab 0.37.0, Vikunja #27): Anleitung (ab 1.0.2, immer) und Kontakt (wenn eingerichtet) -->
     <button id="help-btn" class="icon-btn glass-pill" type="button"
-            title="Hilfe und Kontakt" aria-label="Hilfe und Kontakt" hidden>
+            title="Hilfe" aria-label="Hilfe" hidden>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
         <circle cx="12" cy="12" r="9.5"/>
         <path d="M12 11v6"/>
@@ -274,6 +275,8 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       </fieldset>
 
       <p class="panel-hint app-version-panel" id="us-version"></p>
+      <!-- Anleitung (ab 1.0.2) -->
+      <p class="panel-hint us-manual" id="us-manual-row" hidden><a id="us-manual" href="#">📖 Anleitung</a></p>
       <p class="panel-error" id="us-error" hidden></p>
       <div class="panel-row panel-actions">
         <button type="button" class="panel-button panel-button--primary" id="us-save">Übernehmen</button>
@@ -311,15 +314,25 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       <p class="panel-hint install-help-contact" hidden>
         Klappt es nicht? <button type="button" class="link-button" id="install-help-contact">Hilfe und Kontakt</button>
       </p>
+      <!-- Ausfuehrlich in der Anleitung (ab 1.0.2) -->
+      <p class="panel-hint install-help-manual" id="install-help-manual-row" hidden>
+        Mehr dazu: <a id="install-help-manual-link" href="#">Anleitung – Als App installieren</a>
+      </p>
       <div class="panel-row panel-actions">
         <button type="button" class="panel-button" id="install-help-close">Schließen</button>
       </div>
     </section>
 
-    <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27) -->
+    <!-- Hilfe und Kontakt (ab 0.37.0, Vikunja #27); Anleitung ab 1.0.2 -->
     <section id="help-panel" class="panel help-panel" hidden>
-      <h2 class="panel-title">Hilfe und Kontakt</h2>
-      <p class="panel-hint">Probleme beim Abspielen oder Installieren, oder eine Frage? Schreib uns – wir helfen gern.</p>
+      <h2 class="panel-title" id="help-title">Hilfe</h2>
+      <!-- Anleitung (ab 1.0.2): als Seite und als PDF -->
+      <p class="panel-hint" id="help-manual-hint" hidden>Alles zur Bedienung – vom Abspielen bis zum Offline-Hören – steht in der Anleitung.</p>
+      <div class="panel-row help-manual-row" id="help-manual-row" hidden>
+        <a id="help-manual" class="panel-button panel-button--primary" href="#">📖 Anleitung lesen</a>
+        <a id="help-manual-pdf" class="panel-button" href="#" download>⬇ Als PDF</a>
+      </div>
+      <p class="panel-hint" id="help-contact-hint" hidden>Probleme beim Abspielen oder Installieren, oder eine Frage? Schreib uns – wir helfen gern.</p>
       <div class="panel-row" id="help-mail-row" hidden>
         <a id="help-mail" class="panel-button" href="#">✉️ Per E-Mail schreiben</a>
       </div>
