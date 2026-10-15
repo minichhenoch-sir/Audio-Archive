@@ -1878,3 +1878,48 @@ ohne neue Passwortabfrage), abgelehnte fremde Rücksprung-Adressen, offline
 aus dem Speicher mit Gestaltung und richtigem Zurück, mit/ohne Kontakt.
 Einspielen: Container-Neustart (neue PHP-Dateien und Routen); keine
 Datenbankänderung.
+
+## 1.0.3: Anleitung hält sich selbst aktuell
+
+Wunsch von Henoch (Chat, 15.10.2026): „Bei Änderungen oder Anpassungen soll es
+automatisch in der Anleitung angepasst werden.“ Umgesetzt auf drei Ebenen:
+
+- **Einstellungen kommen aus dem Code** (`ManualContent`):
+  - `settingsReference()` liest `templates/settings-admin.php` (Überschriften
+    mit `$help('…')`-Sprungmarke, Schalter, Felder, Auswahlfelder samt
+    Möglichkeiten, Knöpfe, alle `settings-hint`-Texte; dynamische Zeilen
+    `…-state`/`…-owner` und ausgeblendete Elemente nicht). Abschnitt 5 der
+    Admin-Anleitung und dessen Inhaltsverzeichnis entstehen daraus. Von Hand
+    nur Ergänzungen je Abschnitt (`$extra` in `templates/manual/admin.php`).
+  - `styleEditorReference()` liest den Editor der freien Gestaltung aus
+    `js/style-tokens.js` (zwischen „Vorlagen“ und „Alles zurücksetzen“:
+    `section`, `colorControl`, `rangeControl`, `selectControl`,
+    `segmentedControl`, Hinweise, Vorlagen- und Schriftnamen). Admin-Anleitung
+    „Freie Gestaltung im Einzelnen“, Nutzer-Anleitung „Eigene Darstellung“.
+  - Browser-Liste „App installieren“ steht nur noch in
+    `templates/parts/install-browsers.php` (Player und Anleitung).
+  - Version, Nextcloud- und PHP-Mindestversion aus `info.xml`.
+- **Einrichtung dieser Nextcloud:** `features()` – die Nutzer-Anleitung
+  zeigt „bei euch eingeschaltet/ausgeschaltet“ und folgt Suchbereich,
+  Offline ohne Passwort, Kontaktwegen. `?fassung=allgemein` zeigt die
+  allgemeine Fassung („je nach Einrichtung“) – daraus entstehen die PDFs.
+- **PDF nie veraltet:** `manual/pdf-quellen.txt` hält die Prüfsumme der
+  Quellen (`ManualContent::sourcesHash`: Vorlagen, CSS, Verwaltungsseite,
+  Editor, Browser-Liste, Bilder, Versionsangaben). Passt sie nicht, liefert
+  `/anleitung/pdf` statt der Datei die Seite mit `?drucken=1` (Druckfenster,
+  Skript mit CSP-Nonce, `PlayerPage::cspNonce()` jetzt öffentlich), und alle
+  „Als PDF“-Knöpfe zeigen dorthin (ohne `download`). `release.sh` bricht ab;
+  `docs/manual-check.sh` prüft Sprungmarken und PDFs.
+
+**Ablauf je Version:** Texte prüfen (Hand-Teile in `templates/manual/*.php`),
+`python3 docs/manual-pdf.py <nextcloud>/index.php`, `sh docs/manual-check.sh`.
+Da die Versionsnummer in die Prüfsumme eingeht, muss das bei **jeder**
+Version geschehen – sonst bietet die App die Druckfassung an.
+
+Geprüft in Nextcloud 35.0.1 und 29.0.16 (Sandbox, Playwright): jeweils 18
+neue Prüfungen (alle Beschriftungen der Verwaltung und des Editors stehen in
+der Anleitung; ein neu eingefügter Schalter und ein neuer Regler erscheinen
+sofort; veraltete PDF → Druckfassung mit Druckfenster; Nutzer-Anleitung
+folgt dem Umschalten von Herunterladen und Suchbereich; allgemeine Fassung;
+Browser-Liste gleich) plus die 38 Prüfungen aus 1.0.2.
+Einspielen: Container-Neustart; keine Datenbankänderung.

@@ -6,9 +6,12 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
  * Anleitung fuer Administratoren (ab 1.0.2). Eingebunden von manual.php,
  * dort stehen $escape, $figure und $_ bereit.
  *
- * Die Sprungmarken (id) sind fest: Die Verwaltungsseite verlinkt mit „?“
- * neben jeder Ueberschrift direkt dorthin (templates/settings-admin.php).
- * Danach die PDF neu erzeugen (docs/ENTWICKLUNG.md, Abschnitt 1.0.2).
+ * Abschnitt 5 (Einstellungen) entsteht automatisch aus
+ * templates/settings-admin.php (ManualContent::settingsReference): neue
+ * Schalter, Felder und Hinweistexte erscheinen hier ohne Aenderung an
+ * dieser Datei. Die Sprungmarken kommen aus den $help('…')-Aufrufen dort.
+ * Die PDF wird bei jeder Version neu erzeugt (docs/ENTWICKLUNG.md, 1.0.3);
+ * passt sie nicht mehr, bietet die App automatisch die Druckfassung an.
  */
 ?>
 <nav class="m-toc" aria-label="Inhalt">
@@ -20,13 +23,9 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
     <li><a href="#schnellstart">Ersteinrichtung in fünf Schritten</a></li>
     <li><a href="#einstellungen">Die Einstellungen im Einzelnen</a>
       <ol>
-        <li><a href="#quellen">Quellen</a></li>
-        <li><a href="#oeffentlich">Öffentlicher Zugang</a></li>
-        <li><a href="#freigaben">Freigaben durch Nutzer</a></li>
-        <li><a href="#darstellung">Darstellung</a></li>
-        <li><a href="#funktionen">Funktionen</a></li>
-        <li><a href="#hilfe-kontakt">Hilfe und Kontakt</a></li>
-        <li><a href="#text">Text über den Aufnahmen</a></li>
+        <?php foreach ($_['settingsRef'] as $n => $sec) { ?>
+        <li><a href="#<?php echo $escape($sec['anchor'] !== '' ? $sec['anchor'] : 'einstellung-' . ($n + 1)); ?>"><?php echo $escape($sec['title']); ?></a></li>
+        <?php } ?>
       </ol>
     </li>
     <li><a href="#kommentare">Kommentare einsehen und exportieren</a></li>
@@ -64,7 +63,7 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
     <thead><tr><th>Komponente</th><th>Anforderung</th><th>Bemerkung</th></tr></thead>
     <tbody>
       <tr><td>Nextcloud</td><td><?php echo $escape($ncRange !== '' ? $ncRange : 'siehe App Store'); ?></td><td>Steht auch im App Store bei der App</td></tr>
-      <tr><td>PHP</td><td>8.1 oder neuer</td><td></td></tr>
+      <tr><td>PHP</td><td><?php echo $escape($_['phpMin'] !== '' ? $_['phpMin'] . ' oder neuer' : 'siehe App Store'); ?></td><td></td></tr>
       <tr><td>Hintergrundaufgaben</td><td>empfohlen: <strong>Cron</strong></td><td>Liest Titel, Länge und Cover großer Archive vorab ein</td></tr>
       <tr><td>ffmpeg</td><td>optional</td><td>Nur für die Umwandlung nicht abspielbarer Formate in MP3</td></tr>
     </tbody>
@@ -114,98 +113,70 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
   <p>Alle Einstellungen liegen auf einer Seite unter <em>Einstellungen → Verwaltung → Audio Archive</em>.
   Neben jeder Überschrift führt ein <strong>?</strong> direkt zum passenden Abschnitt hier.
   Änderungen gelten erst nach <strong>Speichern</strong> am Seitenende (Bilder werden sofort hochgeladen).</p>
-
-  <h3 id="quellen">5.1 Quellen</h3>
-  <ul>
-    <li><strong>Erster Ordner</strong> – der gemeinsame Ordner. Unterordner erscheinen so, wie sie angelegt sind.
-    Nur dieser Ordner ist über den öffentlichen Zugang (5.2) erreichbar.</li>
-    <li><strong>+ Weitere Quelle</strong> – zusätzliche Ordner mit eigenem Namen (z.&nbsp;B. „Hörbücher“). Jede erscheint
-    für alle angemeldeten Nutzer als eigener Eintrag oben in der Seitenleiste. Ohne Anmeldung ist eine weitere
-    Quelle nur über einen eigenen Link erreichbar: in der App die Quelle öffnen → „Diesen Ordner teilen“ → „Neuer Link“.</li>
-    <li>Entfernen nimmt eine Quelle aus der Seitenleiste. Angelegte Links bleiben gültig, bis sie unter
-    „Freigaben durch Nutzer“ gelöscht werden.</li>
-  </ul>
-
-  <h3 id="oeffentlich">5.2 Öffentlicher Zugang</h3>
-  <table class="m-table">
-    <thead><tr><th>Einstellung</th><th>Wirkung</th></tr></thead>
-    <tbody>
-      <tr><td>Öffentlichen Zugang aktivieren</td><td>Zuhören ohne Nextcloud-Konto über einen Link mit gemeinsamem Passwort.</td></tr>
-      <tr><td>Passwort</td><td>Setzen oder ändern; leer lassen = unverändert. Nach einer Änderung muss es auf allen Geräten neu eingegeben werden.</td></tr>
-      <tr><td>Wunschname im Link</td><td>Lesbarer Name statt zufälliger Adresse. <strong>Achtung:</strong> Wird er geändert, funktioniert der
-        bisherige Link nicht mehr – auch nicht in bereits installierten Apps.</td></tr>
-      <tr><td>Angemeldet bleiben</td><td>Aus, 7, 15, 30 oder 90 Tage. Gilt für diesen Link und alle Freigaben mit Passwort.</td></tr>
-      <tr><td>Bild bei Aufnahmen ohne Cover</td><td>Ersatzbild für diesen Link (Auswahl oder eigenes PNG/JPEG/WebP). Freigaben wählen ihr Bild selbst.</td></tr>
-    </tbody>
-  </table>
-
-  <h3 id="freigaben">5.3 Freigaben durch Nutzer</h3>
-  <p>Mit „Angemeldete Nutzer dürfen Ordner über die App teilen“ können Nutzer selbst teilen – als öffentlichen Link
-  (auch mit Wunschnamen) oder an Nextcloud-Nutzer und -Gruppen; solche Freigaben erscheinen nur in der App unter
-  „Mit mir geteilt“. Jede Freigabe hat eigene Einstellungen (Ablaufdatum, Aussehen, Offline/Herunterladen).</p>
-  <ul>
-    <li><strong>Wer darf teilen?</strong> – Gruppen ankreuzen. Keine Gruppe angehakt = alle angemeldeten Nutzer.
-    Hörer über einen Link können nie teilen.</li>
-    <li>Die Tabelle zeigt alle bestehenden Freigaben (Ordner, angelegt von, geteilt mit, Ablauf); dort lassen sie sich löschen.</li>
-    <li>Abschalten sperrt nur das <em>Anlegen</em> neuer Freigaben; bestehende bleiben gültig, bis sie gelöscht werden.</li>
-    <li>Nutzer sehen ihre eigenen Freigaben unter <em>Einstellungen → Persönlich → Audio Archive</em>.</li>
-  </ul>
-  <?php echo $figure('share.jpg', 'Ein Nutzer teilt einen Ordner aus der App heraus'); ?>
-
-  <h3 id="darstellung">5.4 Darstellung</h3>
-  <table class="m-table">
-    <thead><tr><th>Einstellung</th><th>Wirkung</th></tr></thead>
-    <tbody>
-      <tr><td>Titel / Zusatzzeile</td><td>Name der App oben in der Oberfläche, optional mit zweiter Zeile.</td></tr>
-      <tr><td>Name des gemeinsamen Ordners</td><td>Bezeichnung im Pfad und in der Seitenleiste. Leer = „Gemeinsame Aufnahmen“ (auf dem Link: „Aufnahmen“).</td></tr>
-      <tr><td>Gestaltung (Vorgabe für alle)</td><td><strong>Klassisch</strong> übernimmt Farben, Hintergrund und Schrift von Nextcloud und folgt
-        dem Hell-/Dunkelmodus. <strong>Modern</strong>: rund mit Glaseffekt in wählbaren Farben. <strong>Vom Administrator</strong>:
-        frei einstellbare Gestaltung (siehe unten).</td></tr>
-      <tr><td>Farben für „Modern“</td><td>Fertige Paletten oder eigene Akzentfarbe, Leistenfarbe und Grundton. Die Akzent- und Leistenfarbe
-        färben auch diese Anleitung.</td></tr>
-      <tr><td>Vom Administrator bereitgestellte Gestaltung</td><td>Farben, Ecken, Glaseffekt, Schrift und Hintergrund frei festlegen und als Vorgabe bzw. zur Auswahl anbieten.</td></tr>
-      <tr><td>Hintergrundbild</td><td>PNG, JPEG oder WebP, höchstens 8&nbsp;MB. Ohne Bild erscheint ein Verlauf aus dem Grundton.
-        Optional auch bei Nextcloud-Gestaltung verwenden.</td></tr>
-      <tr><td>Nutzer dürfen Gestaltung selbst wählen</td><td>Angemeldete Nutzer ändern über das Zahnrad ihre eigene Ansicht (nicht den öffentlichen Link).</td></tr>
-    </tbody>
-  </table>
-
-  <h3 id="funktionen">5.5 Funktionen</h3>
-  <table class="m-table">
-    <thead><tr><th>Einstellung</th><th>Wirkung</th></tr></thead>
-    <tbody>
-      <tr><td>Favoriten (Stern)</td><td>Angemeldete Nutzer verwenden echte Nextcloud-Favoriten; Hörer über Links speichern Favoriten auf ihrem Gerät. Sternfarbe wählbar.</td></tr>
-      <tr><td>Sortierung (Vorgabe)</td><td>Name, Neueste zuerst oder Zufällig. Jeder Hörer kann umschalten.</td></tr>
-      <tr><td>Anzeige in der Liste</td><td>Bei Ordnern Datum und Anzahl der Aufnahmen, bei Aufnahmen Länge und Datum – einzeln zuschaltbar.</td></tr>
-      <tr><td>Namen</td><td>Ordnernamen lesbar umschreiben („2026_08“ → „August 2026“) und im Player den Titel aus der Datei statt des
-        Dateinamens zeigen. Die Dateien selbst bleiben unverändert.</td></tr>
-      <tr><td>Kommentare</td><td>Knopf „Kommentare“ im Player; optional Bewertung mit 1–5 Sternen, Kommentare auch über den öffentlichen
-        Link und Benachrichtigung einer Gruppe (z.&nbsp;B. Tontechnik).</td></tr>
-      <tr><td>Suchbereich</td><td>Nur geöffneter Ordner mit Unterordnern, oder alles.</td></tr>
-      <tr><td>Wiederholen (Vorgabe)</td><td>Danach nächster Ordner, Aus, Ordner wiederholen oder Titel wiederholen.</td></tr>
-      <tr><td>Offline verfügbar machen</td><td>Aufnahmen werden in der App gespeichert (nicht im Download-Ordner).</td></tr>
-      <tr><td>Offline ohne Passwort öffnen</td><td>Gespeicherte Aufnahmen öffnen offline ohne Passwort bzw. PIN. Wer das Gerät in der Hand hat,
-        kann sie dann hören. Abmelden sperrt wieder.</td></tr>
-      <tr><td>Herunterladen als Datei</td><td>Knopf je Aufnahme zum Speichern. Die Datei lässt sich danach frei weitergeben.</td></tr>
-      <tr><td>Unterordner als ZIP</td><td>„Ordner herunterladen (ZIP)“ in jedem Unterordner; die oberste Ebene nie als Ganzes.</td></tr>
-      <tr><td>In MP3 umwandeln</td><td>Nur wählbar, wenn ffmpeg gefunden wird – siehe <a href="#hintergrund">Abschnitt 7</a>.</td></tr>
-    </tbody>
-  </table>
-
-  <h3 id="hilfe-kontakt">5.6 Hilfe und Kontakt</h3>
-  <p>Oben in der App und auf allen Links steht der Knopf <strong>(i)</strong> „Hilfe“. Er führt immer zur Anleitung für
-  Hörer und Nutzer; die folgenden Kontaktwege kommen hinzu, wenn sie eingerichtet sind:</p>
-  <ul>
-    <li><strong>Nachrichten an Gruppe</strong> – alle Mitglieder erhalten eine Nextcloud-Benachrichtigung mit Name, Antwort-Adresse
-    und wo der Absender gerade war (Seite, Ordner, Aufnahme, Gerät). Per E-Mail kommt sie, wenn das in den persönlichen
-    Benachrichtigungs-Einstellungen eingeschaltet ist.</li>
-    <li><strong>E-Mail-Adresse</strong> (optional) – öffnet beim Hörer das Mailprogramm. Die Adresse ist damit für alle sichtbar,
-    die die App oder einen Link öffnen.</li>
-  </ul>
-
-  <h3 id="text">5.7 Text über den Aufnahmen</h3>
-  <p>Ein frei formulierbarer Text über der Liste (Gruß, Zitat, Hinweis) mit Formatierungsleiste sowie optionalem Link mit eigener
-  Beschriftung. Das ist die Vorgabe: Nutzer können für ihre eigene Ansicht und für jeden ihrer Links einen eigenen Text setzen.</p>
+  <p class="m-note m-auto">Diese Übersicht entsteht automatisch aus der Verwaltungsseite selbst – Schalter, Auswahlfelder
+  und Erklärungen stehen hier immer so, wie sie in dieser Version der App angezeigt werden.</p>
+<?php
+/*
+ * Automatisch aus templates/settings-admin.php (ManualContent::settingsReference).
+ * Von Hand ergaenzt wird nur, was die Verwaltungsseite selbst nicht sagt ($extra).
+ */
+$extra = [
+    'quellen' => '<p class="m-warn"><strong>Wichtig:</strong> Gespeichert wird auch, <strong>wem</strong> die Dateien gehören – '
+        . 'dem Administrator, der speichert. Aus dessen Dateien liest die App, auch beim öffentlichen Zugang.</p>',
+    'freigaben' => $figure('share.jpg', 'Ein Nutzer teilt einen Ordner aus der App heraus')
+        . '<p>Nutzer sehen ihre eigenen Freigaben unter <em>Einstellungen → Persönlich → Audio Archive</em>.</p>',
+    'darstellung' => '<p>Akzent- und Leistenfarbe der Gestaltung „Modern“ färben auch diese Anleitung.</p>',
+    'funktionen' => '<p>Mehr zur Umwandlung in MP3 und zur Hintergrundaufgabe in <a href="#hintergrund">Abschnitt 7</a>.</p>',
+];
+$kindMark = ['switch' => '☐', 'choice' => '▾', 'field' => '✎', 'color' => '●', 'button' => '▭', 'range' => '⇔'];
+$kindName = ['switch' => 'Schalter', 'choice' => 'Auswahl', 'field' => 'Feld', 'color' => 'Farbe', 'button' => 'Knopf', 'range' => 'Regler'];
+/** Einträge (Schalter, Felder, Hinweise) als Liste ausgeben */
+$renderItems = static function (array $items) use ($escape, $kindMark, $kindName): void {
+    $open = false;
+    foreach ($items as $item) {
+        if (in_array($item['kind'], ['group', 'subgroup', 'note'], true)) {
+            if ($open) { echo "</dl>\n"; $open = false; }
+            if ($item['kind'] === 'note') {
+                echo '<p>' . $escape($item['label']) . "</p>\n";
+                continue;
+            }
+            echo ($item['kind'] === 'group' ? '<h4>' : '<p class="m-ref-sub">') . $escape($item['label'])
+                . ($item['kind'] === 'group' ? "</h4>\n" : "</p>\n");
+            foreach ($item['hints'] as $line) {
+                echo '<p>' . $escape($line) . "</p>\n";
+            }
+            continue;
+        }
+        if (!$open) { echo '<dl class="m-ref">' . "\n"; $open = true; }
+        echo '<dt><span class="m-ref-kind" title="' . $escape($kindName[$item['kind']] ?? '') . '">'
+            . $escape($kindMark[$item['kind']] ?? '•') . '</span>' . $escape($item['label']) . "</dt>\n<dd>";
+        if ($item['options'] !== []) {
+            echo '<span class="m-ref-options">' . implode('', array_map(
+                static fn (string $o): string => '<span class="m-chip">' . $escape($o) . '</span>', $item['options']
+            )) . '</span>';
+        }
+        echo implode('', array_map(static fn (string $h): string => '<span class="m-ref-hint">' . $escape($h) . '</span>', $item['hints']));
+        echo "</dd>\n";
+    }
+    if ($open) { echo "</dl>\n"; }
+};
+foreach ($_['settingsRef'] as $n => $sec) {
+    $anchor = $sec['anchor'] !== '' ? $sec['anchor'] : 'einstellung-' . ($n + 1);
+    echo '<h3 id="' . $escape($anchor) . '">5.' . ($n + 1) . ' ' . $escape($sec['title']) . "</h3>\n";
+    foreach ($sec['intro'] as $line) {
+        echo '<p>' . $escape($line) . "</p>\n";
+    }
+    $renderItems($sec['items']);
+    // Freie Gestaltung: im Browser aufgebaut, deshalb aus js/style-tokens.js gelesen
+    if ($sec['anchor'] === 'darstellung' && $_['styleRef'] !== []) {
+        echo '<h4 id="freie-gestaltung">Freie Gestaltung im Einzelnen</h4>' . "\n"
+            . '<p>So lässt sich die Gestaltung „Vom Administrator“ einstellen – genauso „Benutzerdefiniert“ im Zahnrad der Nutzer. '
+            . 'Die Seite zeigt Änderungen sofort.</p>' . "\n";
+        $renderItems($_['styleRef']);
+    }
+    echo $extra[$sec['anchor']] ?? '';
+}
+?>
 </section>
 
 <section id="kommentare" class="m-section">

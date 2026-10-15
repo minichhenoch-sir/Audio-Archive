@@ -87,6 +87,8 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-help-email="<?php echo $escape($_['helpEmail'] ?? ''); ?>"
      data-help-message="<?php echo $escape($_['helpMessage'] ?? ''); ?>"
      data-manual-url="<?php echo $escape($_['manualUrl'] ?? ''); ?>"
+     data-manual-pdf-url="<?php echo $escape($_['manualPdf']['url'] ?? ''); ?>"
+     data-manual-pdf-file="<?php echo !empty($_['manualPdf']['file']) ? '1' : ''; ?>"
      data-notice-text="<?php echo $escape($_['noticeText'] ?? ''); ?>"
      data-notice-link-url="<?php echo $escape($_['noticeLinkUrl'] ?? ''); ?>"
      data-notice-link-label="<?php echo $escape($_['noticeLinkLabel'] ?? ''); ?>"
@@ -299,16 +301,10 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       <details class="install-browsers">
         <summary>Welche Browser können das?</summary>
         <dl>
-          <dt>📱 iPhone und iPad</dt>
-          <dd><strong>Safari:</strong> Teilen <span aria-hidden="true">⬆︎</span> → „Zum Home-Bildschirm“.<br>
-              <strong>Chrome, Edge, Firefox</strong> (ab iOS 16.4): Teilen-Symbol in der Adressleiste → „Zum Home-Bildschirm“.</dd>
-          <dt>🤖 Android</dt>
-          <dd><strong>Chrome, Edge, Samsung Internet, Firefox, Opera:</strong> Menü ⋮ → „App installieren“ bzw. „Zum Startbildschirm hinzufügen“.</dd>
-          <dt>💻 Windows, Mac, Linux</dt>
-          <dd><strong>Chrome und Edge:</strong> Installieren-Symbol rechts in der Adressleiste (oder Menü → „App installieren“).<br>
-              <strong>Safari am Mac</strong> (ab macOS 14 Sonoma): Ablage → „Zum Dock hinzufügen“.<br>
-              <strong>Firefox unter Windows</strong> (neuere Versionen): Symbol „Zur Taskleiste hinzufügen“ in der Adressleiste.<br>
-              <strong>Firefox am Mac und unter Linux:</strong> geht nicht – bitte Chrome oder Edge verwenden oder ein Lesezeichen setzen.</dd>
+          <?php foreach (include __DIR__ . '/install-browsers.php' as [$device, $howto]) { ?>
+          <dt><?php echo $escape($device); ?></dt>
+          <dd><?php echo $howto; /* feste eigene Texte, siehe install-browsers.php */ ?></dd>
+          <?php } ?>
         </dl>
       </details>
       <p class="panel-hint install-help-contact" hidden>

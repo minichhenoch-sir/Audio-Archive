@@ -86,6 +86,8 @@ const AudioArchive = (() => {
     helpMessage: el.dataset.helpMessage === '1',
     // Anleitung (ab 1.0.2)
     manualUrl: el.dataset.manualUrl || '',
+    manualPdfUrl: el.dataset.manualPdfUrl || '',
+    manualPdfFile: el.dataset.manualPdfFile === '1',
     noticeText: el.dataset.noticeText || '',
     noticeLinkUrl: el.dataset.noticeLinkUrl || '',
     noticeLinkLabel: el.dataset.noticeLinkLabel || '',

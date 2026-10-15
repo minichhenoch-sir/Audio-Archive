@@ -6,6 +6,9 @@ namespace OCA\AudioArchive\Controller;
 use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\AppIcon;
 use OCA\AudioArchive\Service\Appearance;
+use OCA\AudioArchive\Service\ManualContent;
+use OCA\AudioArchive\Service\PlayerPage;
+use OCP\AppFramework\Http\RedirectResponse;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoCSRFRequired;
@@ -43,34 +46,41 @@ class ManualController extends Controller {
         private IUserSession $userSession,
         private IAppManager $appManager,
         private Appearance $appearance,
+        private ManualContent $content,
     ) {
         parent::__construct(Application::APP_ID, $request);
     }
 
     #[PublicPage]
     #[NoCSRFRequired]
-    public function user(string $back = ''): TemplateResponse {
-        return $this->page('user', $back);
+    public function user(string $back = '', string $fassung = '', string $drucken = ''): TemplateResponse {
+        return $this->page('user', $back, $fassung === 'allgemein', $drucken === '1');
     }
 
     /** Nur Administratoren (kein NoAdminRequired). */
     #[NoCSRFRequired]
-    public function admin(string $back = ''): TemplateResponse {
-        return $this->page('admin', $back);
+    public function admin(string $back = '', string $fassung = '', string $drucken = ''): TemplateResponse {
+        return $this->page('admin', $back, $fassung === 'allgemein', $drucken === '1');
     }
 
     #[PublicPage]
     #[NoCSRFRequired]
     public function userPdf(): Response {
-        return $this->pdf(self::PDF_USER);
+        return $this->pdf(self::PDF_USER, 'user');
     }
 
     #[NoCSRFRequired]
     public function adminPdf(): Response {
-        return $this->pdf(self::PDF_ADMIN);
+        return $this->pdf(self::PDF_ADMIN, 'admin');
     }
 
-    private function page(string $kind, string $back): TemplateResponse {
+    /**
+     * @param bool $generic "allgemein": ohne die Einstellungen dieser
+     *        Nextcloud (fuer die mitgelieferten PDFs, docs/manual-pdf.py)
+     * @param bool $printNow Druckfenster sofort oeffnen (Ersatz, wenn die
+     *        mitgelieferte PDF nicht mehr zum Stand passt)
+     */
+    private function page(string $kind, string $back, bool $generic = false, bool $printNow = false): TemplateResponse {
         $values = $this->appearance->adminValues();
         $accent = AppIcon::normalizeColor($values['themeAccent']) ?? 'b9793f';
         $bar = AppIcon::normalizeColor($values['themeBar']) ?? '291c12';
@@ -94,7 +104,15 @@ class ManualController extends Controller {
             'bar' => '#' . $bar,
             'backUrl' => $backUrl,
             'backLabel' => $isAdmin && $back === '' ? 'Zu den Einstellungen' : 'Zurück zur App',
-            'pdfUrl' => $this->urlGenerator->linkToRoute($route($isAdmin ? 'adminPdf' : 'userPdf')),
+            'pdf' => ManualContent::pdfLink($this->urlGenerator, $kind),
+            'printNow' => $printNow,
+            'nonce' => $printNow ? PlayerPage::cspNonce() : '',
+            // Was bei dieser Nextcloud eingeschaltet ist (null = allgemeine Fassung)
+            'features' => $generic ? null : $this->content->features(),
+            // Einstellungen der Verwaltung, gelesen aus deren Vorlage (ab 1.0.3)
+            'settingsRef' => $isAdmin ? ManualContent::settingsReference(dirname(__DIR__, 2)) : [],
+            'styleRef' => ManualContent::styleEditorReference(dirname(__DIR__, 2)),
+            'phpMin' => $this->phpMin(),
             // Querverweise zwischen den beiden Anleitungen
             'userUrl' => $this->urlGenerator->linkToRoute($route('user')),
             'adminUrl' => $this->urlGenerator->linkToRoute($route('admin')),
@@ -127,6 +145,15 @@ class ManualController extends Controller {
         return ['ncMin' => $min, 'ncMax' => $max];
     }
 
+    private function phpMin(): string {
+        try {
+            $info = $this->appManager->getAppInfo(Application::APP_ID) ?? [];
+            return (string)($info['dependencies']['php']['@attributes']['min-version'] ?? '');
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
+
     private function isAdmin(): bool {
         $user = $this->userSession->getUser();
         return $user !== null && \OCP\Server::get(\OCP\IGroupManager::class)->isAdmin($user->getUID());
@@ -155,7 +182,17 @@ class ManualController extends Controller {
         return $mtime !== false ? (string)$mtime : '';
     }
 
-    private function pdf(string $file): Response {
+    /**
+     * Mitgelieferte PDF - aber nur, wenn sie zum Stand der Seiten passt
+     * (ManualContent::sourcesHash). Sonst die Seite mit Druckfenster, damit
+     * nie eine veraltete Anleitung herauskommt.
+     */
+    private function pdf(string $file, string $kind): Response {
+        if (!ManualContent::pdfsCurrent(dirname(__DIR__, 2))) {
+            return new RedirectResponse($this->urlGenerator->linkToRoute(
+                Application::APP_ID . '.manual.' . $kind, ['drucken' => '1']
+            ));
+        }
         $path = __DIR__ . '/../../manual/' . $file;
         $data = @file_get_contents($path);
         if ($data === false) {

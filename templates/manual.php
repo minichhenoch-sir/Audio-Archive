@@ -59,11 +59,23 @@ $cssVars = implode(' ', array_map(static fn ($k, $v) => $k . ': ' . $v . ';', ar
     <nav class="m-actions" aria-label="Aktionen">
       <!-- id="m-back": Der Service Worker setzt das Ziel offline neu (js/service-worker.js) -->
       <a id="m-back" class="m-btn" href="<?php echo $escape($_['backUrl'] !== '' ? $_['backUrl'] : '#'); ?>"<?php if ($_['backUrl'] === '') { ?> hidden<?php } ?>>← <?php echo $escape($_['backLabel']); ?></a>
-      <a class="m-btn m-btn--primary" href="<?php echo $escape($_['pdfUrl']); ?>" download>⬇ Als PDF</a>
+      <a class="m-btn m-btn--primary" href="<?php echo $escape($_['pdf']['url']); ?>"<?php if ($_['pdf']['file']) { ?> download<?php } ?>>⬇ Als PDF</a>
     </nav>
   </div>
 </header>
 
+<?php if ($_['printNow']) { ?>
+<!-- Ersatz fuer eine veraltete PDF (ab 1.0.3): Druckfenster der Seite -->
+<p class="m-print-hint" role="status">Im Druckfenster als Ziel <strong>„Als PDF sichern“</strong> bzw. <strong>„PDF“</strong> wählen.
+  Öffnet es sich nicht von selbst: <button type="button" id="m-print" class="m-btn m-btn--primary">Drucken / Als PDF sichern</button></p>
+<script nonce="<?php echo $escape($_['nonce']); ?>">
+(function () {
+  var b = document.getElementById('m-print');
+  if (b) b.addEventListener('click', function () { window.print(); });
+  window.addEventListener('load', function () { setTimeout(function () { window.print(); }, 400); });
+})();
+</script>
+<?php } ?>
 <main class="m-main">
 <?php
 if ($isAdmin) {

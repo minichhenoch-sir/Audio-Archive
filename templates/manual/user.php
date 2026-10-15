@@ -4,10 +4,26 @@
  * dort stehen $escape und $figure bereit.
  *
  * Beim Aendern: Texte der Oberflaeche woertlich uebernehmen (in „…“), und
- * Funktionen, die der Administrator abschalten kann, mit $opt kennzeichnen.
- * Danach die PDF neu erzeugen (docs/ENTWICKLUNG.md, Abschnitt 1.0.2).
+ * Funktionen, die der Administrator abschalten kann, mit $opt('<schalter>')
+ * kennzeichnen (Schalter aus ManualContent::features()).
+ *
+ * Passt sich selbst an (ab 1.0.3): Auf der Seite steht bei solchen
+ * Funktionen, ob sie bei dieser Nextcloud gerade an oder aus sind, und
+ * einige Saetze folgen den Einstellungen ($on). Die mitgelieferte PDF ist die
+ * allgemeine Fassung ($_['features'] === null, „je nach Einrichtung“).
  */
-$opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrators ab">je nach Einrichtung</span>';
+$features = $_['features'];
+/** Kennzeichen hinter einer abschaltbaren Funktion */
+$opt = static function (string $key) use ($features): string {
+    if ($features === null || !array_key_exists($key, $features)) {
+        return '<span class="m-tag" title="Hängt von den Einstellungen des Administrators ab">je nach Einrichtung</span>';
+    }
+    return $features[$key]
+        ? '<span class="m-on" title="So hat es der Administrator eingestellt">bei euch eingeschaltet</span>'
+        : '<span class="m-off" title="So hat es der Administrator eingestellt">bei euch ausgeschaltet</span>';
+};
+/** Wert eines Schalters; null in der allgemeinen Fassung */
+$on = static fn (string $key) => $features === null ? null : ($features[$key] ?? null);
 ?>
 <nav class="m-toc" aria-label="Inhalt">
   <h2>Inhalt</h2>
@@ -39,9 +55,16 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
     <li>Die App merkt sich, wo du aufgehört hast.</li>
     <li>Ganze Ordner lassen sich für unterwegs offline speichern.</li>
   </ul>
+  <?php if ($features === null) { ?>
   <p class="m-note">Einige Funktionen schaltet der Administrator ein oder aus. Sie sind
-  in dieser Anleitung mit <?php echo $opt; ?> gekennzeichnet. Fehlt bei dir ein Knopf,
+  in dieser Anleitung mit <?php echo $opt(''); ?> gekennzeichnet. Fehlt bei dir ein Knopf,
   ist die Funktion bei euch nicht eingeschaltet.</p>
+  <?php } else { ?>
+  <p class="m-note">Diese Anleitung passt sich an eure Einrichtung an: Bei Funktionen, die der
+  Administrator ein- oder ausschalten kann, steht dabei, wie es bei euch gerade ist –
+  <?php echo $opt('offline'); ?> bzw. <span class="m-off">bei euch ausgeschaltet</span>.
+  Bei Links, die jemand selbst angelegt hat, kann es abweichen.</p>
+  <?php } ?>
   <?php echo $figure('library.jpg', 'Ordner und Aufnahmen, unten die Player-Leiste'); ?>
 </section>
 
@@ -70,15 +93,10 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
   <table class="m-table">
     <thead><tr><th>Gerät</th><th>So geht’s</th></tr></thead>
     <tbody>
-      <tr><td>📱 iPhone und iPad</td><td><strong>Safari:</strong> Teilen ⬆︎ → „Zum Home-Bildschirm“.<br>
-        <strong>Chrome, Edge, Firefox</strong> (ab iOS 16.4): Teilen-Symbol in der Adressleiste → „Zum Home-Bildschirm“.</td></tr>
-      <tr><td>🤖 Android</td><td><strong>Chrome, Edge, Samsung Internet, Firefox, Opera:</strong> Menü ⋮ → „App installieren“
-        bzw. „Zum Startbildschirm hinzufügen“.</td></tr>
-      <tr><td>💻 Windows, Mac, Linux</td><td><strong>Chrome und Edge:</strong> Installieren-Symbol rechts in der Adressleiste
-        (oder Menü → „App installieren“).<br>
-        <strong>Safari am Mac</strong> (ab macOS 14): Ablage → „Zum Dock hinzufügen“.<br>
-        <strong>Firefox unter Windows</strong> (neuere Versionen): „Zur Taskleiste hinzufügen“ in der Adressleiste.<br>
-        <strong>Firefox am Mac und unter Linux:</strong> geht nicht – bitte Chrome oder Edge verwenden oder ein Lesezeichen setzen.</td></tr>
+      <?php /* dieselbe Liste wie im Fenster „App installieren“ des Players */
+      foreach (include __DIR__ . '/../parts/install-browsers.php' as [$device, $howto]) { ?>
+      <tr><td><?php echo $escape($device); ?></td><td><?php echo $howto; ?></td></tr>
+      <?php } ?>
     </tbody>
   </table>
   <p>In der installierten App fehlt die Browserleiste. Zum Neuladen gibt es deshalb oben
@@ -96,13 +114,16 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
     <li><strong>„Meine Dateien“</strong> – Aufnahmen aus deinen eigenen Nextcloud-Dateien,</li>
     <li><strong>„Meine Freigaben“</strong> – Ordner, die du selbst geteilt hast,</li>
     <li><strong>„Mit mir geteilt“</strong> – Ordner, die andere in dieser App mit dir geteilt haben,</li>
-    <li><strong>„Favoriten“</strong> <?php echo $opt; ?>,</li>
+    <li><strong>„Favoriten“</strong> <?php echo $opt('favoriten'); ?>,</li>
     <li>ganz unten <strong>„Zu Nextcloud“</strong> – zurück zur Nextcloud-Oberfläche.</li>
   </ul>
   <h3>Suchen</h3>
-  <p>Ins <strong>Suchfeld</strong> oben tippen und Titel, Künstler oder Ordnernamen eingeben. Gesucht wird – je nach
+  <p>Ins <strong>Suchfeld</strong> oben tippen und Titel, Künstler oder Ordnernamen eingeben. <?php
+  if ($on('suche') === 'all') { ?>Bei euch wird
+  immer überall gesucht.<?php } elseif ($on('suche') === 'folder') { ?>Bei euch wird im geöffneten Ordner
+  mit allen Unterordnern gesucht; ganz oben wird alles durchsucht.<?php } else { ?>Gesucht wird – je nach
   Einrichtung – im geöffneten Ordner mit allen Unterordnern oder überall. Ganz oben wird immer
-  alles durchsucht. Das ✕ löscht die Suche.</p>
+  alles durchsucht.<?php } ?> Das ✕ löscht die Suche.</p>
   <h3>Sortieren</h3>
   <p>Neben dem Pfad steht die Sortierung: <strong>Name</strong>, <strong>Neueste</strong> oder
   <strong>Zufällig</strong>. Der Pfeil daneben dreht die Reihenfolge um. Dein Gerät merkt sich die Wahl.</p>
@@ -126,19 +147,19 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
       <tr><td>Wiederholen</td><td>Jeder Tipp schaltet weiter: „Wiederholen aus“ → „Danach nächster Ordner“ →
         „Ordner wiederholen“ → „Titel wiederholen“</td></tr>
       <tr><td>Angaben</td><td>Titel, Künstler, Album, Länge und weitere Angaben zur Aufnahme</td></tr>
-      <tr><td>Kommentare</td><td>Siehe <a href="#kommentare">Kommentare</a> <?php echo $opt; ?></td></tr>
+      <tr><td>Kommentare</td><td>Siehe <a href="#kommentare">Kommentare</a> <?php echo $opt('kommentare'); ?></td></tr>
     </tbody>
   </table>
   <p>Die Wiedergabe läuft weiter, wenn du den Bildschirm sperrst oder in eine andere App wechselst.
   Steuern kannst du sie dann über den Sperrbildschirm, Kopfhörer oder das Auto (Bluetooth).
   Am Ende eines Ordners geht es – je nach Wiederholen-Einstellung – mit dem nächsten Ordner weiter.</p>
   <p>Kann dein Gerät ein Format nicht abspielen (z.&nbsp;B. AIFF außerhalb von Safari), steht die
-  Aufnahme blass in der Liste. Hat der Administrator die Umwandlung eingeschaltet, wird sie
+  Aufnahme blass in der Liste. Ist die Umwandlung eingeschaltet <?php echo $opt('umwandeln'); ?>, wird sie
   beim Abspielen für dein Gerät in MP3 umgewandelt – das dauert beim ersten Mal etwas.</p>
 </section>
 
 <section id="favoriten" class="m-section">
-  <h2><span class="m-num">6</span>Favoriten <?php echo $opt; ?></h2>
+  <h2><span class="m-num">6</span>Favoriten <?php echo $opt('favoriten'); ?></h2>
   <p>Tippe auf den Stern ☆ neben einem Ordner oder einer Aufnahme. Alle Favoriten findest du
   unter <strong>„Favoriten“</strong> – mit Nextcloud-Konto in der Seitenleiste, über einen Link
   als letzten Eintrag der obersten Ebene.</p>
@@ -150,7 +171,7 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
 </section>
 
 <section id="offline" class="m-section">
-  <h2><span class="m-num">7</span>Offline hören <?php echo $opt; ?></h2>
+  <h2><span class="m-num">7</span>Offline hören <?php echo $opt('offline'); ?></h2>
   <p>So hörst du Aufnahmen ohne Internet, etwa im Flugzeug oder im Funkloch:</p>
   <ol>
     <li>Ordner mit Verbindung öffnen.</li>
@@ -161,26 +182,35 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
   </ol>
   <p>Die Aufnahmen liegen nur in der App, nicht im Download-Ordner. Wieder löschen mit
   <strong>„Offline-Aufnahmen entfernen“</strong>. Am besten funktioniert das in der installierten App.</p>
+  <?php if ($on('offlineOhnePasswort') === true) { ?>
+  <p>Bei euch öffnen sich gespeicherte Aufnahmen offline direkt, ohne Passwort oder PIN.
+  Wer sich ausdrücklich abmeldet, braucht danach wieder das Passwort.</p>
+  <?php } elseif ($on('offlineOhnePasswort') === false) { ?>
+  <p>Ohne Verbindung fragt die App bei euch nach dem Passwort des Links, mit Nextcloud-Konto nach
+  einer <strong>Offline-PIN</strong>, die du beim ersten Speichern festlegst.</p>
+  <?php } else { ?>
   <p>Je nach Einrichtung öffnen sich gespeicherte Aufnahmen offline direkt. Sonst fragt die App
   nach dem Passwort des Links, mit Nextcloud-Konto nach einer <strong>Offline-PIN</strong>, die du
   beim ersten Speichern festlegst. Wer sich ausdrücklich abmeldet, braucht danach wieder das Passwort.</p>
+  <?php } ?>
 </section>
 
 <section id="herunterladen" class="m-section">
-  <h2><span class="m-num">8</span>Herunterladen <?php echo $opt; ?></h2>
+  <h2><span class="m-num">8</span>Herunterladen</h2>
   <ul>
-    <li><strong>Einzelne Aufnahme:</strong> Pfeil-Symbol ⬇ rechts in der Zeile („Aufnahme herunterladen“).</li>
-    <li><strong>Ganzer Ordner:</strong> <strong>„Ordner herunterladen (ZIP)“</strong> über der Liste – mit allen
-    Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich nicht als Ganzes herunterladen.</li>
+    <li><strong>Einzelne Aufnahme</strong> <?php echo $opt('herunterladen'); ?>: Pfeil-Symbol ⬇ rechts in der Zeile („Aufnahme herunterladen“).</li>
+    <li><strong>Ganzer Ordner</strong> <?php echo $opt('zip'); ?>: <strong>„Ordner herunterladen (ZIP)“</strong> über der Liste – mit allen
+    Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich nicht als Ganzes herunterladen.
+    Mit Nextcloud-Konto geht das bei deinen eigenen Dateien immer.</li>
   </ul>
   <p>Heruntergeladene Dateien liegen danach ganz normal auf deinem Gerät.</p>
 </section>
 
 <section id="kommentare" class="m-section">
-  <h2><span class="m-num">9</span>Kommentare und Bewertungen <?php echo $opt; ?></h2>
+  <h2><span class="m-num">9</span>Kommentare und Bewertungen <?php echo $opt('kommentare'); ?></h2>
   <p>Im großen Player gibt es den Knopf <strong>„Kommentare“</strong>. Dort kannst du zu der
-  laufenden Aufnahme eine Anmerkung, einen Änderungswunsch oder einen Fehler melden und – falls
-  eingeschaltet – mit 1 bis 5 Sternen bewerten.</p>
+  laufenden Aufnahme eine Anmerkung, einen Änderungswunsch oder einen Fehler melden und mit 1 bis 5 Sternen
+  bewerten <?php echo $opt('bewertung'); ?>.</p>
   <ul>
     <li>In der App siehst du nur deine eigenen Kommentare.</li>
     <li>Je nach Einrichtung werden die Verantwortlichen benachrichtigt; sie können in Nextcloud antworten.</li>
@@ -190,7 +220,7 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
 </section>
 
 <section id="teilen" class="m-section">
-  <h2><span class="m-num">10</span>Ordner teilen <?php echo $opt; ?></h2>
+  <h2><span class="m-num">10</span>Ordner teilen <?php echo $opt('teilen'); ?></h2>
   <p>Mit Nextcloud-Konto kannst du Ordner weitergeben – sofern der Administrator dir das erlaubt.
   Ordner öffnen und über der Liste auf <strong>„Diesen Ordner teilen“</strong> tippen.
   Eine Freigabe umfasst immer auch alle Unterordner.</p>
@@ -215,11 +245,16 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
 </section>
 
 <section id="darstellung" class="m-section">
-  <h2><span class="m-num">11</span>Eigene Darstellung <?php echo $opt; ?></h2>
+  <h2><span class="m-num">11</span>Eigene Darstellung <?php echo $opt('darstellung'); ?></h2>
   <p>Mit Nextcloud-Konto öffnet das <strong>Zahnrad</strong> oben die „Darstellung“. Sie gilt nur für
   deine eigene Ansicht – andere Nutzer und geteilte Links bleiben unverändert.</p>
   <ul>
-    <li><strong>Gestaltung:</strong> Klassisch (wie Nextcloud), Modern (mit eigenen Farben) oder Benutzerdefiniert,</li>
+    <li><strong>Gestaltung:</strong> Klassisch (wie Nextcloud), Modern (mit eigenen Farben) oder Benutzerdefiniert<?php
+      // Was „Benutzerdefiniert“ bietet, kommt direkt aus dem Editor (js/style-tokens.js, ab 1.0.3)
+      $styleLabels = array_values(array_unique(array_map(static fn ($i) => $i['label'], array_filter(
+          $_['styleRef'], static fn ($i) => in_array($i['kind'], ['color', 'range', 'choice', 'switch'], true)
+      ))));
+      if ($styleLabels !== []) { ?> – dort einstellbar: <?php echo $escape(implode(', ', $styleLabels)); ?><?php } ?>,</li>
     <li><strong>Funktionen:</strong> Favoriten, Kommentare und Bewertung ein- oder ausblenden, Wiederholen-Vorgabe,</li>
     <li><strong>Texte:</strong> eigener Titel, Zusatzzeile und Text über den Aufnahmen,</li>
     <li><strong>Hintergrundbild</strong> wählen oder entfernen.</li>
@@ -232,11 +267,13 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
   <p>Der Knopf <strong>(i)</strong> oben öffnet „Hilfe“. Dort findest du diese Anleitung und –
   falls eingerichtet – zwei Wege, uns zu erreichen:</p>
   <ul>
-    <li><strong>„Per E-Mail schreiben“</strong> öffnet dein Mailprogramm,</li>
-    <li>ein <strong>Nachrichtenfeld</strong>, das direkt an die Verantwortlichen geht. Gib eine
+    <li><strong>„Per E-Mail schreiben“</strong> <?php echo $opt('kontaktMail'); ?> öffnet dein Mailprogramm,</li>
+    <li>ein <strong>Nachrichtenfeld</strong> <?php echo $opt('kontaktNachricht'); ?>, das direkt an die Verantwortlichen geht. Gib eine
     E-Mail-Adresse an, wenn du eine Antwort möchtest.</li>
   </ul>
+  <?php if ($on('kontaktMail') !== false || $on('kontaktNachricht') !== false) { ?>
   <p>Mitgeschickt wird, wo du gerade warst (Seite, Ordner, Aufnahme und Gerät) – das hilft beim Helfen.</p>
+  <?php } ?>
 </section>
 
 <section id="fragen" class="m-section">
@@ -255,6 +292,6 @@ $opt = '<span class="m-tag" title="Hängt von den Einstellungen des Administrato
     <dt>Der Link funktioniert nicht mehr.</dt>
     <dd>Der Link ist abgelaufen oder wurde geändert. Bitte bei der Person nachfragen, von der du ihn hast.</dd>
     <dt>Ein Knopf aus dieser Anleitung fehlt.</dt>
-    <dd>Die Funktion ist bei euch nicht eingeschaltet (<?php echo $opt; ?>) oder geht nur mit Nextcloud-Konto.</dd>
+    <dd>Die Funktion ist bei euch nicht eingeschaltet (<?php echo $opt(''); ?>) oder geht nur mit Nextcloud-Konto.</dd>
   </dl>
 </section>

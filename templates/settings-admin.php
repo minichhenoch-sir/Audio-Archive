@@ -21,7 +21,7 @@ $help = static function (string $anchor) use ($_): void {
     <!-- Anleitung (ab 1.0.2) -->
     <p class="aa-manual-links">
         <a class="button" href="<?php p($_['manualUrl'] ?? ''); ?>" target="_blank" rel="noopener">📖 Anleitung für Administratoren</a>
-        <a class="button" href="<?php p($_['manualPdfUrl'] ?? ''); ?>" download>⬇ Als PDF</a>
+        <a class="button" href="<?php p($_['manualPdf']['url'] ?? ''); ?>"<?php if (!empty($_['manualPdf']['file'])) { ?> download<?php } else { ?> target="_blank" rel="noopener"<?php } ?>>⬇ Als PDF</a>
         <a class="aa-manual-user" href="<?php p($_['userManualUrl'] ?? ''); ?>" target="_blank" rel="noopener">Anleitung für Hörer und Nutzer</a>
     </p>
 

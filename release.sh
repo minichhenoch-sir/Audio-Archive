@@ -19,6 +19,12 @@ OUT="build/audioarchive-$V.tar.gz"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { echo "Tag $TAG fehlt"; exit 1; }
 grep -q "^## $V" CHANGELOG.md || { echo "CHANGELOG.md hat keinen Abschnitt ## $V"; exit 1; }
 
+# Anleitung (ab 1.0.3): Die PDFs muessen zum Stand der Seiten passen
+# (Pruefsumme in manual/pdf-quellen.txt, erzeugt von docs/manual-pdf.py)
+WANT=$(php -r 'require "lib/Service/ManualContent.php"; echo \OCA\AudioArchive\Service\ManualContent::sourcesHash(".");')
+HAVE=$(tr -d '[:space:]' < manual/pdf-quellen.txt 2>/dev/null || true)
+[ "$WANT" = "$HAVE" ] || { echo "Anleitung: PDFs veraltet - docs/manual-pdf.py ausfuehren"; exit 1; }
+
 mkdir -p build
 git archive --format=tar --prefix=audioarchive/ "$TAG" | gzip -n -9 > "$OUT"
 

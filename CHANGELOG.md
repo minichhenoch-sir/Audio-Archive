@@ -4,6 +4,19 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.3 – 2026-10-15
+
+### Changed
+- The manual keeps itself up to date: the administrator manual's settings
+  reference is read directly from the settings page and from the design
+  editor, so new or changed settings appear without editing the manual
+- The listener manual shows which functions are switched on or off on this
+  Nextcloud, and follows settings such as search scope and offline access
+- "Als PDF" only offers the bundled PDF while it matches the pages;
+  otherwise it opens the print view ("Save as PDF") instead
+- Browser install instructions come from one place for the app and the
+  manual
+
 ## 1.0.2 – 2026-10-10
 
 ### Added

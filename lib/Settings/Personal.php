@@ -39,7 +39,7 @@ class Personal implements ISettings {
         return new TemplateResponse(Application::APP_ID, 'settings-personal', [
             // Anleitung (ab 1.0.2)
             'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
-            'manualPdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.userPdf'),
+            'manualPdf' => \OCA\AudioArchive\Service\ManualContent::pdfLink($this->urlGenerator, 'user'),
         ]);
     }
 

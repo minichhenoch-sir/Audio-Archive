@@ -336,7 +336,10 @@
         ev.preventDefault();
         location.href = manualLink('');
       });
-      document.getElementById('help-manual-pdf').href = AudioArchive.manualUrl + '/pdf';
+      // Fertige PDF-Datei, oder die Druckfassung, wenn sie nicht mehr zum Stand passt (ab 1.0.3)
+      const pdfLink = document.getElementById('help-manual-pdf');
+      pdfLink.href = AudioArchive.manualPdfUrl || (AudioArchive.manualUrl + '/pdf');
+      if (!AudioArchive.manualPdfFile) pdfLink.removeAttribute('download');
     }
 
     const NAME_KEY = 'audioarchive_comment_name'; // derselbe Name wie bei Kommentaren

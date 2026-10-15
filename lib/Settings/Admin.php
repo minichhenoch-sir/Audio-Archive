@@ -200,7 +200,7 @@ class Admin implements ISettings {
             'version' => $this->appManager->getAppVersion(Application::APP_ID),
             // Anleitung (ab 1.0.2)
             'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.admin'),
-            'manualPdfUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.adminPdf'),
+            'manualPdf' => \OCA\AudioArchive\Service\ManualContent::pdfLink($this->urlGenerator, 'admin'),
             'userManualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
         ]);
     }

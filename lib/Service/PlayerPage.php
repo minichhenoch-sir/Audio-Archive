@@ -346,12 +346,14 @@ class PlayerPage {
             ),
             'assetBase' => $this->urlGenerator->linkTo(Application::APP_ID, ''),
             'assetVersion' => $this->assetVersion(),
-            'cspNonce' => $this->cspNonce(),
+            'cspNonce' => self::cspNonce(),
             // Hilfe und Kontakt (ab 0.37.0, Vikunja #27)
             'helpEmail' => $this->appConfig->getValueString(Application::APP_ID, Application::SETTING_HELP_EMAIL, ''),
             'helpMessage' => $this->helpGroupExists() ? '1' : '',
             // Anleitung fuer Hoerer und Nutzer (ab 1.0.2), ueber den Knopf (i)
             'manualUrl' => $this->urlGenerator->linkToRoute(Application::APP_ID . '.manual.user'),
+            // PDF-Datei oder - wenn sie nicht mehr zum Stand passt - Druckfassung (ab 1.0.3)
+            'manualPdf' => ManualContent::pdfLink($this->urlGenerator, 'user'),
             // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), siehe notice()
             ...$this->notice($uid, $shareSettings),
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
@@ -461,7 +463,7 @@ class PlayerPage {
      * 30+ uses the secret part of the request token, Nextcloud 29 the whole
      * token, base64-encoded.
      */
-    private function cspNonce(): string {
+    public static function cspNonce(): string {
         if (!empty($_SERVER['CSP_NONCE'])) {
             return (string)$_SERVER['CSP_NONCE'];
         }
