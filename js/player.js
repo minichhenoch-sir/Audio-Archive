@@ -483,8 +483,8 @@ const Player = (() => {
    * erhalten (localStorage, nur die letzten Eintraege).
    */
   const MEDIA_LOG_KEY = 'audioarchive_media_log';
-  const MEDIA_LOG_MAX = 40;
-  const MEDIA_LOG_SHOW = 15;
+  const MEDIA_LOG_MAX = 100;
+  const MEDIA_LOG_SHOW = 40;
   const MEDIA_LOG_AGE = 2 * 60 * 60 * 1000; // aelter als 2 h: nicht mehr zeigen
   const ACTION_LABELS = {
     play: 'Play',
@@ -495,6 +495,20 @@ const Player = (() => {
     seekforward: 'Vorspulen',
     seekto: 'Balken',
     stop: 'Stopp',
+    // Ereignisse der Wiedergabe (ab 1.0.4) - fuer die Fehlersuche bei
+    // gesperrtem Bildschirm und im Auto (CarPlay, Android Auto)
+    'ev-ended': 'Titelende → nächster Titel',
+    'ev-queueend': 'Titelende – Ordner zu Ende',
+    'ev-playfail': 'Start abgelehnt',
+    'ev-playretry': 'Start erneut versucht',
+    'ev-syspause': 'Vom System pausiert',
+    'ev-interrupt': 'Unterbrechung (z. B. Navigationsansage)',
+    'ev-interruptend': 'Unterbrechung vorbei',
+    'ev-resume': 'Nach Unterbrechung fortgesetzt',
+    'ev-tailstall': 'Hänger am Titelende – weiter',
+    'ev-recover': 'Neu geladen (Verbindung)',
+    'ev-hidden': 'Bildschirm aus / Hintergrund',
+    'ev-visible': 'App wieder sichtbar',
   };
 
   let mediaLog = [];
@@ -503,13 +517,29 @@ const Player = (() => {
     if (Array.isArray(stored)) mediaLog = stored.slice(-MEDIA_LOG_MAX);
   } catch (e) { /* ohne Speicher: nur fuer diese Sitzung */ }
 
-  function logMediaAction(action, executed) {
-    mediaLog.push({ t: Date.now(), a: action, ok: executed });
+  function logMediaAction(action, executed, detail) {
+    const entry = { t: Date.now(), a: action, ok: executed };
+    if (detail) entry.d = String(detail);
+    mediaLog.push(entry);
     if (mediaLog.length > MEDIA_LOG_MAX) mediaLog = mediaLog.slice(-MEDIA_LOG_MAX);
     try {
       localStorage.setItem(MEDIA_LOG_KEY, JSON.stringify(mediaLog));
     } catch (e) { /* nicht kritisch */ }
   }
+
+  /** Ereignis der Wiedergabe ins Protokoll (ab 1.0.4). */
+  function logEvent(action, detail) {
+    logMediaAction(action, true, detail);
+  }
+
+  /*
+   * Eigene Pause (Knopf, Sperrbildschirm, Autoradio) oder Pause des Systems
+   * (Navigationsansage, Anruf, Kopfhoerer ab)? Nur nach einer Pause des
+   * Systems, die als Unterbrechung gemeldet wurde, wird von selbst
+   * weitergespielt (ab 1.0.4).
+   */
+  let ownPauseAt = 0;
+  let resumeAfterInterruption = false;
 
   /** Zeilen fuer die Angaben: neueste zuerst. */
   function mediaLogRows() {
@@ -523,7 +553,7 @@ const Player = (() => {
         + ',' + String(d.getMilliseconds()).padStart(3, '0').slice(0, 1);
       const gap = i > 0 ? ((e.t - recent[i - 1].t) / 1000).toLocaleString('de-DE', { maximumFractionDigits: 1 }) + ' s danach' : '';
       const label = ACTION_LABELS[e.a] || e.a;
-      rows.push([time, [label, e.ok ? '' : 'gebremst', gap].filter(Boolean).join(' · ')]);
+      rows.push([time, [label, e.d || '', e.ok ? '' : 'gebremst', gap].filter(Boolean).join(' · ')]);
     }
     return rows;
   }
@@ -594,6 +624,8 @@ const Player = (() => {
         updatePositionState();
       }),
       stop: other('stop', () => {
+        ownPauseAt = Date.now();
+        resumeAfterInterruption = false;
         audio.pause();
         audio.currentTime = 0;
         updatePositionState();
@@ -889,6 +921,7 @@ const Player = (() => {
     const track = playlist[index];
 
     mediaSessionNeedsRefresh = true;
+    trackSerial++;
     // Geplante Wiederholungen des vorherigen Titels verwerfen (ab 0.18.3)
     resetRecovery();
     shouldPlay = autoplay;
@@ -958,10 +991,10 @@ const Player = (() => {
     if (repeatMode === 'next' && index === playlist.length - 1) prepareNextFolder();
 
     if (autoplay) {
-      audio.play().catch(() => {
-        // Autoplay ohne Geste (z.B. beim Start der App) kann blockiert werden -
-        // das ist normal, der Nutzer muss dann selbst auf Play tippen.
-      });
+      // Autoplay ohne Geste (z.B. beim Start der App) kann blockiert werden -
+      // das ist normal. Ab 1.0.4 wird eine Ablehnung aber protokolliert und
+      // nachgeholt (siehe startPlayback), statt still zu verschwinden.
+      startPlayback('Titelwechsel');
     }
 
     if (typeof onTrackChange === 'function') {
@@ -993,7 +1026,7 @@ const Player = (() => {
       if (state === 'ready') {
         audio.src = streamUrlFor(track) + '&mp3=1';
         setContextLine(track);
-        if (shouldPlay) audio.play().catch(() => {});
+        if (shouldPlay) startPlayback('MP3-Fassung');
         return;
       }
       if (state === 'working' && waited < 30 * 60) {
@@ -1016,6 +1049,9 @@ const Player = (() => {
   audio.addEventListener('seeked', updatePositionState);
 
   audio.addEventListener('play', () => {
+    // Auch ein vom System selbst fortgesetztes Abspielen zaehlt (ab 1.0.4)
+    shouldPlay = true;
+    resumeAfterInterruption = false;
     updatePlayPauseIcon();
     setMediaSessionPlaybackState('playing');
     updatePositionState();
@@ -1026,7 +1062,15 @@ const Player = (() => {
     rememberPosition(true);
     // Vom System angehalten (Kopfhoerer ab, Anruf, ...): nicht weiterversuchen.
     // Das Neuladen selbst und das Titelende zaehlen nicht als Pause.
-    if (!reloading && !audio.ended && !audio.error) shouldPlay = false;
+    // Ab 1.0.4: Kam die Pause vom System, wird gemerkt, ob vorher gespielt
+    // wurde - endet eine gemeldete Unterbrechung (z. B. Ansage von Google
+    // Maps ueber CarPlay), geht es dann von selbst weiter.
+    if (!reloading && !audio.ended && !audio.error) {
+      const own = Date.now() - ownPauseAt < 1500;
+      resumeAfterInterruption = !own && shouldPlay;
+      if (!own) logEvent('ev-syspause', audioSessionInfo());
+      shouldPlay = false;
+    }
     updatePlayPauseIcon();
     setMediaSessionPlaybackState('paused');
     updatePositionState();
@@ -1087,11 +1131,23 @@ const Player = (() => {
   audio.addEventListener('durationchange', refreshMediaSession);
 
   // Kritisch: Beim Ende automatisch den nächsten Titel im selben Ordner starten
-  audio.addEventListener('ended', () => {
+  audio.addEventListener('ended', () => advanceAfterEnd());
+
+  /*
+   * Zaehlt jeden Titelwechsel (ab 1.0.4). Damit ein Titel nur einmal als
+   * beendet gilt, auch wenn Haenger-Erkennung und echtes Ende zusammenfallen.
+   */
+  let trackSerial = 0;
+  let advancedSerial = -1;
+
+  function advanceAfterEnd(cause) {
+    if (advancedSerial === trackSerial) return;
+    advancedSerial = trackSerial;
     rememberPosition(true); // zu Ende gehoert: gemerkte Stelle entfaellt
     // Ohne Verbindung nicht gespeicherte Titel ueberspringen (ab 0.18.3)
     const nextIndex = playableIndex(currentIndex + 1, 1);
     if (nextIndex !== -1) {
+      if (cause !== 'tail') logEvent('ev-ended', document.visibilityState === 'hidden' ? 'Hintergrund' : '');
       /*
        * Zustand bewusst auf 'playing' belassen: Beim Wechsel zum naechsten
        * Titel entsteht eine kurze Luecke, in der keine Quelle geladen ist.
@@ -1103,8 +1159,38 @@ const Player = (() => {
       return;
     }
     // Ende des Ordners: je nach Wiederholen-Stufe
+    logEvent('ev-queueend');
     finishQueue(true);
-  });
+  }
+
+  /*
+   * Haenger am Titelende (ab 1.0.4): Bei manchen MP3-Dateien schaetzt der
+   * Browser die Laufzeit etwas zu lang. Die Wiedergabe bleibt dann kurz vor
+   * dem errechneten Ende stehen, ohne dass 'ended' kommt. Im Vordergrund
+   * rettete das bisher erst der 20-s-Waechter; bei gesperrtem Bildschirm
+   * laufen dessen Zeitgeber oft gar nicht - der naechste Titel kam nie.
+   * Steht die Wiedergabe in den letzten Sekunden still, gilt der Titel
+   * jetzt nach kurzer Wartezeit als zu Ende.
+   */
+  const TAIL_SECONDS = 2.5;
+  const TAIL_WAIT = 4000;
+  let tailTimer = 0;
+
+  function checkTailStall() {
+    if (!shouldPlay || audio.ended || !isFinite(audio.duration) || audio.duration <= 0) return;
+    if (audio.duration - audio.currentTime > TAIL_SECONDS) return;
+    const serial = trackSerial;
+    const at = audio.currentTime;
+    window.clearTimeout(tailTimer);
+    tailTimer = window.setTimeout(() => {
+      tailTimer = 0;
+      if (serial !== trackSerial || audio.ended || !shouldPlay) return;
+      if (!audio.paused && audio.currentTime - at > 0.3) return; // laeuft doch weiter
+      logEvent('ev-tailstall', formatTime(audio.currentTime) + ' von ' + formatTime(audio.duration));
+      advanceAfterEnd('tail');
+    }, TAIL_WAIT);
+  }
+  ['waiting', 'stalled', 'suspend'].forEach((name) => audio.addEventListener(name, checkTailStall));
 
   /**
    * Der letzte Titel des Ordners ist vorbei (oder "Naechster" wurde dort
@@ -1305,8 +1391,9 @@ const Player = (() => {
         ['Größe', formatSize(f.size !== undefined ? f.size : track.size)],
         ['Geändert', f.mtime ? new Date(f.mtime * 1000).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) : ''],
       ]],
-      // Nur sichtbar, wenn in den letzten 2 h Befehle von aussen kamen (ab 0.19.3)
-      ['Tastenbefehle (Protokoll)', mediaLogRows()],
+      // Nur sichtbar, wenn in den letzten 2 h etwas protokolliert wurde
+      // (ab 0.19.3; ab 1.0.4 auch Ereignisse der Wiedergabe)
+      ['Protokoll (Befehle und Wiedergabe)', mediaLogRows()],
     ];
 
     els.details.textContent = '';
@@ -1812,6 +1899,11 @@ const Player = (() => {
     recoveries = 0;
     recoveryKey = '';
     stallSince = 0;
+    window.clearTimeout(playRetryTimer);
+    playRetryTimer = 0;
+    playRetries = 0;
+    window.clearTimeout(tailTimer);
+    tailTimer = 0;
     if (failed) {
       failed = false;
       els.bar.classList.remove('is-failed');
@@ -1832,9 +1924,100 @@ const Player = (() => {
     audio.load();
     if (play) {
       // play() gleich mitgeben: Ohne laedt iOS im Hintergrund nicht weiter
-      audio.play().catch(() => {});
+      startPlayback('neu laden');
     }
   }
+
+  /*
+   * Abspielen mit Rueckmeldung (ab 1.0.4). Frueher wurde eine Ablehnung von
+   * play() stillschweigend geschluckt - bei gesperrtem Bildschirm blieb der
+   * naechste Titel dann einfach stehen. Jetzt wird sie protokolliert und ein
+   * paar Mal nachgeholt, spaetestens wenn die App wieder sichtbar wird.
+   */
+  const PLAY_RETRY_DELAYS = [800, 2500, 6000];
+  let playRetries = 0;
+  let playRetryTimer = 0;
+
+  function startPlayback(reason) {
+    const serial = trackSerial;
+    let promise;
+    try {
+      promise = audio.play();
+    } catch (e) {
+      promise = null;
+    }
+    if (!promise || typeof promise.then !== 'function') return;
+    promise.then(() => { playRetries = 0; }).catch((err) => {
+      const name = (err && err.name) || 'Fehler';
+      // Durch Quellwechsel oder Pause ueberholt - normal, kein Fehler
+      if (name === 'AbortError') return;
+      logEvent('ev-playfail', name + (reason ? ' · ' + reason : ''));
+      if (!shouldPlay || serial !== trackSerial || playRetries >= PLAY_RETRY_DELAYS.length) return;
+      const delay = PLAY_RETRY_DELAYS[playRetries++];
+      window.clearTimeout(playRetryTimer);
+      playRetryTimer = window.setTimeout(() => {
+        playRetryTimer = 0;
+        if (!shouldPlay || !audio.paused || serial !== trackSerial) return;
+        logEvent('ev-playretry', playRetries + '. Versuch');
+        startPlayback(reason);
+      }, delay);
+    });
+  }
+
+  /** Zustand der Audio-Sitzung fuers Protokoll (Safari; nicht in jedem Browser vorhanden). */
+  function audioSessionInfo() {
+    const parts = [];
+    try {
+      if (navigator.audioSession && navigator.audioSession.state) {
+        parts.push('Sitzung: ' + navigator.audioSession.state);
+      }
+    } catch (e) { /* egal */ }
+    if (document.visibilityState === 'hidden') parts.push('Hintergrund');
+    return parts.join(', ');
+  }
+
+  /*
+   * Unterbrechungen (ab 1.0.4): Eine Navigationsansage oder ein Anruf
+   * haelt die Wiedergabe an. Eigentlich soll der Browser danach selbst
+   * weiterspielen - Safari tut das ueber CarPlay aber nicht zuverlaessig.
+   * Wo der Browser die Unterbrechung meldet (navigator.audioSession),
+   * wird deshalb nach deren Ende selbst fortgesetzt - aber nur, wenn
+   * vorher gespielt wurde und niemand selbst auf Pause gedrueckt hat.
+   */
+  try {
+    const session = navigator.audioSession;
+    if (session && typeof session.addEventListener === 'function' && 'state' in session) {
+      let lastState = session.state;
+      session.addEventListener('statechange', () => {
+        const state = session.state;
+        if (state === 'interrupted') {
+          logEvent('ev-interrupt');
+        } else if (lastState === 'interrupted') {
+          logEvent('ev-interruptend', state);
+          if (resumeAfterInterruption && audio.paused && playlist[currentIndex] && !failed) {
+            resumeAfterInterruption = false;
+            shouldPlay = true;
+            logEvent('ev-resume');
+            startPlayback('nach Unterbrechung');
+          }
+        }
+        lastState = state;
+      });
+    }
+  } catch (e) { /* ohne Audio-Sitzung: wie bisher */ }
+
+  // Sichtbarkeit protokollieren und einen abgelehnten Start nachholen (ab 1.0.4)
+  document.addEventListener('visibilitychange', () => {
+    if (!playlist[currentIndex] || (!shouldPlay && audio.paused)) return;
+    if (document.visibilityState === 'hidden') {
+      logEvent('ev-hidden');
+      return;
+    }
+    logEvent('ev-visible');
+    if (shouldPlay && audio.paused && !failed && !pendingRecovery && audio.getAttribute('src')) {
+      startPlayback('App sichtbar');
+    }
+  });
 
   let waitingForOnline = null;
   function onlineAgain() {
@@ -1906,6 +2089,7 @@ const Player = (() => {
     }
     const delay = delays[recoveries];
     recoveries++;
+    logEvent('ev-recover', recoveries + '. Versuch');
     if (recoveries === 2) showToast('Verbindung stockt – wird neu geladen …');
 
     const attempt = () => {
@@ -2034,6 +2218,7 @@ const Player = (() => {
       stallSince = 0;
       return;
     }
+    if (!tailTimer) checkTailStall();
     const now = Date.now();
     if (!stallSince || Math.abs(audio.currentTime - stallAt) > 0.5) {
       stallSince = now;
@@ -2712,10 +2897,12 @@ const Player = (() => {
         reloadAt(intendedTime !== null ? intendedTime : lastGoodTime, true);
         return;
       }
-      audio.play().catch(() => {});
+      startPlayback('Play');
     },
 
     pause() {
+      ownPauseAt = Date.now();
+      resumeAfterInterruption = false;
       shouldPlay = false;
       audio.pause();
     },
@@ -2726,6 +2913,8 @@ const Player = (() => {
      */
     stop() {
       rememberPosition(true);
+      ownPauseAt = Date.now();
+      resumeAfterInterruption = false;
       shouldPlay = false;
       resetRecovery();
       audio.pause();

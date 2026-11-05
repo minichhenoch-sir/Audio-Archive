@@ -1923,3 +1923,48 @@ sofort; veraltete PDF → Druckfassung mit Druckfenster; Nutzer-Anleitung
 folgt dem Umschalten von Herunterladen und Suchbereich; allgemeine Fassung;
 Browser-Liste gleich) plus die 38 Prüfungen aus 1.0.2.
 Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## 1.0.4: Nächster Titel bei gesperrtem Bildschirm, Unterbrechungen im Auto
+
+Meldung von Henoch (Chat, 05.11.2026): Bei gesperrtem Bildschirm springt die
+Wiedergabe nicht immer zum nächsten Titel (Apple und Android, gestreamt,
+geöffnete App ok). Mit CarPlay und laufendem Google Maps (Ansagen an)
+pausiert sie bei Ansagen und bleibt pausiert.
+
+Befund im Code (Ursachen sind **Vermutung**, am Gerät nicht nachgestellt):
+- `loadTrack()` rief `audio.play().catch(() => {})` – lehnt der Browser den
+  Start im Hintergrund ab, blieb der Titel ohne jede Spur stehen.
+- Jede `pause` außerhalb des Neuladens setzte `shouldPlay = false`. Eine
+  Pause durch das System (Ansage, Anruf) war damit endgültig.
+- Schätzt der Browser die Laufzeit (VBR-MP3) zu lang, bleibt die Wiedergabe
+  kurz vor dem Ende stehen, ohne `ended`. Gerettet hat das nur der
+  20-s-Wächter (`setInterval`) – der läuft bei gesperrtem Bildschirm oft nicht.
+
+Änderungen (`js/player.js`):
+- `startPlayback(grund)`: Ablehnung (außer `AbortError`) wird protokolliert
+  und bis zu dreimal nachgeholt (0,8 / 2,5 / 6 s), außerdem beim
+  Sichtbarwerden der App, solange `shouldPlay` gilt. Genutzt beim
+  Titelwechsel, Neuladen, MP3-Fassung und Play.
+- Eigene Pause (`Player.pause/stop`, Media-Session-Stopp) setzt `ownPauseAt`.
+  Eine andere Pause gilt als Systempause; `resumeAfterInterruption` merkt,
+  ob vorher gespielt wurde. `navigator.audioSession` (`statechange`): Wechsel
+  aus `interrupted` → von selbst weiterspielen. Ohne diese Schnittstelle
+  bewusst **kein** Fortsetzen (Kopfhörer ab / Auto aus darf nicht wieder
+  losspielen). `play`-Ereignis setzt `shouldPlay = true` (auch wenn das System
+  selbst fortsetzt).
+- Titelende in `advanceAfterEnd()`; `trackSerial` verhindert doppeltes
+  Weiterschalten. `checkTailStall()` bei `waiting`/`stalled`/`suspend` und im
+  Wächter: in den letzten 2,5 s 4 s ohne Fortschritt → nächster Titel.
+- Protokoll unter Angaben (i) heißt jetzt „Protokoll (Befehle und
+  Wiedergabe)“, bis 100 Einträge gespeichert, 40 gezeigt, mit Zusatzangabe
+  (z. B. `NotAllowedError · Titelwechsel`, „Sitzung: interrupted“).
+
+Geprüft (Sandbox, Chromium/Playwright, Testseite mit `player.js` und
+nachgebauter Audio-Sitzung): Titelende → nächster Titel; Systempause bei
+Unterbrechung → setzt nach deren Ende fort; eigene Pause → bleibt pausiert;
+einmal abgelehnter Start → zweiter Versuch spielt; Hänger 1,5 s vor dem
+gemeldeten Ende → nach 4 s nächster Titel. **Nicht geprüft:** echtes
+iPhone/Android bei gesperrtem Bildschirm, CarPlay mit Google Maps – dafür ist
+das Protokoll da.
+Einspielen: kein Container-Neustart nötig (nur JS und Anleitung); keine
+Datenbankänderung.

@@ -146,12 +146,15 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
       <tr><td>▶ / ⏸</td><td>Abspielen und Pause – am Rechner auch mit der <strong>Leertaste</strong></td></tr>
       <tr><td>Wiederholen</td><td>Jeder Tipp schaltet weiter: „Wiederholen aus“ → „Danach nächster Ordner“ →
         „Ordner wiederholen“ → „Titel wiederholen“</td></tr>
-      <tr><td>Angaben</td><td>Titel, Künstler, Album, Länge und weitere Angaben zur Aufnahme</td></tr>
+      <tr><td>Angaben</td><td>Titel, Künstler, Album, Länge und weitere Angaben zur Aufnahme; darunter ein
+        Protokoll der letzten zwei Stunden (Befehle und Wiedergabe) – hilfreich, wenn du einen Fehler meldest</td></tr>
       <tr><td>Kommentare</td><td>Siehe <a href="#kommentare">Kommentare</a> <?php echo $opt('kommentare'); ?></td></tr>
     </tbody>
   </table>
   <p>Die Wiedergabe läuft weiter, wenn du den Bildschirm sperrst oder in eine andere App wechselst.
-  Steuern kannst du sie dann über den Sperrbildschirm, Kopfhörer oder das Auto (Bluetooth).
+  Steuern kannst du sie dann über den Sperrbildschirm, Kopfhörer oder das Auto (Bluetooth, CarPlay, Android Auto).
+  Hält eine Navigationsansage oder ein Anruf die Wiedergabe an, geht es danach von selbst weiter, wo dein Gerät
+  das Ende der Unterbrechung meldet (Safari auf iPhone/iPad mit aktuellem iOS).
   Am Ende eines Ordners geht es – je nach Wiederholen-Einstellung – mit dem nächsten Ordner weiter.</p>
   <p>Kann dein Gerät ein Format nicht abspielen (z.&nbsp;B. AIFF außerhalb von Safari), steht die
   Aufnahme blass in der Liste. Ist die Umwandlung eingeschaltet <?php echo $opt('umwandeln'); ?>, wird sie

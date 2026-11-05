@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.4 – 2026-11-05
+
+### Fixed
+- With the screen locked, playback sometimes stopped at the end of a track
+  instead of continuing with the next one: a refused start is now retried
+  (at the latest when the app becomes visible again), and a track that hangs
+  just before its calculated end counts as finished
+- After a navigation announcement (e.g. Google Maps via CarPlay) or a call,
+  playback continues by itself where the browser reports the end of the
+  interruption (navigator.audioSession, Safari); a pause pressed by the user is never undone
+
+### Added
+- The log under "Angaben" (i) now also lists playback events (track end,
+  refused start, pause by the system, interruption, reload) for
+  troubleshooting in the car
+
 ## 1.0.3 – 2026-10-15
 
 ### Changed
