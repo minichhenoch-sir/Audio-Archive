@@ -1966,5 +1966,5 @@ einmal abgelehnter Start → zweiter Versuch spielt; Hänger 1,5 s vor dem
 gemeldeten Ende → nach 4 s nächster Titel. **Nicht geprüft:** echtes
 iPhone/Android bei gesperrtem Bildschirm, CarPlay mit Google Maps – dafür ist
 das Protokoll da.
-Einspielen: kein Container-Neustart nötig (nur JS und Anleitung); keine
+Einspielen: Container-Neustart (Anleitungs-Vorlage ist PHP, info.xml geändert); keine
 Datenbankänderung.
