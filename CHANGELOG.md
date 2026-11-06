@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.5 – 2026-11-06
+
+### Changed
+- Title, subtitle and the text above the list belong to the area: the
+  shared recordings show the administrator's texts, "Meine Dateien" shows the
+  user's own texts (default: title "Meine Dateien", no subtitle, no text).
+  The user's own texts (gear → Texte) now apply to "Meine Dateien" only
+- The text above the list can be hidden with ✕ (remembered per device until
+  the text changes); new admin switch to keep it permanently visible
+- Download button of a track sits at the far right of the row (behind the
+  star); on phones it no longer slips under the play symbol
+
 ## 1.0.4 – 2026-11-05
 
 ### Fixed

@@ -149,6 +149,9 @@ class Admin implements ISettings {
                 Application::APP_ID, Application::SETTING_REPEAT_DEFAULT, 'next'
             ),
             'noticeEnabled' => Application::noticeEnabled($this->appConfig),
+            'noticeClosable' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_NOTICE_CLOSABLE, true
+            ),
             'betaText' => $this->appConfig->getValueString(
                 Application::APP_ID, Application::SETTING_BETA_TEXT, ''
             ),

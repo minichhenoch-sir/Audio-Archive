@@ -520,17 +520,53 @@
    * angezeigt, nicht mit der vollen Adresse - lange Adressen sprengen auf
    * dem Telefon die Zeile.
    */
+  /*
+   * Ab 1.0.5: Der Text gehoert zum Bereich - ueber "Meine Dateien" steht der
+   * eigene Text des Nutzers (oder keiner), sonst der der Verwaltung bzw. des
+   * Links. Mit ✕ laesst er sich ausblenden, sofern die Verwaltung das
+   * erlaubt; gemerkt wird das je Text auf dem Geraet, ein geaenderter Text
+   * erscheint wieder.
+   */
+  const NOTICE_CLOSED_KEY = 'audioarchive_notice_closed';
+  let noticeArea = 'main';
+
+  function noticeKey(html, url) {
+    let h = 0;
+    const s = html + '|' + url;
+    for (let i = 0; i < s.length; i++) h = ((h << 5) - h + s.charCodeAt(i)) | 0;
+    return String(h >>> 0);
+  }
+
+  function closedNotices() {
+    try {
+      const list = JSON.parse(localStorage.getItem(NOTICE_CLOSED_KEY) || '[]');
+      return Array.isArray(list) ? list : [];
+    } catch (e) {
+      return [];
+    }
+  }
+
+  function setNoticeArea(area) {
+    if (area === noticeArea) return;
+    noticeArea = area;
+    applyNotice();
+  }
+
   function applyNotice() {
     const notice = document.getElementById('beta-notice');
     if (!notice) return;
 
-    const html = AudioArchive.noticeText.trim();
-    const url = AudioArchive.noticeLinkUrl.trim();
+    const home = noticeArea === 'home';
+    const html = (home ? AudioArchive.homeNotice : AudioArchive.noticeText).trim();
+    const url = home ? '' : AudioArchive.noticeLinkUrl.trim();
     const label = AudioArchive.noticeLinkLabel.trim() || 'Mehr erfahren';
 
+    notice.textContent = '';
+    notice.hidden = true;
     if (html === '' && url === '') return;
 
-    notice.textContent = '';
+    const key = noticeKey(html, url);
+    if (AudioArchive.noticeClosable && closedNotices().includes(key)) return;
 
     if (html !== '') {
       const body = document.createElement('div');
@@ -547,6 +583,25 @@
       link.rel = 'noreferrer noopener';
       link.className = 'notice-link';
       notice.appendChild(link);
+    }
+
+    if (AudioArchive.noticeClosable) {
+      const close = document.createElement('button');
+      close.type = 'button';
+      close.className = 'notice-close';
+      close.setAttribute('aria-label', 'Text ausblenden');
+      close.title = 'Ausblenden';
+      close.textContent = '✕';
+      close.addEventListener('click', () => {
+        const list = closedNotices().filter((k) => k !== key);
+        list.push(key);
+        try {
+          localStorage.setItem(NOTICE_CLOSED_KEY, JSON.stringify(list.slice(-50)));
+        } catch (e) { /* nur fuer diesen Aufruf */ }
+        notice.hidden = true;
+      });
+      notice.classList.add('is-closable');
+      notice.appendChild(close);
     }
 
     notice.hidden = false;
@@ -1112,8 +1167,17 @@
       /** Aussehen fuer die geoeffnete Quelle anwenden. */
       applyLookFor(source) {
         const share = this.get(source);
+        // Ab 1.0.5: "Meine Dateien" mit eigenen Texten statt denen der
+        // gemeinsamen Aufnahmen
+        const home = source === 'home' && AudioArchive.loggedIn && !AudioArchive.isPublic();
+        setNoticeArea(home ? 'home' : 'main');
         if (share && share.useShareDesign && share.hasLook && share.look) {
           Look.show(share.look, source);
+        } else if (home) {
+          Look.show({
+            title: AudioArchive.homeTitle || 'Meine Dateien',
+            subtitle: AudioArchive.homeSubtitle,
+          }, 'home');
         } else {
           Look.reset();
         }
@@ -4858,11 +4922,11 @@
         const values = data.values || {};
         const admin = data.admin || {};
         usTitle.value = values.title || '';
-        usTitle.placeholder = admin.title || '';
+        usTitle.placeholder = 'Meine Dateien';
         usSubtitle.value = values.subtitle || '';
-        usSubtitle.placeholder = admin.subtitle || '';
+        usSubtitle.placeholder = '';
         usNotice.value = data.notice || '';
-        usNotice.placeholder = data.adminNotice || '';
+        usNotice.placeholder = '';
         const ownColors = !!(values.themeAccent || values.themeBar || values.themeBase);
         usOwnColors.checked = ownColors;
         Object.keys(usColorInputs).forEach((keyName) => {

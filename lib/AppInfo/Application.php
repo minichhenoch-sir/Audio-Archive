@@ -188,6 +188,8 @@ class Application extends App implements IBootstrap {
     public const SETTING_BETA_LINK_LABEL = 'beta_link_label';
     /** Text des Administrators zeigen; ungesetzt = wie beta_enabled bis 0.30 (ab 0.31.0) */
     public const SETTING_NOTICE_ENABLED = 'notice_enabled';
+    /** Text ueber den Aufnahmen mit ✕ ausblendbar (ab 1.0.5); aus = bleibt dauerhaft stehen */
+    public const SETTING_NOTICE_CLOSABLE = 'notice_closable';
     /** Persoenlich: eigener Text ueber den Aufnahmen, leer = Vorgabe (ab 0.31.0) */
     public const USER_NOTICE = 'notice';
 

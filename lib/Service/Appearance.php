@@ -247,6 +247,10 @@ class Appearance {
         $own = $this->effectiveLook($uid);
         $settings = $share['settings'];
         $look = $own;
+        // Ab 1.0.5 gelten die eigenen Texte nur fuer "Meine Dateien"
+        $admin = $this->adminValues();
+        $look['title'] = $admin['title'];
+        $look['subtitle'] = $admin['subtitle'];
         foreach (['title', 'subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
             if (($settings[$key] ?? '') !== '') {
                 $look[$key] = $settings[$key];

@@ -124,6 +124,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   mit allen Unterordnern gesucht; ganz oben wird alles durchsucht.<?php } else { ?>Gesucht wird – je nach
   Einrichtung – im geöffneten Ordner mit allen Unterordnern oder überall. Ganz oben wird immer
   alles durchsucht.<?php } ?> Das ✕ löscht die Suche.</p>
+  <h3>Text über den Aufnahmen</h3>
+  <p>Steht über der Liste ein Text mit <strong>✕</strong>, kannst du ihn damit auf deinem Gerät ausblenden.
+  Ändert sich der Text, erscheint er wieder. Ohne ✕ hat die Verwaltung festgelegt, dass er stehen bleibt.</p>
   <h3>Sortieren</h3>
   <p>Neben dem Pfad steht die Sortierung: <strong>Name</strong>, <strong>Neueste</strong> oder
   <strong>Zufällig</strong>. Der Pfeil daneben dreht die Reihenfolge um. Dein Gerät merkt sich die Wahl.</p>
@@ -201,7 +204,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
 <section id="herunterladen" class="m-section">
   <h2><span class="m-num">8</span>Herunterladen</h2>
   <ul>
-    <li><strong>Einzelne Aufnahme</strong> <?php echo $opt('herunterladen'); ?>: Pfeil-Symbol ⬇ rechts in der Zeile („Aufnahme herunterladen“).</li>
+    <li><strong>Einzelne Aufnahme</strong> <?php echo $opt('herunterladen'); ?>: Pfeil-Symbol ⬇ ganz rechts in der Zeile, hinter dem Stern („Aufnahme herunterladen“).</li>
     <li><strong>Ganzer Ordner</strong> <?php echo $opt('zip'); ?>: <strong>„Ordner herunterladen (ZIP)“</strong> über der Liste – mit allen
     Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich nicht als Ganzes herunterladen.
     Mit Nextcloud-Konto geht das bei deinen eigenen Dateien immer.</li>
@@ -259,7 +262,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
       ))));
       if ($styleLabels !== []) { ?> – dort einstellbar: <?php echo $escape(implode(', ', $styleLabels)); ?><?php } ?>,</li>
     <li><strong>Funktionen:</strong> Favoriten, Kommentare und Bewertung ein- oder ausblenden, Wiederholen-Vorgabe,</li>
-    <li><strong>Texte:</strong> eigener Titel, Zusatzzeile und Text über den Aufnahmen,</li>
+    <li><strong>Texte für „Meine Dateien“:</strong> eigener Titel, Zusatzzeile und Text über deinen eigenen Dateien
+      (ohne Eintrag: Titel „Meine Dateien“, keine Zusatzzeile, kein Text). Über den gemeinsamen Aufnahmen stehen
+      immer die Texte der Verwaltung,</li>
     <li><strong>Hintergrundbild</strong> wählen oder entfernen.</li>
   </ul>
   <p>Mit „Übernehmen“ speichern. Unten im Fenster steht die Version der App.</p>

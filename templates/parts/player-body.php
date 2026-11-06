@@ -92,6 +92,10 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-notice-text="<?php echo $escape($_['noticeText'] ?? ''); ?>"
      data-notice-link-url="<?php echo $escape($_['noticeLinkUrl'] ?? ''); ?>"
      data-notice-link-label="<?php echo $escape($_['noticeLinkLabel'] ?? ''); ?>"
+     data-notice-closable="<?php echo $escape($_['noticeClosable'] ?? ''); ?>"
+     data-home-title="<?php echo $escape($_['homeTitle'] ?? ''); ?>"
+     data-home-subtitle="<?php echo $escape($_['homeSubtitle'] ?? ''); ?>"
+     data-home-notice="<?php echo $escape($_['homeNotice'] ?? ''); ?>"
      hidden></div>
 
 <div id="bg-layer" aria-hidden="true"></div>
@@ -245,7 +249,7 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
       </fieldset>
 
       <fieldset class="panel-group">
-        <legend>Texte</legend>
+        <legend>Texte für „Meine Dateien“</legend>
         <label class="panel-field">
           <span class="panel-field-label">Titel</span>
           <input type="text" id="us-title" class="panel-input" maxlength="200">
@@ -260,8 +264,10 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
         <div class="panel-field">
           <span class="panel-field-label">Text über den Aufnahmen</span>
           <textarea id="us-notice" class="panel-input" rows="2" aria-label="Text über den Aufnahmen"></textarea>
-          <span class="panel-hint">Mit Schriftart, Größe, Farbe und mehr. Leer = Vorgabe des Administrators.</span>
+          <span class="panel-hint">Mit Schriftart, Größe, Farbe und mehr. Leer = kein Text.</span>
         </div>
+        <span class="panel-hint">Gelten nur über deinen eigenen Dateien. Über den gemeinsamen Aufnahmen
+          stehen die Texte der Verwaltung.</span>
       </fieldset>
 
       <fieldset class="panel-group">

@@ -484,6 +484,15 @@ $help = static function (string $anchor) use ($_): void {
         <input type="checkbox" id="aa-notice-enabled" class="checkbox">
         <label for="aa-notice-enabled">Diesen Text anzeigen</label>
     </p>
+    <p>
+        <input type="checkbox" id="aa-notice-closable" class="checkbox">
+        <label for="aa-notice-closable">Text lässt sich mit ✕ ausblenden</label>
+    </p>
+    <p class="settings-hint">
+        Eingeschaltet kann jeder den Text auf seinem Gerät mit ✕ schließen; er
+        erscheint wieder, sobald der Text geändert wird. Ausgeschaltet bleibt er
+        dauerhaft stehen. Gilt auch für die eigenen Texte der Nutzer und der Links.
+    </p>
     <div class="aa-field">
         <span class="aa-field-label">Text</span>
         <textarea id="aa-beta-text" aria-label="Text über den Aufnahmen"

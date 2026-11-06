@@ -1968,3 +1968,34 @@ iPhone/Android bei gesperrtem Bildschirm, CarPlay mit Google Maps – dafür ist
 das Protokoll da.
 Einspielen: Container-Neustart (Anleitungs-Vorlage ist PHP, info.xml geändert); keine
 Datenbankänderung.
+
+## 1.0.5: Texte je Bereich, Hinweis schließbar, Download rechts
+
+Wünsche von Henoch (Chat, 06.11.2026): Angemeldet blieben über „Meine
+Dateien“ Titel, Zusatzzeile und Hinweis der gemeinsamen Aufnahmen stehen.
+Entscheidung: eigene Texte (Zahnrad) gelten nur noch für „Meine Dateien“;
+Hinweis mit ✕ schließbar, per Verwaltung aber auch dauerhaft. Außerdem lag
+das Download-Zeichen auf dem Telefon unter dem Play-Zeichen; soll rechts sein.
+
+- `PlayerPage::build()`: angemeldet ohne Link → Titel/Zusatzzeile der
+  Verwaltung (Seite, installierte App); `homeTitle`/`homeSubtitle`/
+  `homeNotice` = eigene Werte (bereinigt per RichText). `notice()` liefert
+  angemeldet den Text der Verwaltung, nicht mehr den eigenen.
+- `Appearance::incomingLook()`: Freigabe ohne eigenen Titel → Titel/Zusatz-
+  zeile der Verwaltung statt der eigenen Texte.
+- `app.js`: `Incoming.applyLookFor('home')` → `Look.show({title, subtitle}, 'home')`
+  (Vorgabe „Meine Dateien“); `setNoticeArea()` wählt den Text.
+  ✕ (`.notice-close`) merkt eine Prüfsumme von Text+Link in
+  `localStorage.audioarchive_notice_closed` (max. 50).
+- Neuer Schalter `notice_closable` (Vorgabe an) in der Verwaltung („Text lässt
+  sich mit ✕ ausblenden“), gilt für alle Texte.
+- Zahnrad: „Texte für „Meine Dateien““, Platzhalter „Meine Dateien“/leer.
+- CSS: `.row-download` ganz rechts (`order`, im Telefon-Raster eigene Spalte
+  `dl` hinter `fav`).
+
+Geprüft in Sandbox-NC 34.0.3 (Playwright, Telefonbreite 390 px, Nutzer bob):
+gemeinsame Aufnahmen = Texte der Verwaltung; „Meine Dateien“ = „Meine
+Dateien“, keine Zusatzzeile, eigener Text; zurück = Verwaltung; ✕ blendet
+aus, bleibt nach Neuladen weg; geänderter Text bei abgeschaltetem Schalter
+ohne ✕ sichtbar; Download rechts vom Stern. Keine Skriptfehler.
+Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.

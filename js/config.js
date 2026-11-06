@@ -91,6 +91,11 @@ const AudioArchive = (() => {
     noticeText: el.dataset.noticeText || '',
     noticeLinkUrl: el.dataset.noticeLinkUrl || '',
     noticeLinkLabel: el.dataset.noticeLinkLabel || '',
+    // ab 1.0.5: Text mit ✕ ausblendbar, Texte fuer "Meine Dateien"
+    noticeClosable: el.dataset.noticeClosable === '1',
+    homeTitle: el.dataset.homeTitle || '',
+    homeSubtitle: el.dataset.homeSubtitle || '',
+    homeNotice: el.dataset.homeNotice || '',
     themeAccent: el.dataset.themeAccent || '#b9793f',
     themeBar: el.dataset.themeBar || '#291c12',
     themeBase: el.dataset.themeBase || '#a86a3d',

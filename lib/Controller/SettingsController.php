@@ -129,6 +129,7 @@ class SettingsController extends Controller {
         ?bool $featureOffline = null,
         ?bool $featureDownload = null,
         ?bool $noticeEnabled = null,
+        ?bool $noticeClosable = null,
         ?string $betaText = null,
         ?string $betaLinkUrl = null,
         ?string $betaLinkLabel = null,
@@ -484,6 +485,11 @@ class SettingsController extends Controller {
         if ($noticeEnabled !== null) {
             $this->appConfig->setValueBool(
                 Application::APP_ID, Application::SETTING_NOTICE_ENABLED, $noticeEnabled
+            );
+        }
+        if ($noticeClosable !== null) {
+            $this->appConfig->setValueBool(
+                Application::APP_ID, Application::SETTING_NOTICE_CLOSABLE, $noticeClosable
             );
         }
 

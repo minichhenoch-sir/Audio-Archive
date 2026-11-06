@@ -1518,6 +1518,10 @@ body.has-bg-image #audioarchive .explorer-row.active {
   transition: background 0.12s ease, transform 0.08s ease;
 }
 
+/* Reihenfolge (ab 1.0.5, Wunsch des Nutzers): Stern, dann Download ganz rechts */
+#audioarchive .explorer-row .row-fav { order: 1; }
+#audioarchive .explorer-row .row-download { order: 2; }
+
 #audioarchive .row-download:active {
   transform: scale(0.9);
   background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.18);
@@ -1594,6 +1598,29 @@ body.has-bg-image #audioarchive .explorer-row.active {
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Ausblenden mit ✕ (ab 1.0.5) */
+#audioarchive .beta-notice.is-closable { position: relative; padding-right: 40px; }
+#audioarchive .beta-notice .notice-close {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 32px;
+  height: 32px;
+  min-height: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  opacity: 0.6;
+  font-size: 15px;
+  line-height: 32px;
+  cursor: pointer;
+}
+#audioarchive .beta-notice .notice-close:hover,
+#audioarchive .beta-notice .notice-close:focus-visible { opacity: 1; background: var(--glass-light-border); }
 
 /* Formatierter Text (ab 0.37.0, Vikunja #49): Absaetze und Listen kompakt */
 #audioarchive .beta-notice .notice-body { overflow-wrap: anywhere; }
@@ -3272,6 +3299,18 @@ body.has-bg-image #audioarchive .app-version { text-shadow: 0 1px 2px rgba(0, 0,
     white-space: nowrap;
   }
   #audioarchive .explorer-row .row-fav { grid-area: fav; margin: -6px -4px; }
+  /* Download-Knopf (ab 1.0.5): ganz rechts hinter dem Stern, ueber
+     beide Zeilen - vorher rutschte er ohne eigene Flaeche unter das
+     Play-Zeichen */
+  #audioarchive .explorer-row .row-download { grid-area: dl; margin: -6px -2px; }
+  #audioarchive .explorer-row:has(.row-download) {
+    grid-template-columns: auto minmax(0, 1fr) auto auto;
+    grid-template-areas: "icon label fav dl" "icon meta fav dl";
+  }
+  #audioarchive .explorer-row:has(.row-download):not(:has(.row-fav)) {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "icon label dl" "icon meta dl";
+  }
   /* Ohne Angabe: Name mittig ueber beide Zeilen */
   #audioarchive .explorer-row-meta:empty { display: none; }
   #audioarchive .explorer-row:has(.explorer-row-meta:empty) .explorer-row-label { grid-row: 1 / 3; }

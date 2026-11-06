@@ -42,6 +42,7 @@
   const bar = el('aa-bar');
   const base = el('aa-base');
   const noticeEnabled = el('aa-notice-enabled'); // ab 0.31.0 (Vikunja #39)
+  const noticeClosable = el('aa-notice-closable'); // ab 1.0.5
   // Ab 0.37.0 (Vikunja #49) mit Formatierungsleiste; .value liefert HTML
   const betaText = window.AARichText ? window.AARichText.attach(el('aa-beta-text')) : el('aa-beta-text');
   const betaLinkUrl = el('aa-beta-link-url');
@@ -90,6 +91,7 @@
   bar.value = state.themeBar || '#291c12';
   base.value = state.themeBase || '#a86a3d';
   noticeEnabled.checked = state.noticeEnabled === true;
+  noticeClosable.checked = state.noticeClosable !== false;
   betaText.value = state.betaText || '';
   betaLinkUrl.value = state.betaLinkUrl || '';
   betaLinkLabel.value = state.betaLinkLabel || '';
@@ -566,6 +568,7 @@
       rememberDays: parseInt(rememberDays.value, 10) || 0,
       sharedLabel: sharedLabel.value,
       noticeEnabled: noticeEnabled.checked,
+      noticeClosable: noticeClosable.checked,
       betaText: betaText.value,
       betaLinkUrl: betaLinkUrl.value,
       betaLinkLabel: betaLinkLabel.value,

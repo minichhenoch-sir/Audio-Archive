@@ -66,9 +66,12 @@ class PlayerPage {
         $own = '';
         if ($shareSettings !== null) {
             $own = trim((string)($shareSettings['notice'] ?? ''));
-        } elseif ($uid !== null) {
-            $own = trim($this->config->getUserValue($uid, Application::APP_ID, Application::USER_NOTICE, ''));
         }
+        /*
+         * Ab 1.0.5: Der eigene Text eines angemeldeten Nutzers gilt nur noch
+         * fuer "Meine Dateien" (homeNotice, siehe build()). Ueber den
+         * gemeinsamen Aufnahmen steht der Text der Verwaltung.
+         */
         if ($own !== '') {
             return ['noticeText' => RichText::toHtml($own), 'noticeLinkUrl' => '', 'noticeLinkLabel' => ''];
         }
@@ -197,6 +200,24 @@ class PlayerPage {
          *   Admin-Link:   Administrator
          */
         $values = $share !== null ? $this->appearance->adminValues() : $this->appearance->effectiveLook($uid);
+        /*
+         * Ab 1.0.5: Titel und Zusatzzeile gehoeren zum Bereich. Die Seite
+         * (und damit die installierte App) traegt die Texte der Verwaltung -
+         * sie gehoeren zu den gemeinsamen Aufnahmen. Die eigenen Texte eines
+         * Nutzers gelten nur fuer "Meine Dateien" (homeTitle/-Subtitle).
+         */
+        $homeTexts = ['title' => '', 'subtitle' => '', 'notice' => ''];
+        if ($share === null && $uid !== null) {
+            $admin = $this->appearance->adminValues();
+            $values['title'] = $admin['title'];
+            $values['subtitle'] = $admin['subtitle'];
+            $ownNotice = trim($this->config->getUserValue($uid, Application::APP_ID, Application::USER_NOTICE, ''));
+            $homeTexts = [
+                'title' => $this->appearance->userValues($uid)['title'] ?? '',
+                'subtitle' => $this->appearance->userValues($uid)['subtitle'] ?? '',
+                'notice' => $ownNotice !== '' ? RichText::toHtml($ownNotice) : '',
+            ];
+        }
         if ($shareSettings !== null) {
             foreach (['subtitle', 'themeAccent', 'themeBar', 'themeBase'] as $key) {
                 if ($shareSettings[$key] !== '') {
@@ -356,6 +377,13 @@ class PlayerPage {
             'manualPdf' => ManualContent::pdfLink($this->urlGenerator, 'user'),
             // Text ueber den Aufnahmen (ab 0.31.0, Vikunja #39), siehe notice()
             ...$this->notice($uid, $shareSettings),
+            // Texte fuer "Meine Dateien" (ab 1.0.5) und ob der Text mit ✕ weg darf
+            'homeTitle' => $homeTexts['title'],
+            'homeSubtitle' => $homeTexts['subtitle'],
+            'homeNotice' => $homeTexts['notice'],
+            'noticeClosable' => $this->appConfig->getValueBool(
+                Application::APP_ID, Application::SETTING_NOTICE_CLOSABLE, true
+            ) ? '1' : '',
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
             // dem Grundton bzw. Nextclouds Hintergrund (siehe Appearance).
             'backgroundUrl' => $look['backgroundUrl'],
