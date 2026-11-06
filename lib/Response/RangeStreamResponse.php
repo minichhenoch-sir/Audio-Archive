@@ -38,42 +38,67 @@ class RangeStreamResponse extends Response implements ICallbackResponse {
     }
 
     public function callback(IOutput $output): void {
-        if ($output->getHttpResponseCode() === Http::STATUS_NOT_MODIFIED) {
-            fclose($this->handle);
-            return;
-        }
-
-        // Lange Aufnahmen duerfen nicht am Zeitlimit scheitern
-        @set_time_limit(0);
-
-        // Bricht der Hoerer ab oder springt weiter, soll das Skript enden
-        // statt die Datei sinnlos zu Ende zu lesen.
-        @ignore_user_abort(false);
-
-        // Vorhandene Ausgabepuffer leeren, damit die folgenden Bloecke
-        // wirklich sofort hinausgehen.
-        while (ob_get_level() > 0) {
-            @ob_end_flush();
-        }
-
-        $remaining = $this->length;
-
-        while ($remaining > 0 && !feof($this->handle)) {
-            $chunk = fread($this->handle, (int)min(self::CHUNK_SIZE, $remaining));
-            if ($chunk === false || $chunk === '') {
-                break;
+        try {
+            if ($output->getHttpResponseCode() === Http::STATUS_NOT_MODIFIED) {
+                return;
             }
 
-            $output->setOutput($chunk);
-            @flush();
+            // Lange Aufnahmen duerfen nicht am Zeitlimit scheitern
+            @set_time_limit(0);
 
-            $remaining -= strlen($chunk);
+            /*
+             * Bricht der Hoerer ab (Titelwechsel, Spulen), endet die Schleife
+             * unten SELBST ueber connection_aborted() - PHP darf das Skript
+             * nicht mitten im Lesen abwuergen (ab 1.0.6).
+             *
+             * Grund: Wird das Skript abgewuergt, bleibt der Datenstrom offen
+             * und wird erst beim Abbau des Prozesses geschlossen. Liegt die
+             * Aufnahme auf einem externen SMB-Speicher, ist die SMB-Verbindung
+             * dann oft schon abgebaut - das ergab "TypeError: smbclient_..."
+             * und anschliessend Abstuerze des PHP-Prozesses (SIGSEGV), einer
+             * je Titelwechsel.
+             */
+            @ignore_user_abort(true);
 
-            if (connection_aborted()) {
-                break;
+            // Vorhandene Ausgabepuffer leeren, damit die folgenden Bloecke
+            // wirklich sofort hinausgehen.
+            while (ob_get_level() > 0) {
+                @ob_end_flush();
+            }
+
+            $remaining = $this->length;
+
+            while ($remaining > 0 && !connection_aborted()) {
+                if (!is_resource($this->handle) || feof($this->handle)) {
+                    break;
+                }
+                $chunk = fread($this->handle, (int)min(self::CHUNK_SIZE, $remaining));
+                if ($chunk === false || $chunk === '') {
+                    break;
+                }
+
+                $output->setOutput($chunk);
+                @flush();
+
+                $remaining -= strlen($chunk);
+            }
+        } catch (\Throwable $e) {
+            // Lesefehler des Speichers: Ausgabe endet, Datei wird unten
+            // trotzdem geschlossen.
+        } finally {
+            $this->closeHandle();
+        }
+    }
+
+    /** Datenstrom genau einmal und ohne Folgefehler schliessen. */
+    private function closeHandle(): void {
+        if (is_resource($this->handle)) {
+            try {
+                @fclose($this->handle);
+            } catch (\Throwable $e) {
+                // bereits vom Speicher geschlossen
             }
         }
-
-        fclose($this->handle);
+        $this->handle = null;
     }
 }

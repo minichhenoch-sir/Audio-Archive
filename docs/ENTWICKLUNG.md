@@ -1999,3 +1999,34 @@ Dateien“, keine Zusatzzeile, eigener Text; zurück = Verwaltung; ✕ blendet
 aus, bleibt nach Neuladen weg; geänderter Text bei abgeschaltetem Schalter
 ohne ✕ sichtbar; Download rechts vom Stern. Keine Skriptfehler.
 Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.
+
+## 1.0.6: Keine Server-Abstürze mehr beim schnellen Titelwechsel
+
+Gemeldet von Henoch (Chat, 06.11.2026, Vikunja #66) mit dem Protokoll des
+Containers `nextcloud-aio-nextcloud`: ab 12:44 Uhr laufend
+`child … exited on signal 11 (SIGSEGV)` (ca. 230-mal in gut einer Stunde),
+davor einmal `TypeError: smbc…`, dessen Protokollierung selbst mit
+`Class "OCP\Log\BeforeMessageLoggedEvent" not found` scheiterte (Zeichen
+dafür, dass der Prozess schon abgebaut wurde). Henoch hatte über 20-mal den
+Titel gewechselt.
+
+Ursache: `RangeStreamResponse` setzte `ignore_user_abort(false)`. Bricht der
+Browser die Übertragung ab (Titelwechsel, Spulen), beendet PHP das Skript
+beim nächsten Schreiben – das `fclose()` am Ende läuft nicht mehr, der
+Datenstrom wird erst beim Abbau des Prozesses geschlossen. Bei externem
+SMB-Speicher ist die SMB-Verbindung dann oft schon weg: TypeError bzw.
+Absturz in der SMB-Bibliothek.
+
+- `RangeStreamResponse::callback()`: `ignore_user_abort(true)`; die Schleife
+  endet selbst über `connection_aborted()`; Lesen in `try`, Schließen im
+  `finally` (`closeHandle()`, genau einmal, Fehler abgefangen). Gilt auch
+  für die 304-Antwort.
+
+Geprüft in Sandbox-NC 34.0.3: voller Abruf byte-gleich, Range 206
+byte-gleich, 30 schnelle Titelwechsel (Abruf nach 500 KB abgebrochen),
+danach normale Wiedergabe, keine Fehler im Nextcloud-Protokoll. Zusätzlich
+die Klasse allein mit protokollierendem Datenstrom: Datei wird bei Abbruch im
+normalen Ablauf geschlossen (alte Fassung: erst beim Abbau des Prozesses).
+SMB nicht nachgestellt. Henoch sah das Problem auch auf seinem Unraid-Server
+ohne SMB – dort Wirkung nach dem Einspielen beobachten.
+Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.

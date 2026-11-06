@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.0.6 – 2026-11-06
+
+### Fixed
+- Switching tracks or seeking quickly could crash PHP workers of the server
+  (SIGSEGV, "TypeError: smbclient_…") when the recordings are on SMB
+  external storage: an aborted transfer now ends on its own and closes the
+  file properly instead of being killed by PHP with the file still open
+
 ## 1.0.5 – 2026-11-06
 
 ### Changed
