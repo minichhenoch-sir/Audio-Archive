@@ -2137,3 +2137,37 @@ Geprüft in Sandbox-NC 34.0.3: Link mit Mustern – „Gottesdienst“, „Psalm
 Freigabe an bob: Name „05.2026“ in Seitenleiste und Pfad. Ohne Verbindung
 gleiche Ergebnisse im gespeicherten Ordner. Keine Skriptfehler.
 Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.
+
+## 1.2.2: Ordner der laufenden Aufnahme farbig, Datum „Jahr_Monat“, schneller
+
+Wünsche von Henoch (Chat, 17.11.2026, 22:05/22:06): Ordner wie
+„2026_05_mp3“ sollen „Mai 2026“ heißen (Sortierung nach dem echten Namen
+bleibt), „GBO_260517_So_mp3_a“ soll „17.05 Sonntag Vormittag“ heißen – ohne
+dass es langsamer wird. Beim Durchblättern sollen die Ordner der laufenden
+Aufnahme farbig markiert sein. Künstler wird weiter durchsucht (bestätigt).
+
+- Fehler: `parseDate()` (JS und PHP) las „2026_05“ mit der ersten Form als
+  Monat 0 und gab auf. Jetzt jede Schreibweise einzeln, die erste gültige
+  gewinnt. `{Datum}_mp3` → „Mai 2026“.
+- Tempo: Werte-Listen werden je Text nur einmal zerlegt, Ergebnisse je Name
+  gemerkt (JS: `WeakMap` je Regelliste, PHP: statischer Speicher je
+  Anfrage, beide höchstens 20 000 Einträge). Messung: 10 000 Namen in JS
+  ~5 ms, 10 000 dreiteilige Pfade in PHP ~50 ms (vorher ~75 bzw. ~200 ms);
+  Suchanfrage in der Test-NC ~20 ms.
+- Markierung: `markPlayingFolders()` setzt `.has-playing` an Ordnerzeilen
+  (`data-dir-source`/`data-dir-path`) und Baum-Einträgen
+  (`data-tree-source`/`data-tree-path`), deren Pfad die laufende Aufnahme
+  enthält; aufgerufen nach `renderEntries()` und bei jedem Titelwechsel,
+  neue Baum-Einträge markieren sich selbst. Nur Klassen, kein Neuaufbau.
+
+Beispielregeln (in der Anleitung):
+- `{Datum}_mp3` → `{Datum}` (Ordner)
+- `{Ort:3}_{J:2}{M:2}{T:2}_{Tag}_mp3_{Zeit}` → `{T}.{M} {Tag} {Zeit}`,
+  Werte `Tag.So = Sonntag`, `Zeit.a = Vormittag`, `Zeit.b = Nachmittag`
+
+Geprüft in Sandbox-NC 34.0.3: Liste zeigt „April 2026“, „Mai 2026“,
+„10.05 Sonntag Vormittag“, „17.05 Sonntag Vormittag/Nachmittag“ in der
+Reihenfolge der echten Namen; Suche „Mai 2026“, „Sonntag Vormittag“,
+„Testsprecher“ findet, „GBO“ nicht. Markierung in Liste und Baum folgt dem
+Titelwechsel. Keine Skriptfehler.
+Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.

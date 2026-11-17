@@ -142,7 +142,8 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   schließen mit dem Pfeil oben oder durch Wischen nach unten.</p>
   <p>Unter dem Titel steht mit Ordner-Symbol der <strong>Ordner</strong>, in dem die Aufnahme liegt – auch wenn
   du sie über die Suche, die Favoriten oder „Danach nächster Ordner“ gestartet hast. Ein Tipp auf den Ordnernamen
-  öffnet ihn in der Liste.</p>
+  öffnet ihn in der Liste. Beim Durchblättern ist der Ordner, in dem die laufende Aufnahme liegt, <strong>farbig
+  markiert</strong> – mit allen Ordnern darüber, in der Liste und in der Seitenleiste.</p>
   <?php echo $figure('player-phone.jpg', 'Links die Liste mit Player-Leiste, rechts der große Player', 'm-figure--phone'); ?>
   <table class="m-table">
     <thead><tr><th>Knopf</th><th>Wirkung</th></tr></thead>
@@ -272,6 +273,10 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <code>Kürzel.GDB = Gottesdienst</code>.</li>
     <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
     passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau Namen aus dem geöffneten Ordner.</li>
+    <li>Weitere Beispiele: Muster <code>{Datum}_mp3</code> mit Anzeige <code>{Datum}</code> macht aus
+    <code>2026_05_mp3</code> „Mai 2026“. Muster <code>{Ort:3}_{J:2}{M:2}{T:2}_{Tag}_mp3_{Zeit}</code> mit Anzeige
+    <code>{T}.{M} {Tag} {Zeit}</code> und den Werten <code>Tag.So = Sonntag</code>, <code>Zeit.a = Vormittag</code> macht aus
+    <code>GBO_260517_So_mp3_a</code> „17.05 Sonntag Vormittag“.</li>
     <li>Ordner-Regeln wirken überall, wo Ordner erscheinen: in der Liste, im Pfad, in der Seitenleiste, im Titel
     des Links (ohne eigenen Titel), im Player und bei „Mit mir geteilt“.</li>
     <li>Die <strong>Suche</strong> findet auf solchen Freigaben die <strong>angezeigten</strong> Namen – nicht mehr die

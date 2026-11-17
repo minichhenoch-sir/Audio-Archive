@@ -4,6 +4,18 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.2.2 – 2026-11-17
+
+### Added
+- While browsing, the folder of the recording that is playing – and every
+  folder above it – is highlighted in the list and in the sidebar
+
+### Fixed
+- Display patterns: a year-and-month date like `2026_05` was not recognised
+  as a date (`{Datum}` now shows "Mai 2026")
+- Display patterns are computed once per name and cached, also on the
+  server – no slowdown for large folders or searches
+
 ## 1.2.1 – 2026-11-17
 
 ### Changed

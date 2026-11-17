@@ -33,6 +33,22 @@ class NameRules {
         if ($rules === [] || $name === '') {
             return null;
         }
+        // Fertige Namen merken (ab 1.2.2): In der Suche kommen dieselben
+        // Ordner in jedem Pfad darunter wieder vor
+        $key = md5(serialize($rules)) . '|' . $kind . '|' . $name;
+        if (array_key_exists($key, self::$results)) {
+            return self::$results[$key];
+        }
+        if (count(self::$results) > 20000) {
+            self::$results = [];
+        }
+        return self::$results[$key] = self::applyUncached($rules, $name, $kind);
+    }
+
+    /** @var array<string, string|null> */
+    private static array $results = [];
+
+    private static function applyUncached(array $rules, string $name, string $kind): ?string {
         foreach ($rules as $rule) {
             $pattern = (string)($rule['pattern'] ?? '');
             if ($pattern === '') {
@@ -139,8 +155,12 @@ class NameRules {
         return implode('[\s_]+', array_map(static fn ($p) => preg_quote($p, '/'), $parts));
     }
 
+    /** @var array<string, array> zerlegte Werte-Listen (ab 1.2.2) */
+    private static array $maps = [];
+
     private static function render(array $rule, array $slots, array $values, string $original): string {
-        $map = self::parseMap((string)($rule['map'] ?? ''));
+        $mapText = (string)($rule['map'] ?? '');
+        $map = self::$maps[$mapText] ??= self::parseMap($mapText);
         $types = [];
         foreach ($slots as $slot) {
             $types[self::lower($slot['name'])] = $slot['type'];
@@ -203,14 +223,21 @@ class NameRules {
 
     /** @return array{y: int, m: int, d: int}|null */
     private static function parseDate(string $text): ?array {
-        if (preg_match('/^(\d{4})[-_.]?(\d{1,2})[-_.]?(\d{1,2})$/', $text, $m)) {
-            return self::valid((int)$m[1], (int)$m[2], (int)$m[3]);
-        }
-        if (preg_match('/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/', $text, $m)) {
-            return self::valid((int)$m[3], (int)$m[2], (int)$m[1]);
-        }
-        if (preg_match('/^(\d{4})[-_.](\d{1,2})$/', $text, $m)) {
-            return self::valid((int)$m[1], (int)$m[2], 0);
+        // Jede Schreibweise einzeln pruefen (ab 1.2.2), siehe js/name-rules.js
+        $forms = [
+            ['/^(\d{4})[-_.](\d{1,2})[-_.](\d{1,2})$/', [1, 2, 3]],
+            ['/^(\d{4})(\d{2})(\d{2})$/', [1, 2, 3]],
+            ['/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/', [3, 2, 1]],
+            ['/^(\d{4})[-_.](\d{1,2})$/', [1, 2, 0]],
+        ];
+        foreach ($forms as [$re, [$y, $mo, $d]]) {
+            if (!preg_match($re, $text, $m)) {
+                continue;
+            }
+            $date = self::valid((int)$m[$y], (int)$m[$mo], $d === 0 ? 0 : (int)$m[$d]);
+            if ($date !== null) {
+                return $date;
+            }
         }
         return null;
     }

@@ -2169,6 +2169,9 @@
         // Ordner als ZIP direkt in der Zeile, wie der Download-Knopf der
         // Aufnahmen (ab 1.1.0) - nur wenn Ordner-Download erlaubt ist und
         // eine Verbindung besteht
+        // Ordner mit der laufenden Aufnahme farbig (ab 1.2.2)
+        dirRow.dataset.dirSource = entry.source || view.source;
+        dirRow.dataset.dirPath = entry.path;
         if (features.folderDownload === true && !offlineMode) {
           dirRow.appendChild(downloadButton(
             AudioArchive.zipUrl(entry.path, entry.source || view.source),
@@ -2220,6 +2223,41 @@
     if (favApi && favApi.enabled() && view.path === '') {
       listContainer.appendChild(favApi.entryRow());
     }
+    markPlayingFolders();
+  }
+
+  /*
+   * Ordner der laufenden Aufnahme farbig markieren (ab 1.2.2, Wunsch von
+   * Henoch): beim Durchblaettern sieht man so in Liste und Seitenleiste,
+   * in welchem Ordner - und in welchen Ordnern darueber - die Aufnahme
+   * liegt, die gerade spielt. Nur Klassen umschalten, nichts neu aufbauen.
+   */
+  function playingFolder() {
+    const key = Player.getCurrentKey();
+    if (!key) return null;
+    const bar = key.indexOf('|');
+    const source = key.slice(0, bar);
+    const path = key.slice(bar + 1);
+    return { source, folder: path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '' };
+  }
+
+  function containsPlaying(current, source, path) {
+    return current !== null && current.source === source
+      && (path === '' || current.folder === path || current.folder.startsWith(path + '/'));
+  }
+
+  function markPlayingFolders() {
+    const current = playingFolder();
+    listContainer.querySelectorAll('.explorer-row[data-dir-path]').forEach((row) => {
+      // Die oberste Ebene enthaelt alles - dort nur echte Ordner markieren
+      const on = row.dataset.dirPath !== '' && containsPlaying(current, row.dataset.dirSource, row.dataset.dirPath);
+      row.classList.toggle('has-playing', on);
+      row.title = on ? 'Hier liegt die Aufnahme, die gerade läuft' : '';
+    });
+    document.querySelectorAll('#audioarchive .tree-item[data-tree-source]').forEach((item) => {
+      item.classList.toggle('has-playing',
+        containsPlaying(current, item.dataset.treeSource, item.dataset.treePath || ''));
+    });
   }
 
   /**
@@ -3500,6 +3538,7 @@
   Player.onTrackChange((...args) => {
     if (resumeApi) resumeApi.hide();
     updateActiveRow(...args);
+    markPlayingFolders();
   });
   Player.onPlayStateChange(updateActiveRow);
 
@@ -3679,6 +3718,12 @@
 
       item.append(toggle, labelBtn);
       li.appendChild(item);
+      // Fuer die Markierung des Ordners mit der laufenden Aufnahme (ab 1.2.2)
+      if (typeof source === 'string' && typeof path === 'string') {
+        item.dataset.treeSource = source;
+        item.dataset.treePath = path;
+        if (containsPlaying(playingFolder(), source, path)) item.classList.add('has-playing');
+      }
 
       const children = document.createElement('ul');
       children.setAttribute('role', 'group');

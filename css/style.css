@@ -917,6 +917,41 @@ body.has-bg-image #audioarchive .explorer-row.active {
   box-shadow: var(--glass-light-shadow), 0 0 0 1px rgba(var(--color-accent-rgb, 185, 121, 63), 0.35);
 }
 
+/* Ordner mit der laufenden Aufnahme (ab 1.2.2): leichter als die
+   laufende Aufnahme selbst - farbiger Rand links, getoent, Symbol und Name
+   in der Akzentfarbe */
+#audioarchive .explorer-row.has-playing {
+  border-color: rgba(var(--color-accent-rgb, 185, 121, 63), 0.75);
+  border-left: 6px solid var(--aa-accent-on-surface, var(--color-accent-deep));
+  background:
+    linear-gradient(rgba(var(--color-accent-rgb, 185, 121, 63), 0.28), rgba(var(--color-accent-rgb, 185, 121, 63), 0.28)),
+    var(--aa-surface-active, rgba(255, 250, 242, 0.93));
+}
+#audioarchive .explorer-row.has-playing .explorer-row-icon,
+#audioarchive .explorer-row.has-playing .explorer-row-label {
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+}
+#audioarchive .explorer-row.has-playing .explorer-row-label { font-weight: 600; }
+#audioarchive .tree-item.has-playing .tree-label {
+  color: var(--aa-accent-on-surface, var(--color-accent-deep));
+  font-weight: 600;
+}
+#audioarchive .tree-item.has-playing {
+  background: rgba(var(--color-accent-rgb, 185, 121, 63), 0.14);
+  box-shadow: inset 4px 0 0 var(--aa-accent-on-surface, var(--color-accent-deep));
+}
+#audioarchive.aa-design-nextcloud .explorer-row.has-playing {
+  border-left-color: var(--aa-nc-primary, var(--color-primary-element, #0082c9));
+}
+#audioarchive.aa-design-nextcloud .explorer-row.has-playing .explorer-row-icon,
+#audioarchive.aa-design-nextcloud .explorer-row.has-playing .explorer-row-label,
+#audioarchive.aa-design-nextcloud .tree-item.has-playing .tree-label {
+  color: var(--aa-nc-primary-light-text, var(--color-primary-element-light-text, inherit));
+}
+#audioarchive.aa-design-nextcloud .tree-item.has-playing {
+  box-shadow: inset 3px 0 0 var(--aa-nc-primary, var(--color-primary-element, #0082c9));
+}
+
 #audioarchive .explorer-row.active .explorer-row-meta {
   color: var(--aa-accent-on-surface, var(--color-accent-deep));
   font-weight: 700;

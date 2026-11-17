@@ -117,12 +117,20 @@ window.AANameRules = (() => {
 
   /** Datum aus dem Namen -> { y, m, d } (d = 0 bei Jahr+Monat) oder null. */
   function parseDate(text) {
-    let m = text.match(/^(\d{4})[-_.]?(\d{1,2})[-_.]?(\d{1,2})$/);
-    if (m) return valid(+m[1], +m[2], +m[3]);
-    m = text.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/);
-    if (m) return valid(+m[3], +m[2], +m[1]);
-    m = text.match(/^(\d{4})[-_.](\d{1,2})$/);
-    if (m) return valid(+m[1], +m[2], 0);
+    // Jede Schreibweise einzeln pruefen (ab 1.2.2): "2026_05" ist Jahr und
+    // Monat - frueher las die erste Form daraus Monat 0 und gab auf
+    const forms = [
+      [/^(\d{4})[-_.](\d{1,2})[-_.](\d{1,2})$/, (m) => [+m[1], +m[2], +m[3]]],
+      [/^(\d{4})(\d{2})(\d{2})$/, (m) => [+m[1], +m[2], +m[3]]],
+      [/^(\d{1,2})\.(\d{1,2})\.(\d{4})$/, (m) => [+m[3], +m[2], +m[1]]],
+      [/^(\d{4})[-_.](\d{1,2})$/, (m) => [+m[1], +m[2], 0]],
+    ];
+    for (const [re, parts] of forms) {
+      const m = text.match(re);
+      if (!m) continue;
+      const date = valid(...parts(m));
+      if (date) return date;
+    }
     return null;
   }
 
@@ -146,8 +154,18 @@ window.AANameRules = (() => {
     }
   }
 
+  // Zerlegte Werte-Listen und fertige Anzeigenamen merken (ab 1.2.2): jede
+  // Liste wird nur einmal gelesen, jeder Name nur einmal umgerechnet
+  const maps = new Map();
+  const results = new WeakMap();
+  function mapFor(text) {
+    const key = String(text || '');
+    if (!maps.has(key)) maps.set(key, parseMap(key));
+    return maps.get(key);
+  }
+
   function render(rule, slots, values, original) {
-    const map = parseMap(rule.map);
+    const map = mapFor(rule.map);
     const types = {};
     slots.forEach((s) => { types[s.name.toLowerCase()] = s.type; });
     const out = String(rule.display || '').replace(TOKEN, (all, rawName, rawOpt) => {
@@ -187,6 +205,20 @@ window.AANameRules = (() => {
    */
   function apply(rules, name, kind) {
     if (!Array.isArray(rules) || rules.length === 0 || !name) return null;
+    let memo = results.get(rules);
+    if (!memo) {
+      memo = new Map();
+      results.set(rules, memo);
+    }
+    const key = kind + '|' + name;
+    if (memo.has(key)) return memo.get(key);
+    const shown = applyUncached(rules, name, kind);
+    if (memo.size > 20000) memo.clear();
+    memo.set(key, shown);
+    return shown;
+  }
+
+  function applyUncached(rules, name, kind) {
     for (const rule of rules) {
       if (!rule || !rule.pattern) continue;
       const applies = rule.applies || 'both';
