@@ -124,7 +124,11 @@ class PlayerPage {
     /** Name des freigegebenen Ordners - Titel, wenn keiner gesetzt ist. */
     private function shareFolderName(array $share): string {
         $folder = $this->shares->rootFolder($share);
-        return $folder !== null && $folder->getName() !== '' ? $folder->getName() : 'Aufnahmen';
+        if ($folder === null || $folder->getName() === '') {
+            return 'Aufnahmen';
+        }
+        // Namensmuster der Freigabe gelten auch fuer ihren Ordner (ab 1.2.1)
+        return NameRules::show($share['settings']['nameRules'] ?? [], $folder->getName(), 'dir');
     }
 
     /**

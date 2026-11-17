@@ -9,6 +9,7 @@ use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\ContentScope;
 use OCA\AudioArchive\Service\CoverFinder;
 use OCA\AudioArchive\Service\MetadataReader;
+use OCA\AudioArchive\Service\NameRules;
 use OCP\AppFramework\Controller;
 use OCP\AppFramework\Http;
 use OCP\AppFramework\Http\Attribute\NoAdminRequired;
@@ -559,6 +560,14 @@ class ListController extends Controller {
             $base = $this->audioFolder->relativePath($root, $node);
         }
         $below = static fn (string $rel): string => $base === '' ? $rel : substr($rel, strlen($base) + 1);
+        /*
+         * Namensmuster der Freigabe (ab 1.2.1, Vikunja #67): Gesucht wird in
+         * den ANGEZEIGTEN Namen von Ordnern und Aufnahmen, nicht in den
+         * Dateinamen. Titel, Kuenstler und Album aus der Datei zaehlen weiter.
+         */
+        $rules = is_array($scope['share'] ?? null) ? ($scope['share']['settings']['nameRules'] ?? []) : [];
+        $shownPath = static fn (string $rel, string $kind): string => $rules === []
+            ? $rel : NameRules::showPath($rules, $rel, $kind);
 
         $dirs = [];
         $files = [];
@@ -598,7 +607,7 @@ class ListController extends Controller {
                 $childRelative = ltrim($relative . '/' . $name, '/');
                 if ($child instanceof Folder) {
                     $subfolders[] = [$child, $childRelative];
-                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $below($childRelative))) {
+                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $shownPath($below($childRelative), 'dir'))) {
                         $dirs[] = [
                             'type' => 'dir',
                             'name' => $name,
@@ -617,7 +626,7 @@ class ListController extends Controller {
                     break 2;
                 }
                 /** @var File $child */
-                $haystack = $below($childRelative);
+                $haystack = $shownPath($below($childRelative), 'file');
                 if (!self::matches($terms, $haystack)) {
                     // Angaben aus der Datei: zwischengespeichert, sonst nur mit Zeit
                     $meta = $known[(int)$child->getId()] ?? null;

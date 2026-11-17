@@ -7,6 +7,7 @@ use OCA\AudioArchive\AppInfo\Application;
 use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\BackgroundImage;
+use OCA\AudioArchive\Service\NameRules;
 use OCA\AudioArchive\Service\ShareService;
 use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IConfig;
@@ -350,7 +351,9 @@ class ShareController extends Controller {
             $list[] = [
                 'id' => $share['id'],
                 'source' => 'in:' . $share['id'],
-                'label' => $settings['title'] !== '' ? $settings['title'] : ($folder !== null ? $folder->getName() : 'Freigabe'),
+                // Ohne eigenen Titel: Ordnername, nach den Namensmustern (ab 1.2.1)
+                'label' => $settings['title'] !== '' ? $settings['title']
+                    : ($folder !== null ? NameRules::show($settings['nameRules'] ?? [], $folder->getName(), 'dir') : 'Freigabe'),
                 'folderName' => $folder !== null ? $folder->getName() : '',
                 'creator' => $share['creator'],
                 'creatorName' => $this->userManager->getDisplayName($share['creator']) ?? $share['creator'],

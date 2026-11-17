@@ -1084,6 +1084,20 @@
     return shown || entry.name;
   }
 
+  /**
+   * Pfad so, wie er angezeigt wird (fuer die Suche ohne Verbindung, ab
+   * 1.2.1): ohne Namensmuster unveraendert, sonst jeder Ordner und die
+   * Aufnahme nach den Mustern.
+   */
+  function shownPath(path, entry, source) {
+    if (!nameRulesFor(source).length) return path;
+    const parts = String(path || '').split('/');
+    const last = parts.length - 1;
+    return parts.map((part, i) => (i === last && entry.type === 'file'
+      ? fileLabel(entry, source)
+      : prettyFolderName(part, source))).join('/');
+  }
+
   function prettyFolderName(raw, source = view.source) {
     const rules = nameRulesFor(source);
     if (rules.length) {
@@ -2394,7 +2408,8 @@
           if (found.some((f) => f.path === e.path)) return;
           // Ordner nur, wenn darin etwas offline liegt - sonst waere er leer
           if (e.type === 'dir' && !Object.keys(folders).some((k) => k === e.path || k.startsWith(e.path + '/'))) return;
-          const hay = fold([below(e.path), e.title, e.artist, e.album].join(' '));
+          // Mit Namensmustern nur die angezeigten Namen (ab 1.2.1, Vikunja #67)
+          const hay = fold([shownPath(below(e.path), e, view.source), e.title, e.artist, e.album].join(' '));
           if (t.every((x) => hay.includes(x))) found.push({ ...e });
         });
       }

@@ -2112,3 +2112,28 @@ Personen (bob) richtig angezeigt, eigene Ansicht unverändert, Player-Titel
 nach Muster. `fromAdmin` lässt sich über die API nicht setzen.
 Einspielen: Container-Neustart (PHP geändert); keine Tabellenänderung, die
 Übernahme läuft beim Update (`occ upgrade` bzw. Aktualisieren im App Store).
+
+## 1.2.1: Suche nach angezeigten Namen, Ordner-Muster überall
+
+Wunsch von Henoch (Chat, 17.11.2026, Vikunja #67): Die Muster sollen auch
+für Ordner funktionieren; die Suche soll nur nach den neuen Datei- und
+Ordnernamen suchen.
+
+- `lib/Service/NameRules.php`: dieselben Regeln wie `js/name-rules.js` in
+  PHP (Änderungen immer in beiden Dateien gleich machen). Gleichlauf an
+  Beispielen geprüft (Kürzel, Datum, Werte, `{Name:groß}`, Ordnerregel).
+- `ListController::search`: mit Mustern der Freigabe (`scope.share`) wird
+  in den angezeigten Pfaden gesucht (`NameRules::showPath`, jeder Ordner
+  und die Aufnahme nach den Mustern); Titel/Künstler/Album zählen weiter.
+- App: Suche ohne Verbindung ebenso (`shownPath()`).
+- Ordner-Muster auch für den eigenen Ordner der Freigabe: Seitentitel eines
+  Links ohne eigenen Titel (`PlayerPage::shareFolderName`) und Name unter
+  „Mit mir geteilt“ (`ShareController::incoming`).
+- Gleichlauf: `spaces` gilt in JS jetzt auch ohne gespeicherten Wert (wie
+  auf dem Server).
+
+Geprüft in Sandbox-NC 34.0.3: Link mit Mustern – „Gottesdienst“, „Psalm 23“,
+„05.2026“, „Jugendstunde“ finden; „GDB“, „2026_05“, „JUG_2026“ finden nichts.
+Freigabe an bob: Name „05.2026“ in Seitenleiste und Pfad. Ohne Verbindung
+gleiche Ergebnisse im gespeicherten Ordner. Keine Skriptfehler.
+Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.

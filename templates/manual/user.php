@@ -272,8 +272,11 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <code>Kürzel.GDB = Gottesdienst</code>.</li>
     <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
     passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau Namen aus dem geöffneten Ordner.</li>
-    <li>Sortiert und gesucht wird weiter nach den echten Namen. Hat eine Aufnahme einen Titel in der Datei
-    (Tags), zeigt der Player diesen.</li>
+    <li>Ordner-Regeln wirken überall, wo Ordner erscheinen: in der Liste, im Pfad, in der Seitenleiste, im Titel
+    des Links (ohne eigenen Titel), im Player und bei „Mit mir geteilt“.</li>
+    <li>Die <strong>Suche</strong> findet auf solchen Freigaben die <strong>angezeigten</strong> Namen – nicht mehr die
+    Dateinamen. Titel, Künstler und Album aus der Datei werden weiter durchsucht. Sortiert wird nach den echten
+    Namen. Hat eine Aufnahme einen Titel in der Datei (Tags), zeigt der Player diesen.</li>
   </ul>
   <p>Alle deine Freigaben stehen unter <em>Einstellungen → Persönlich → Audio Archive</em>
   („Meine Freigaben“). Dort kannst du Links kopieren und Freigaben löschen.</p>

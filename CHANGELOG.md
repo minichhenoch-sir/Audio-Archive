@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.2.1 – 2026-11-17
+
+### Changed
+- Search on shares with display patterns finds the displayed names of
+  folders and recordings, no longer the file names (also offline); title,
+  artist and album from the file still count
+- Folder patterns also apply to the share's own folder: page title of a
+  link without its own title and the name under "Mit mir geteilt"
+
 ## 1.2.0 – 2026-11-17
 
 ### Added

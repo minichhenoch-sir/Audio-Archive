@@ -168,7 +168,7 @@ window.AANameRules = (() => {
         const date = parseDate(value);
         if (date) return formatDate(date, opt);
       }
-      if (rule.spaces) value = value.replace(/_+/g, ' ');
+      if (rule.spaces !== false) value = value.replace(/_+/g, ' ');
       return applyCase(value, opt);
     });
     return out.replace(/\s+/g, ' ').trim();
