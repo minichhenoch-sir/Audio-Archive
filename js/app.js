@@ -2059,6 +2059,16 @@
           meta: folderMeta(entry),
           onClick: () => navigate(entry.path),
         });
+        // Ordner als ZIP direkt in der Zeile, wie der Download-Knopf der
+        // Aufnahmen (ab 1.1.0) - nur wenn Ordner-Download erlaubt ist und
+        // eine Verbindung besteht
+        if (features.folderDownload === true && !offlineMode) {
+          dirRow.appendChild(downloadButton(
+            AudioArchive.zipUrl(entry.path, entry.source || view.source),
+            entry.name + '.zip',
+            'Ordner als ZIP herunterladen',
+          ));
+        }
         if (favApi) favApi.decorate(dirRow, entry);
         listContainer.appendChild(dirRow);
         return;
@@ -2083,17 +2093,11 @@
       // Download-Knopf nur, wenn der Admin das Herunterladen freigegeben hat
       // und eine Verbindung besteht (offline gaebe es nichts zu holen).
       if (features.download && !offlineMode) {
-        const dl = document.createElement('a');
-        dl.className = 'row-download';
-        dl.href = AudioArchive.streamUrl(entry.path, entry.source, true);
-        dl.setAttribute('download', entry.file || entry.name);
-        dl.title = 'Aufnahme herunterladen';
-        dl.setAttribute('aria-label', 'Aufnahme herunterladen');
-        dl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">'
-          + '<path d="M12 3v10.6l3.3-3.3 1.4 1.4-5.7 5.7-5.7-5.7 1.4-1.4L10 13.6V3h2zM5 19h14v2H5z"/></svg>';
-        // Klick darf nicht die Zeile (= Wiedergabe starten) ausloesen
-        dl.addEventListener('click', (ev) => ev.stopPropagation());
-        row.appendChild(dl);
+        row.appendChild(downloadButton(
+          AudioArchive.streamUrl(entry.path, entry.source, true),
+          entry.file || entry.name,
+          'Aufnahme herunterladen',
+        ));
       }
 
       row.dataset.key = entry.key;
@@ -2109,6 +2113,24 @@
     if (favApi && favApi.enabled() && view.path === '') {
       listContainer.appendChild(favApi.entryRow());
     }
+  }
+
+  /**
+   * Download-Knopf rechts in einer Zeile (Aufnahme ab 1.0.5 rechts, Ordner
+   * als ZIP ab 1.1.0). Der Klick darf die Zeile selbst (Wiedergabe starten
+   * bzw. Ordner oeffnen) nicht ausloesen.
+   */
+  function downloadButton(href, filename, label) {
+    const dl = document.createElement('a');
+    dl.className = 'row-download';
+    dl.href = href;
+    dl.setAttribute('download', filename);
+    dl.title = label;
+    dl.setAttribute('aria-label', label);
+    dl.innerHTML = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">'
+      + '<path d="M12 3v10.6l3.3-3.3 1.4 1.4-5.7 5.7-5.7-5.7 1.4-1.4L10 13.6V3h2zM5 19h14v2H5z"/></svg>';
+    dl.addEventListener('click', (ev) => ev.stopPropagation());
+    return dl;
   }
 
   /*
@@ -3372,6 +3394,20 @@
     updateActiveRow(...args);
   });
   Player.onPlayStateChange(updateActiveRow);
+
+  // Ordner der laufenden Aufnahme im Player (ab 1.1.0): Name wie in der
+  // Liste; ganz oben in einer Quelle deren Name. Antippen oeffnet ihn.
+  function folderOfTrack(track) {
+    const path = String(track.path || '');
+    return path.includes('/') ? path.slice(0, path.lastIndexOf('/')) : '';
+  }
+  Player.setFolderLabeler((track) => {
+    const dir = folderOfTrack(track);
+    return dir ? prettyFolderName(dir.split('/').pop()) : sourceLabel(track.source || view.source);
+  });
+  Player.onOpenFolder((track) => {
+    navigate(folderOfTrack(track), track.source || view.source);
+  });
 
   // ------------------------------------------------------------------
   // "Danach naechster Ordner" (ab 0.15)

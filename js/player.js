@@ -169,6 +169,8 @@ const Player = (() => {
   let onTrackChange = null;     // Callback: Titel gewechselt (Liste aktualisieren)
   let onQueueEnd = null;        // Callback: Ordner fertig -> naechster Ordner (app.js)
   let onPlayStateChange = null; // Callback: Play/Pause gewechselt (Animation in der Liste)
+  let folderLabeler = null;     // Name des Ordners einer Aufnahme (app.js, ab 1.1.0)
+  let onOpenFolder = null;      // Callback: Ordner der laufenden Aufnahme oeffnen (ab 1.1.0)
 
   function formatTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -269,8 +271,11 @@ const Player = (() => {
    * Leere Angaben entfallen.
    */
   function setContextLine(track) {
-    const parts = [['artist', track.artist], ['album', track.album]]
-      .filter(([, v]) => v && v.trim());
+    // Ab 1.1.0 steht vorne der Ordner, in dem die Aufnahme liegt - so sieht
+    // man auch bei Suche, Favoriten und "naechster Ordner", woher sie kommt.
+    // Antippen oeffnet den Ordner in der Liste.
+    const parts = [['folder', folderLabelFor(track)], ['artist', track.artist], ['album', track.album]]
+      .filter(([, v]) => v && String(v).trim());
     const inner = document.createElement('span');
     inner.className = 'marquee-inner';
     parts.forEach(([kind, value], i) => {
@@ -282,12 +287,52 @@ const Player = (() => {
       }
       const part = document.createElement('span');
       part.className = 'context-part context-' + kind;
-      part.textContent = value.trim();
+      if (kind === 'folder') {
+        part.title = 'Ordner öffnen';
+        const icon = document.createElement('span');
+        icon.className = 'context-folder-icon';
+        icon.setAttribute('aria-hidden', 'true');
+        icon.innerHTML = '<svg viewBox="0 0 24 24" width="1em" height="1em" fill="currentColor">'
+          + '<path d="M10 4H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-8l-2-2z"/></svg>';
+        part.append(icon, document.createTextNode(String(value).trim()));
+      } else {
+        part.textContent = String(value).trim();
+      }
       inner.appendChild(part);
     });
     els.context.replaceChildren(inner);
     updateMarquee(els.context);
   }
+
+  /** Ordner, in dem eine Aufnahme liegt (Anzeige in der Zusatzzeile, ab 1.1.0). */
+  function folderLabelFor(track) {
+    if (!track || typeof track.path !== 'string') return '';
+    if (folderLabeler) {
+      try {
+        return folderLabeler(track) || '';
+      } catch (e) {
+        // Anzeige darf die Wiedergabe nie stoeren
+      }
+    }
+    const parts = track.path.split('/');
+    return parts.length > 1 ? parts[parts.length - 2] : '';
+  }
+
+  // Ordnername antippen: Ordner in der Liste oeffnen (ab 1.1.0). Im
+  // Vollbild erst die Karte schliessen - sie nimmt einen Schritt im
+  // Verlauf, der sonst mit dem neuen Ordner durcheinanderkaeme.
+  els.context.addEventListener('click', (event) => {
+    if (!event.target.closest('.context-folder') || !onOpenFolder) return;
+    const track = playlist[currentIndex];
+    if (!track) return;
+    event.stopPropagation();
+    if (els.bar.classList.contains('is-expanded')) {
+      collapse();
+      window.setTimeout(() => onOpenFolder(track), 450);
+    } else {
+      onOpenFolder(track);
+    }
+  });
 
   function setMarqueeText(el, text) {
     const inner = document.createElement('span');
@@ -3011,6 +3056,16 @@ const Player = (() => {
 
     onTrackChange(callback) {
       onTrackChange = callback;
+    },
+
+    /** Liefert den Anzeigenamen des Ordners einer Aufnahme (ab 1.1.0). */
+    setFolderLabeler(fn) {
+      folderLabeler = fn;
+    },
+
+    /** Ordnername im Player angetippt: Ordner oeffnen (ab 1.1.0). */
+    onOpenFolder(callback) {
+      onOpenFolder = callback;
     },
 
     /**

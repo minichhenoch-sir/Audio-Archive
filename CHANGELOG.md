@@ -4,6 +4,16 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.1.0 – 2026-11-17
+
+### Added
+- Folders can be downloaded as ZIP directly from their row in the list:
+  download button at the far right, like the one of a single recording
+  (only where folder download is allowed)
+- The player shows the folder of the current recording in front of artist
+  and album – also when it was started from the search, the favourites or
+  "continue with the next folder". Tapping the folder name opens it
+
 ## 1.0.6 – 2026-11-06
 
 ### Fixed

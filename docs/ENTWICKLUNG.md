@@ -2030,3 +2030,30 @@ normalen Ablauf geschlossen (alte Fassung: erst beim Abbau des Prozesses).
 SMB nicht nachgestellt. Henoch sah das Problem auch auf seinem Unraid-Server
 ohne SMB – dort Wirkung nach dem Einspielen beobachten.
 Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.
+
+## 1.1.0: Ordner-Download in der Zeile, Ordner im Player
+
+Wünsche von Henoch (Chat, 17.11.2026, Vikunja #29 und #69): Ordner sollen
+sich wie einzelne Aufnahmen direkt in der Zeile herunterladen lassen; beim
+Hören soll sichtbar sein, in welchem Ordner die Aufnahme liegt.
+
+- `app.js`: neue Hilfsfunktion `downloadButton(href, dateiname, text)` für
+  `.row-download` (Aufnahmen und Ordner). Ordnerzeilen der Liste bekommen den
+  Knopf, wenn `features.folderDownload` an ist und eine Verbindung besteht
+  (Ziel `AudioArchive.zipUrl()`, Server prüft wie bisher). Suche und Favoriten
+  zeigen – wie bei Aufnahmen – keinen Download-Knopf.
+- `player.js`: Zusatzzeile beginnt mit dem Ordner (`.context-folder` mit
+  Ordner-Symbol), danach Künstler und Album; im Vollbild je eine Zeile.
+  Name über `Player.setFolderLabeler()` (app.js: letzter Ordnername wie in
+  der Liste, ganz oben der Name der Quelle). Antippen ruft
+  `Player.onOpenFolder()` → `navigate(ordner, quelle)`; im Vollbild erst
+  schließen (Verlaufsschritt), dann nach 450 ms öffnen.
+- Anleitung (Nutzer): Abspielen und Herunterladen ergänzt.
+
+Geprüft in Sandbox-NC 34.0.3 (Playwright, 420 px und 1280 px): ZIP über die
+Ordnerzeile lädt `Konzerte.zip` mit Inhalt, Zeile öffnet sich dabei nicht;
+Zusatzzeile „Teil 1 · Künstler · Album“, auch bei Start aus der Suche;
+Antippen öffnet den Ordner aus der Leiste und aus dem Vollbild. Keine
+Skriptfehler. Nicht geprüft: echte Telefone, Freigabe-Links.
+Einspielen: Container-Neustart empfohlen (Anleitungs-Vorlage ist PHP,
+OPcache); keine Datenbankänderung.

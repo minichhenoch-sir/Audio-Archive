@@ -140,6 +140,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <p>Ein Tipp auf eine Aufnahme startet sie. Unten erscheint die <strong>Player-Leiste</strong>.
   Ein Tipp auf das Cover oder auf das Vergrößern-Symbol öffnet den <strong>großen Player</strong>;
   schließen mit dem Pfeil oben oder durch Wischen nach unten.</p>
+  <p>Unter dem Titel steht mit Ordner-Symbol der <strong>Ordner</strong>, in dem die Aufnahme liegt – auch wenn
+  du sie über die Suche, die Favoriten oder „Danach nächster Ordner“ gestartet hast. Ein Tipp auf den Ordnernamen
+  öffnet ihn in der Liste.</p>
   <?php echo $figure('player-phone.jpg', 'Links die Liste mit Player-Leiste, rechts der große Player', 'm-figure--phone'); ?>
   <table class="m-table">
     <thead><tr><th>Knopf</th><th>Wirkung</th></tr></thead>
@@ -205,8 +208,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <h2><span class="m-num">8</span>Herunterladen</h2>
   <ul>
     <li><strong>Einzelne Aufnahme</strong> <?php echo $opt('herunterladen'); ?>: Pfeil-Symbol ⬇ ganz rechts in der Zeile, hinter dem Stern („Aufnahme herunterladen“).</li>
-    <li><strong>Ganzer Ordner</strong> <?php echo $opt('zip'); ?>: <strong>„Ordner herunterladen (ZIP)“</strong> über der Liste – mit allen
-    Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich nicht als Ganzes herunterladen.
+    <li><strong>Ganzer Ordner</strong> <?php echo $opt('zip'); ?>: Pfeil-Symbol ⬇ ganz rechts in der Ordner-Zeile
+    („Ordner als ZIP herunterladen“) oder <strong>„Ordner herunterladen (ZIP)“</strong> über der Liste des geöffneten
+    Ordners – mit allen Aufnahmen, Unterordnern und Ordnerbildern. Die oberste Ebene lässt sich nicht als Ganzes herunterladen.
     Mit Nextcloud-Konto geht das bei deinen eigenen Dateien immer.</li>
   </ul>
   <p>Heruntergeladene Dateien liegen danach ganz normal auf deinem Gerät.</p>

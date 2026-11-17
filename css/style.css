@@ -1074,6 +1074,26 @@ body.has-bg-image #audioarchive .explorer-row.active {
   color: var(--color-cream-soft);
 }
 
+/* Ordner der laufenden Aufnahme (ab 1.1.0): vorne in der Zusatzzeile,
+   antippbar - oeffnet den Ordner in der Liste */
+#audioarchive .player-track-context .context-folder {
+  cursor: pointer;
+}
+#audioarchive .player-track-context .context-folder:hover {
+  text-decoration: underline;
+}
+#audioarchive .context-folder-icon {
+  display: inline-block;
+  margin-right: 0.3em;
+  vertical-align: -0.12em;
+  opacity: 0.85;
+}
+#audioarchive .context-folder-icon svg { display: block; }
+#audioarchive .player-bar.is-expanded .player-track-context .context-folder {
+  margin-bottom: 4px;
+  font-weight: 600;
+}
+
 #audioarchive .player-progress {
   display: flex;
   align-items: center;
