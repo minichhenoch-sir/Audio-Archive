@@ -123,6 +123,26 @@ class BackgroundImage {
         }
     }
 
+    /** Kopiert ein abgelegtes Bild unter einen anderen Schluessel (ab 1.2.0). */
+    public function copy(string $from, string $to): bool {
+        $file = $this->get($from);
+        if ($file === null) {
+            return false;
+        }
+        try {
+            $content = $file->getContent();
+            $folder = $this->folder();
+            try {
+                $folder->getFile($to)->putContent($content);
+            } catch (NotFoundException $e) {
+                $folder->newFile($to, $content);
+            }
+            return true;
+        } catch (\Throwable $e) {
+            return false;
+        }
+    }
+
     public function remove(string $key = self::ADMIN): void {
         try {
             $this->appData->getFolder('/')->getFile($key)->delete();

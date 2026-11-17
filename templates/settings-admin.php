@@ -29,8 +29,8 @@ $help = static function (string $anchor) use ($_): void {
     <h3>Quellen <?php $help('quellen'); ?></h3>
     <p class="settings-hint">
         Ordner mit den Aufnahmen. Unterordner werden so angezeigt, wie sie
-        angelegt sind. Der erste ist der gemeinsame Ordner mit dem öffentlichen
-        Zugang weiter unten.
+        angelegt sind. Der erste ist der gemeinsame Ordner („Gemeinsame
+        Aufnahmen“) für alle angemeldeten Nutzer.
     </p>
     <div class="aa-row">
         <input type="text" id="aa-folder" placeholder="/Aufnahmen" readonly>
@@ -56,62 +56,6 @@ $help = static function (string $anchor) use ($_): void {
         Links bleiben gültig, bis sie unten gelöscht werden.
     </p>
 
-    <!-- ============ Oeffentlicher Zugang ============ -->
-    <h3>Öffentlicher Zugang <?php $help('oeffentlich'); ?></h3>
-    <p class="settings-hint">
-        Erlaubt das Zuhören ohne Nextcloud-Konto über einen Link mit
-        gemeinsamem Passwort.
-    </p>
-    <p>
-        <input type="checkbox" id="aa-public-enabled" class="checkbox">
-        <label for="aa-public-enabled">Öffentlichen Zugang aktivieren</label>
-    </p>
-    <div class="aa-row">
-        <input type="password" id="aa-public-password" autocomplete="new-password"
-               placeholder="Passwort setzen oder ändern">
-    </div>
-    <p class="settings-hint" id="aa-public-password-state"></p>
-    <div class="aa-field">
-        <label for="aa-public-slug">Wunschname im Link (optional)</label>
-        <input type="text" id="aa-public-slug" autocomplete="off" placeholder="z. B. vortraege">
-        <p class="settings-hint" id="aa-public-slug-preview">
-            Leer = zufällige Adresse. Wird der Name geändert, funktioniert der
-            bisherige Link nicht mehr – auch nicht in bereits installierten Apps.
-        </p>
-    </div>
-    <div class="aa-field">
-        <label for="aa-remember-days">Angemeldet bleiben</label>
-        <select id="aa-remember-days">
-            <option value="0">Aus – Passwort bei jedem Öffnen</option>
-            <option value="7">7 Tage</option>
-            <option value="15">15 Tage</option>
-            <option value="30">30 Tage</option>
-            <option value="90">90 Tage</option>
-        </select>
-        <p class="settings-hint">
-            Wie lange ein Gerät nach richtiger Passworteingabe angemeldet bleibt –
-            für diesen Link und alle Freigaben mit Passwort. Wird das Passwort
-            geändert, muss es überall neu eingegeben werden.
-        </p>
-    </div>
-    <div class="aa-row" id="aa-public-url-row" hidden>
-        <input type="text" id="aa-public-url" readonly>
-        <button type="button" id="aa-public-copy">Link kopieren</button>
-    </div>
-    <div class="aa-field">
-        <label>Bild bei Aufnahmen ohne Cover</label>
-        <p class="settings-hint">
-            Gilt für diesen Link. Die eigenen Ansichten der Nutzer zeigen
-            weiterhin das Standard-Zeichen; Freigaben wählen ihr Bild selbst.
-        </p>
-        <div class="aa-cover-choices" id="aa-cover-choices" role="radiogroup" aria-label="Bild bei Aufnahmen ohne Cover"></div>
-        <div class="aa-row" id="aa-cover-upload-row" hidden>
-            <input type="file" id="aa-cover-file" accept="image/png,image/jpeg,image/webp">
-            <button type="button" id="aa-cover-remove" hidden>Bild entfernen</button>
-        </div>
-        <p class="settings-hint" id="aa-cover-state"></p>
-    </div>
-
     <!-- ============ Freigaben durch Nutzer ============ -->
     <h3>Freigaben durch Nutzer <?php $help('freigaben'); ?></h3>
     <p>
@@ -125,6 +69,29 @@ $help = static function (string $anchor) use ($_): void {
         Aussehen, Funktionen). Abschalten sperrt nur das Anlegen neuer
         Freigaben. Bestehende bleiben gültig, bis sie hier gelöscht werden.
     </p>
+    <p class="settings-hint">
+        Links für Hörer ohne Nextcloud-Konto legt man in der App an: Ordner
+        öffnen → „Diesen Ordner teilen“ → „Neuer Link“ – dort auch mit
+        Passwort, Wunschnamen und eigener Gestaltung. Der frühere Link aus
+        „Öffentlicher Zugang“ (bis Version 1.1) steht seit 1.2.0 als ganz
+        normaler Link in der Liste unten – gleiche Adresse, gleiches Passwort.
+        Administratoren können alle Links in der App bearbeiten.
+    </p>
+    <div class="aa-field">
+        <label for="aa-remember-days">Angemeldet bleiben</label>
+        <select id="aa-remember-days">
+            <option value="0">Aus – Passwort bei jedem Öffnen</option>
+            <option value="7">7 Tage</option>
+            <option value="15">15 Tage</option>
+            <option value="30">30 Tage</option>
+            <option value="90">90 Tage</option>
+        </select>
+        <p class="settings-hint">
+            Wie lange ein Gerät nach richtiger Passworteingabe angemeldet bleibt –
+            für alle Links mit Passwort. Wird das Passwort eines Links geändert,
+            muss es dort neu eingegeben werden.
+        </p>
+    </div>
     <!-- Wer darf teilen (ab 0.32.0, Vikunja #8) -->
     <div class="aa-field">
         <label>Wer darf teilen?</label>
@@ -159,8 +126,8 @@ $help = static function (string $anchor) use ($_): void {
         <input type="text" id="aa-shared-label" maxlength="60" placeholder="Gemeinsame Aufnahmen">
         <p class="settings-hint">
             So heißt der Quellordner oben im Pfad und in der Seitenleiste – für
-            angemeldete Nutzer und auf dem öffentlichen Link. Leer = „Gemeinsame
-            Aufnahmen“ bzw. auf dem Link „Aufnahmen“.
+            angemeldete Nutzer und auf dem früheren Link der Verwaltung. Leer =
+            „Gemeinsame Aufnahmen“ bzw. auf dem Link „Aufnahmen“.
         </p>
     </div>
     <div class="aa-field">
@@ -173,8 +140,8 @@ $help = static function (string $anchor) use ($_): void {
             dem Hell-/Dunkelmodus. <strong>Modern</strong> ist rund mit
             Glaseffekt in wählbaren Farben. <strong>Vom Administrator</strong>
             ist die frei einstellbare Gestaltung weiter unten – wählbar, sobald
-            sie angeboten wird. Gilt auch für den öffentlichen Link, dort ohne
-            Nextcloud-Kopfleiste. Nutzer können im Player über das Zahnrad eine
+            sie angeboten wird. Gilt auch für Links, die keine eigene Gestaltung
+            haben – dort ohne Nextcloud-Kopfleiste. Nutzer können im Player über das Zahnrad eine
             andere Gestaltung wählen (sofern unten erlaubt), auch
             „Benutzerdefiniert“.
         </p>
@@ -241,7 +208,7 @@ $help = static function (string $anchor) use ($_): void {
     </p>
     <p class="settings-hint">
         Angemeldete Nutzer finden das in der App über das Zahnrad. Es gilt nur
-        für ihre eigene Ansicht, nicht für den öffentlichen Link.
+        für ihre eigene Ansicht, nicht für Links.
     </p>
 
     <!-- ============ Funktionen ============ -->
@@ -349,10 +316,6 @@ $help = static function (string $anchor) use ($_): void {
         <p>
             <input type="checkbox" id="aa-feature-rating" class="checkbox">
             <label for="aa-feature-rating">Bewertung mit 1–5 Sternen</label>
-        </p>
-        <p>
-            <input type="checkbox" id="aa-public-comments" class="checkbox">
-            <label for="aa-public-comments">Auch Hörer über den öffentlichen Link (oben) dürfen kommentieren</label>
         </p>
         <div class="aa-field">
             <label for="aa-comment-group">Bei neuen Kommentaren benachrichtigen</label>

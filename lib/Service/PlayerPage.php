@@ -224,10 +224,17 @@ class PlayerPage {
                     $values[$key] = $shareSettings[$key];
                 }
             }
-            $values['title'] = $shareSettings['title'] !== '' ? $shareSettings['title'] : $this->shareFolderName($share);
+            // Uebernommener Administrator-Link (ab 1.2.0): ohne eigene Texte
+            // wie frueher Titel und Zusatzzeile der Verwaltung
+            $fromAdmin = ($shareSettings['fromAdmin'] ?? false) === true;
+            if ($shareSettings['title'] !== '') {
+                $values['title'] = $shareSettings['title'];
+            } elseif (!$fromAdmin) {
+                $values['title'] = $this->shareFolderName($share);
+            }
             // Ohne eigene Zusatzzeile keine des Administrators - der Link
             // zeigt einen anderen Ordner als dessen Seite
-            if ($shareSettings['subtitle'] === '') {
+            if ($shareSettings['subtitle'] === '' && !$fromAdmin) {
                 $values['subtitle'] = '';
             }
         }
@@ -350,6 +357,11 @@ class PlayerPage {
             // dessen Adressen - und damit offline Gespeichertes - gleich
             // bleiben.
             'apiToken' => $share !== null ? $share['token'] : '',
+            // Uebernommener Administrator-Link (ab 1.2.0): Die App uebernimmt
+            // einmalig das offline Gespeicherte von der alten Adresse
+            'fromAdmin' => ($share !== null && ($share['settings']['fromAdmin'] ?? false) === true) ? '1' : '',
+            // Namensmuster des Links (ab 1.2.0, Vikunja #67), siehe js/name-rules.js
+            'nameRules' => (string)json_encode($share['settings']['nameRules'] ?? [], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
             // Freigabe ohne Passwort: kein Anmelde-Bildschirm, auch offline
             'openAccess' => ($share !== null && !$share['hasPassword']) ? '1' : '',
             // Offline Gespeichertes ohne Passwort/PIN oeffnen (ab 0.39.0, Vikunja #53)
@@ -456,6 +468,7 @@ class PlayerPage {
             '/../../js/style-tokens.js',
             '/../../js/player.js',
             '/../../js/rich-text.js',
+            '/../../js/name-rules.js',
             '/../../js/app.js',
         ];
 

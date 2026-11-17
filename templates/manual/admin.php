@@ -47,7 +47,7 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
     <li>Wiedergabe im Hintergrund mit Steuerung auf dem Sperrbildschirm; merkt sich die Stelle</li>
     <li>MP3, M4A/AAC, Ogg Vorbis, Opus, FLAC, WAV, WebM, AIFF – optional Umwandlung in MP3</li>
     <li>Als App (PWA) installierbar, gespeicherte Ordner auch offline hörbar</li>
-    <li>Öffentlicher Link sowie Freigaben, die Nutzer selbst für einzelne Ordner anlegen</li>
+    <li>Links für Hörer ohne Konto und Freigaben an Personen – angelegt direkt in der App</li>
     <li>Kommentare und Bewertungen je Aufnahme mit Übersicht und Excel-Export</li>
     <li>Eigene Gestaltung (Farben, Hintergrund, Cover) oder Nextcloud-Optik</li>
     <li>Hilfe-Knopf mit dieser Anleitung und Kontakt zu einer Nextcloud-Gruppe</li>
@@ -97,15 +97,20 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
   <ol>
     <li><em>Einstellungen → Verwaltung → Audio Archive</em> öffnen.</li>
     <li>Unter <strong>Quellen</strong> mit „Auswählen …“ den Ordner mit den Aufnahmen festlegen.</li>
-    <li>Sollen Hörer ohne Konto zuhören: <strong>Öffentlichen Zugang aktivieren</strong> und ein Passwort setzen.</li>
     <li>Unter <strong>Darstellung</strong> Titel und Gestaltung wählen.</li>
-    <li>Ganz unten auf <strong>Speichern</strong> klicken. Bei aktivem öffentlichem Zugang erscheint danach der
-    Link mit „Link kopieren“.</li>
+    <li>Ganz unten auf <strong>Speichern</strong> klicken.</li>
+    <li>Sollen Hörer ohne Konto zuhören: die App öffnen, in „Gemeinsame Aufnahmen“ (oder einem Unterordner)
+    auf <strong>„Diesen Ordner teilen“ → „Neuer Link“</strong> tippen und ein Passwort setzen.</li>
   </ol>
   <p class="m-warn"><strong>Wichtig:</strong> Gespeichert wird nicht nur der Pfad des Quellordners, sondern auch,
   <strong>wem</strong> die Dateien gehören – dem Administrator, der speichert. Aus dessen Dateien liest die App,
-  auch beim öffentlichen Zugang. Unter dem Feld steht, aus wessen Dateien gelesen wird.</p>
-  <?php echo $figure('admin.jpg', 'Die Verwaltungsseite mit Quellen und öffentlichem Zugang'); ?>
+  auch für Links auf diesen Ordner. Unter dem Feld steht, aus wessen Dateien gelesen wird.</p>
+  <p class="m-note"><strong>Früherer „Öffentlicher Zugang“:</strong> Bis Version 1.1 gab es auf der Verwaltungsseite einen
+  eigenen Link mit gemeinsamem Passwort. Beim Update auf 1.2 wird er automatisch zu einem normalen Link (gleiche Adresse,
+  gleiches Passwort, gleiche Funktionen). Er steht unter „Freigaben durch Nutzer“ und lässt sich in der App bearbeiten;
+  offline Gespeichertes und „Angemeldet bleiben“ der Hörer gelten weiter. War er abgeschaltet, erscheint er als abgelaufen
+  und lässt sich mit einem neuen Ablaufdatum wieder einschalten.</p>
+  <?php echo $figure('admin.jpg', 'Die Verwaltungsseite mit den Quellen'); ?>
 </section>
 
 <section id="einstellungen" class="m-section">
@@ -122,7 +127,7 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
  */
 $extra = [
     'quellen' => '<p class="m-warn"><strong>Wichtig:</strong> Gespeichert wird auch, <strong>wem</strong> die Dateien gehören – '
-        . 'dem Administrator, der speichert. Aus dessen Dateien liest die App, auch beim öffentlichen Zugang.</p>',
+        . 'dem Administrator, der speichert. Aus dessen Dateien liest die App, auch für Links auf diesen Ordner.</p>',
     'freigaben' => $figure('share.jpg', 'Ein Nutzer teilt einen Ordner aus der App heraus')
         . '<p>Nutzer sehen ihre eigenen Freigaben unter <em>Einstellungen → Persönlich → Audio Archive</em>.</p>',
     'darstellung' => '<p>Akzent- und Leistenfarbe der Gestaltung „Modern“ färben auch diese Anleitung.</p>',
@@ -250,8 +255,8 @@ occ app:remove audioarchive</pre>
     <dd>„Freigaben durch Nutzer“ einschalten und prüfen, ob der Nutzer in einer der angehakten Gruppen ist.</dd>
     <dt>Im Hilfe-Fenster fehlen E-Mail und Nachrichtenfeld.</dt>
     <dd>Unter <em>Hilfe und Kontakt</em> eine Gruppe oder E-Mail-Adresse eintragen. Die Anleitung ist immer erreichbar.</dd>
-    <dt>Auf dem öffentlichen Link fehlen Aufnahmen.</dt>
-    <dd>Der Link zeigt nur den ersten (gemeinsamen) Ordner. Für weitere Quellen eigene Links in der App anlegen.</dd>
+    <dt>Auf einem Link fehlen Aufnahmen.</dt>
+    <dd>Ein Link zeigt nur den Ordner, für den er angelegt wurde, samt Unterordnern. Für weitere Quellen eigene Links in der App anlegen.</dd>
   </dl>
   <p>Fehler und Wünsche: <a href="https://github.com/minichhenoch-sir/Audio-Archive/issues" rel="noopener noreferrer">GitHub-Issues</a>
   · Lizenz: AGPL-3.0-or-later</p>

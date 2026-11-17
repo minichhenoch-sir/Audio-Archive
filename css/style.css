@@ -1770,6 +1770,27 @@ body.has-bg-image #audioarchive .explorer-row.active {
   color: var(--color-danger);
 }
 
+/* Namensmuster im Freigabe-Formular (ab 1.2.0, Vikunja #67) */
+#audioarchive .name-rule {
+  margin: 0 0 10px;
+  padding: 10px 12px;
+  border: 1px solid var(--glass-light-border);
+  border-radius: calc(12px * var(--aa-rf, 1));
+  min-width: 0;
+}
+#audioarchive .name-rule .panel-field { margin-bottom: 8px; }
+#audioarchive .name-rule-map { resize: vertical; font-family: inherit; }
+#audioarchive .name-rule-pattern,
+#audioarchive .name-rule-display { font-variant-ligatures: none; }
+#audioarchive .name-rule-status.is-error { color: var(--color-danger); }
+#audioarchive .name-rule-preview {
+  margin: 0 0 8px;
+  padding-left: 18px;
+  font-size: calc(0.82 * var(--aa-rem));
+  color: var(--color-ink-soft);
+  overflow-wrap: anywhere;
+}
+
 /* ===================== ORDNERBAUM (Seitenleiste) =====================
  *
  * Ohne Baum (oeffentliche Seite) sind die beiden Huellen wirkungslos

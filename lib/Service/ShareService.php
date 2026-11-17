@@ -32,8 +32,9 @@ use OCP\Security\ISecureRandom;
  *              Token existiert nur, weil die Spalte ihn verlangt, und wird
  *              nie herausgegeben.
  *
- * Der Administrator-Link (Einstellungen -> Verwaltung) bleibt davon
- * unberuehrt und laeuft weiter ueber AccessGuard.
+ * Den frueheren Administrator-Link (Einstellungen -> Verwaltung) gibt es
+ * ab 1.2.0 nicht mehr; er wird beim Update als Freigabe uebernommen
+ * (AdminLinkMigration, Einstellung 'fromAdmin').
  *
  * Darstellung einer Freigabe im Code: ein Array (siehe hydrate()).
  */
@@ -85,7 +86,19 @@ class ShareService {
         // Wird nur vom Server gesetzt; gilt nur, solange die Ursprungs-
         // freigabe besteht und das Weiterteilen erlaubt.
         'viaShare' => 0,
+        // Frueherer Administrator-Link (Einstellungen -> Verwaltung ->
+        // "Oeffentlicher Zugang"), ab 1.2.0 als Freigabe uebernommen
+        // (Vikunja #68). Nur vom Server gesetzt: Die Seite traegt dann wie
+        // frueher Titel und Ordnernamen der Verwaltung, und gemerkte
+        // Anmeldungen sowie offline Gespeichertes gelten weiter.
+        'fromAdmin' => false,
+        // Namensmuster (ab 1.2.0, Vikunja #67): Regeln, wie Datei- und
+        // Ordnernamen angezeigt werden; ausgewertet in js/name-rules.js
+        'nameRules' => [],
     ];
+
+    /** Hoechstzahl an Namensmustern je Freigabe. */
+    private const MAX_NAME_RULES = 30;
 
     /** Wie tief Weitergeteiltes hoechstens verkettet sein darf. */
     private const MAX_RESHARE_DEPTH = 5;
@@ -536,8 +549,12 @@ class ShareService {
         if (is_array($tokens) && in_array($share['token'], $tokens, true)) {
             return true;
         }
-        // Gemerkter Zugang aus einer frueheren Sitzung (ab 0.23.0)
-        if ($this->remember->isRemembered('share', $share['token'], (string)$share['passwordHash'])) {
+        // Gemerkter Zugang aus einer frueheren Sitzung (ab 0.23.0); beim
+        // uebernommenen Administrator-Link (ab 1.2.0) auch dessen alte
+        // Eintraege - gleicher Token, gleicher Passwort-Hash
+        if ($this->remember->isRemembered('share', $share['token'], (string)$share['passwordHash'])
+            || (($share['settings']['fromAdmin'] ?? false) === true
+                && $this->remember->isRemembered('admin', $share['token'], (string)$share['passwordHash']))) {
             $tokens = is_array($tokens) ? $tokens : [];
             $tokens[] = $share['token'];
             $this->session->set(self::SESSION_KEY, $tokens);
@@ -643,6 +660,19 @@ class ShareService {
         return $this->findById($share['id']) ?? $share;
     }
 
+    /**
+     * Setzt den Passwort-Hash unveraendert (Uebernahme des frueheren
+     * Administrator-Links, ab 1.2.0): Beide verwenden Nextclouds IHasher,
+     * das bisherige Passwort gilt damit weiter.
+     */
+    public function setPasswordHash(int $id, ?string $hash): void {
+        $qb = $this->db->getQueryBuilder();
+        $qb->update(self::TABLE)
+            ->set('password_hash', $qb->createNamedParameter($hash === '' ? null : $hash))
+            ->where($qb->expr()->eq('id', $qb->createNamedParameter($id, IQueryBuilder::PARAM_INT)));
+        $qb->executeStatement();
+    }
+
     /** Neuer zufaelliger Token (Wunschname wieder entfernen). */
     public function newRandomToken(): string {
         do {
@@ -676,6 +706,8 @@ class ShareService {
             $value = $input[$key];
             if ($key === 'style') {
                 $out[$key] = is_array($value) ? StyleTokens::normalize($value) : null;
+            } elseif ($key === 'nameRules') {
+                $out[$key] = self::normalizeNameRules($value);
             } elseif (is_int($default)) {
                 $out[$key] = max(0, (int)$value);
             } elseif (is_bool($default)) {
@@ -706,6 +738,41 @@ class ShareService {
         // Formatierter Text (ab 0.37.0, Vikunja #49) - bereinigt statt nur gekuerzt
         $out['notice'] = RichText::forStorage((string)$out['notice']);
 
+        return $out;
+    }
+
+    /**
+     * Namensmuster bereinigen (ab 1.2.0): nur bekannte Felder, Laengen
+     * begrenzt, leere Regeln weg. Gepruefte Syntax: im Browser.
+     *
+     * @return list<array{pattern: string, display: string, map: string, applies: string, spaces: bool}>
+     */
+    public static function normalizeNameRules(mixed $value): array {
+        if (!is_array($value)) {
+            return [];
+        }
+        $out = [];
+        foreach ($value as $rule) {
+            if (!is_array($rule)) {
+                continue;
+            }
+            $pattern = mb_substr(trim((string)($rule['pattern'] ?? '')), 0, 300);
+            $display = mb_substr(trim((string)($rule['display'] ?? '')), 0, 300);
+            if ($pattern === '' || $display === '') {
+                continue;
+            }
+            $applies = (string)($rule['applies'] ?? 'both');
+            $out[] = [
+                'pattern' => $pattern,
+                'display' => $display,
+                'map' => mb_substr(str_replace("\r\n", "\n", (string)($rule['map'] ?? '')), 0, 8000),
+                'applies' => in_array($applies, ['files', 'folders'], true) ? $applies : 'both',
+                'spaces' => ($rule['spaces'] ?? true) !== false,
+            ];
+            if (count($out) >= self::MAX_NAME_RULES) {
+                break;
+            }
+        }
         return $out;
     }
 

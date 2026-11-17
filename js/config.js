@@ -29,6 +29,17 @@ const AudioArchive = (() => {
     // Nur auf der Seite einer Nutzer-Freigabe gesetzt (siehe PlayerPage)
     apiToken: el.dataset.apiToken || '',
     openAccess: el.dataset.openAccess === '1',
+    // Uebernommener Administrator-Link (ab 1.2.0, Vikunja #68)
+    fromAdmin: el.dataset.fromAdmin === '1',
+    // Namensmuster des Links (ab 1.2.0, Vikunja #67)
+    nameRules: (() => {
+      try {
+        const list = JSON.parse(el.dataset.nameRules || '[]');
+        return Array.isArray(list) ? list : [];
+      } catch (e) {
+        return [];
+      }
+    })(),
     // ab 0.39.0 (Vikunja #53): offline ohne Passwort/PIN
     offlineOpen: el.dataset.offlineOpen === '1',
     requestToken: el.dataset.requesttoken || '',

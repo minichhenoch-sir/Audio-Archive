@@ -2057,3 +2057,58 @@ Antippen öffnet den Ordner aus der Leiste und aus dem Vollbild. Keine
 Skriptfehler. Nicht geprüft: echte Telefone, Freigabe-Links.
 Einspielen: Container-Neustart empfohlen (Anleitungs-Vorlage ist PHP,
 OPcache); keine Datenbankänderung.
+
+## 1.2.0: Admin-Link wandert in die App, Namensmuster für Freigaben
+
+Wünsche von Henoch (Chat, 17.11.2026, Vikunja #68 und #67). Antworten auf
+die Rückfragen: „Links, die in den Admin-Einstellungen erstellt wurden,
+sollen in die App wandern“ und „Es soll viele Möglichkeiten geben“.
+
+**Admin-Link (#68)**
+- Bereich „Öffentlicher Zugang“ aus `templates/settings-admin.php` und
+  `js/settings.js` entfernt (auch Ersatzbild-Auswahl und „Hörer über den
+  öffentlichen Link dürfen kommentieren“). „Angemeldet bleiben“ steht jetzt
+  unter „Freigaben durch Nutzer“.
+- `AdminLinkMigration` (aufgerufen von `Version10200Date20261117200000`,
+  läuft einmal, Kennung `admin_link_migrated`): legt eine Link-Freigabe mit
+  gleichem Token und **gleichem Passwort-Hash** an (`setPasswordHash()`),
+  Ersteller/Besitzer = Besitzer des gemeinsamen Ordners, Funktionen aus der
+  Verwaltung (Offline, Download, ZIP, `public_comments`, Ersatzbild samt
+  eigenem Bild über `BackgroundImage::copy()`), Einstellung
+  `fromAdmin = true`. Abgeschaltet oder ohne Passwort → als abgelaufen.
+  Danach `public_token`/`public_password_hash` gelöscht, `public_enabled` aus.
+- `fromAdmin`: nur vom Server gesetzt (Controller überschreibt den Wert);
+  Titel/Zusatzzeile wie die Verwaltung, Wurzelname = „Name des gemeinsamen
+  Ordners“, gemerkte Anmeldungen der Art `admin` gelten weiter
+  (`ShareService::hasAccess`).
+- App: `adoptAdminOffline()` übernimmt einmal je Gerät das offline
+  Gespeicherte (Verzeichnis, Prüfwert, Sperre, Cache-Einträge ohne `s=`
+  werden mit `s=<token>&` kopiert).
+- Der alte Admin-Pfad (`AccessGuard`, `PublicPlayerController`) bleibt als
+  Rückfall stehen, falls die Übernahme scheitert.
+
+**Namensmuster (#67)**
+- `js/name-rules.js` (`AANameRules`): Muster mit Platzhaltern (`{x}`,
+  `{x:3}`, `{x:Zahl}`, `{x:Buchstaben}`, `{x:Wort}`, `{x:Datum}`; `{Datum}`
+  ist immer ein Datum), Anzeige-Vorlage (`{Datum:kurz|Jahr|Monat|Tag|iso}`,
+  `{x:groß|klein|Anfang}`, `{Name}`), Werte-Ersetzung je Zeile
+  (`alt = neu`, `Platzhalter.alt = neu`), gilt für Dateien/Ordner/beides,
+  Unterstriche → Leerzeichen. Erste passende Regel gilt.
+- Gespeichert in den Einstellungen der Freigabe (`nameRules`, bereinigt in
+  `ShareService::normalizeNameRules`, höchstens 30 Regeln). Link-Seite:
+  `data-name-rules`; mit mir geteilt: `incoming().nameRules`.
+- Anzeige: Liste, Suche, Favoriten, Pfad, Ordnerbaum, Player
+  (`Player.setNameFormatter`, Titel aus den Tags hat Vorrang). Sortieren und
+  Suchen weiter nach echten Namen.
+- Freigabe-Formular: Abschnitt „Namen anzeigen (Muster)“ mit Vorschau an den
+  Namen des geöffneten Ordners.
+
+Geprüft in Sandbox-NC 34.0.3 (Playwright): Update 1.1.0 → 1.2.0 mit
+aktivem Admin-Link (Passwort, 30 Tage, ein Ordner offline gespeichert):
+Freigabe 1 mit Token/Hash, Hörer ohne erneute Passworteingabe, Titel und
+Wurzelname wie vorher, offline (Netz aus) Ordner weiter da. Verwaltung ohne
+Skriptfehler, Speichern geht. Muster am Link und an einer Freigabe an
+Personen (bob) richtig angezeigt, eigene Ansicht unverändert, Player-Titel
+nach Muster. `fromAdmin` lässt sich über die API nicht setzen.
+Einspielen: Container-Neustart (PHP geändert); keine Tabellenänderung, die
+Übernahme läuft beim Update (`occ upgrade` bzw. Aktualisieren im App Store).

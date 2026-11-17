@@ -1064,7 +1064,32 @@
     return d + '. ' + MONTH_NAMES[m - 1] + ' ' + y;
   }
 
-  function prettyFolderName(raw) {
+  /*
+   * Namensmuster (ab 1.2.0, Vikunja #67): Auf der Seite eines Links gelten
+   * dessen Regeln, in einem mit mir geteilten Ordner die der Freigabe.
+   * Sonst keine. Ausgewertet in js/name-rules.js; die Dateien und Pfade
+   * bleiben unveraendert, sortiert wird weiter nach dem echten Namen.
+   */
+  function nameRulesFor(source) {
+    if (!window.AANameRules) return [];
+    if (AudioArchive.apiToken) return AudioArchive.nameRules;
+    const share = Incoming.get(source);
+    return share && Array.isArray(share.nameRules) ? share.nameRules : [];
+  }
+
+  /** Angezeigter Name einer Aufnahme (ohne Endung) nach den Mustern. */
+  function fileLabel(entry, source = entry.source || view.source) {
+    const rules = nameRulesFor(source);
+    const shown = rules.length ? window.AANameRules.apply(rules, entry.name, 'file') : null;
+    return shown || entry.name;
+  }
+
+  function prettyFolderName(raw, source = view.source) {
+    const rules = nameRulesFor(source);
+    if (rules.length) {
+      const shown = window.AANameRules.apply(rules, String(raw || ''), 'dir');
+      if (shown) return shown;
+    }
     // Ab 0.33.0 (Vikunja #44) nur noch, wenn die Verwaltung es einschaltet -
     // Vorgabe sind die Namen genau so, wie sie im Ordner stehen.
     if (!AudioArchive.listDisplay.prettyFolderNames) return String(raw || '');
@@ -1101,7 +1126,8 @@
     if (source === 'home') return 'Meine Dateien';
     // Vom Administrator gewaehlter Name (ab 0.23.0) - nicht bei Freigaben,
     // die zeigen den Namen ihres Ordners
-    if (AudioArchive.sharedLabel && !AudioArchive.apiToken) return AudioArchive.sharedLabel;
+    // (auch beim uebernommenen Administrator-Link, ab 1.2.0)
+    if (AudioArchive.sharedLabel && (!AudioArchive.apiToken || AudioArchive.fromAdmin)) return AudioArchive.sharedLabel;
     return AudioArchive.loggedIn && !AudioArchive.isPublic() ? 'Gemeinsame Aufnahmen' : 'Aufnahmen';
   }
 
@@ -1280,6 +1306,72 @@
     return Array.from(new Uint8Array(digest))
       .map((b) => b.toString(16).padStart(2, '0'))
       .join('');
+  }
+
+  /*
+   * Uebernommener Administrator-Link (ab 1.2.0, Vikunja #68). Frueher lief
+   * der Link der Verwaltung ohne Token in den Adressen; als Freigabe haengt
+   * jetzt s=<token> an allen Abrufen. Damit offline Gespeichertes auf den
+   * Geraeten der Hoerer nicht verloren geht, uebernimmt die App einmalig:
+   *   - die Eintraege im Verzeichnis der gespeicherten Ordner,
+   *   - den Pruefwert fuer die Offline-Anmeldung und die Sperre,
+   *   - die Aufnahmen und Cover im Offline-Speicher (Kopie unter der neuen
+   *     Adresse; die alte bleibt fuer angemeldete Nutzer liegen).
+   * Gelingt der Speicher-Teil nicht, versucht sie es beim naechsten Start.
+   */
+  async function adoptAdminOffline() {
+    if (!AudioArchive.fromAdmin || !AudioArchive.apiToken) return;
+    const done = 'audioarchive_admin_adopted:' + AudioArchive.apiToken;
+    try {
+      if (localStorage.getItem(done) === '1') return;
+    } catch (e) {
+      return;
+    }
+
+    const index = offlineIndex();
+    let changed = false;
+    Object.keys(index).forEach((key) => {
+      // '@@...' sind eigene Dateien, andere Freigaben und Quellen
+      if (key.startsWith('@@')) return;
+      const target = SHARE_PREFIX + key;
+      if (!index[target]) {
+        index[target] = index[key];
+        changed = true;
+      }
+    });
+    if (changed) lsSet(LS_INDEX, index);
+
+    const oldAuth = lsGet('audioarchive_offline_auth');
+    if (oldAuth && !lsGet(LS_AUTH)) lsSet(LS_AUTH, oldAuth);
+    try {
+      if (localStorage.getItem('audioarchive_offline_locked') === '1') localStorage.setItem(LS_OFFLINE_LOCK, '1');
+    } catch (e) { /* ohne Speicher: nichts zu uebernehmen */ }
+
+    if ('caches' in window) {
+      try {
+        const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
+        const apiBase = new URL(AudioArchive.api(''), location.href).href;
+        const insert = 's=' + encodeURIComponent(AudioArchive.apiToken) + '&';
+        const requests = await cache.keys();
+        for (const request of requests) {
+          const url = request.url;
+          const q = url.indexOf('?');
+          if (!url.startsWith(apiBase) || q < 0) continue;
+          const query = url.slice(q + 1);
+          // Schon mit Token oder Quelle (eigene Dateien, andere Freigaben)
+          if (/(^|&)(s|source)=/.test(query)) continue;
+          const target = url.slice(0, q + 1) + insert + query;
+          if (await cache.match(target)) continue;
+          const response = await cache.match(request);
+          if (response) await cache.put(target, response);
+        }
+      } catch (e) {
+        return;
+      }
+    }
+    try {
+      localStorage.setItem(done, '1');
+    } catch (e) { /* dann beim naechsten Start noch einmal - schadet nicht */ }
   }
 
   /** Nach erfolgreicher Anmeldung am Server den lokalen Pruefwert ablegen. */
@@ -1664,6 +1756,7 @@
    * wurde.
    */
   async function checkSession() {
+    await adoptAdminOffline();
     try {
       const res = await fetch(AudioArchive.statusUrl(), { credentials: 'same-origin' });
       const data = await res.json();
@@ -2082,7 +2175,7 @@
       const support = Player.formatSupport(entry);
       const row = makeRow({
         icon: isActive && support.playable ? playingIcon() : fileIcon(),
-        label: entry.name,
+        label: fileLabel(entry),
         meta: rowMeta(entry, isActive),
         onClick: () => Player.playFolder(folderFiles, fileIndex, folderLabel),
       });
@@ -2449,7 +2542,7 @@
         const support = Player.formatSupport(entry);
         const row = makeRow({
           icon: isActive && support.playable ? playingIcon() : fileIcon(),
-          label: entry.name,
+          label: fileLabel(entry),
           sub: where ? prettyPath(where) : sourceLabel(view.source),
           meta: rowMeta(entry, isActive),
           onClick: () => Player.playFolder(files, index, 'Suche: ' + query),
@@ -2820,7 +2913,7 @@
         if (entry.type === 'dir') {
           const r = makeRow({
             icon: folderIcon(),
-            label: prettyFolderName(entry.name),
+            label: prettyFolderName(entry.name, entry.source),
             sub: where,
             meta: folderMeta(entry),
             onClick: () => {
@@ -2837,7 +2930,7 @@
         const support = Player.formatSupport(entry);
         const r = makeRow({
           icon: isPlaying && support.playable ? playingIcon() : fileIcon(),
-          label: entry.name,
+          label: fileLabel(entry),
           sub: where,
           meta: rowMeta(entry, isPlaying),
           onClick: () => Player.playFolder(files, index, 'Favoriten'),
@@ -3403,8 +3496,10 @@
   }
   Player.setFolderLabeler((track) => {
     const dir = folderOfTrack(track);
-    return dir ? prettyFolderName(dir.split('/').pop()) : sourceLabel(track.source || view.source);
+    return dir ? prettyFolderName(dir.split('/').pop(), track.source || view.source) : sourceLabel(track.source || view.source);
   });
+  // Titel im Player ohne Titel aus der Datei: Name nach den Mustern (ab 1.2.0)
+  Player.setNameFormatter((track) => fileLabel(track, track.source || view.source));
   Player.onOpenFolder((track) => {
     navigate(folderOfTrack(track), track.source || view.source);
   });
@@ -3621,7 +3716,7 @@
         const dirs = await fetchChildren(node.source, node.path);
         node.children.innerHTML = '';
         dirs.forEach((dir) => {
-          const child = createNode(node.source, dir.path, prettyFolderName(dir.name), dir.hasChildren, folderSvg, false);
+          const child = createNode(node.source, dir.path, prettyFolderName(dir.name, node.source), dir.hasChildren, folderSvg, false);
           node.children.appendChild(child.li);
         });
         node.loaded = true;
@@ -4560,6 +4655,17 @@
       if (isNew) syncCustom();
       panel.appendChild(look);
 
+      // Namensmuster (ab 1.2.0, Vikunja #67): Namen anders anzeigen.
+      // Vorschau mit den Namen des geoeffneten Ordners.
+      let rulesEditor = null;
+      if (window.AANameRules) {
+        const names = group('Namen anzeigen (Muster)');
+        const samples = (currentEntries || []).map((e) => ({ name: e.name, kind: e.type === 'dir' ? 'dir' : 'file' }));
+        rulesEditor = window.AANameRules.editor(Array.isArray(st.nameRules) ? st.nameRules : [], samples);
+        names.appendChild(rulesEditor.el);
+        panel.appendChild(names);
+      }
+
       const error = el('p', 'panel-error');
       error.hidden = true;
       panel.appendChild(error);
@@ -4585,7 +4691,13 @@
           repeatDefault: repeat.value,
           featureComments: comments ? comments.input.checked : st.featureComments === true,
           coverIcon: chosenCover,
+          nameRules: rulesEditor ? rulesEditor.value() : (st.nameRules || []),
         };
+        const rulesError = rulesEditor ? rulesEditor.error() : '';
+        if (rulesError) {
+          showError(error, 'Namensmuster: ' + rulesError);
+          return;
+        }
         if (isInternal && members.value().length === 0) {
           showError(error, 'Bitte mindestens eine Person oder Gruppe auswählen.');
           return;

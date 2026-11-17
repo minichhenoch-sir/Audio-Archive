@@ -4,6 +4,22 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.2.0 – 2026-11-17
+
+### Added
+- Display patterns per share: rules with placeholders (e.g.
+  `{Code:3}_{Date}_{Title}`), value replacements and a display template turn
+  file and folder names into readable labels for the recipients – the files
+  themselves stay unchanged. Live preview in the share form
+
+### Changed
+- The section "Öffentlicher Zugang" (administrator link) is gone from the
+  admin settings. Links are created and managed in the app. On update an
+  existing administrator link becomes a normal link share: same address,
+  same password, same features; remembered logins and offline downloads of
+  listeners keep working. A disabled link is kept as expired
+- "Angemeldet bleiben" moved to "Freigaben durch Nutzer"
+
 ## 1.1.0 – 2026-11-17
 
 ### Added

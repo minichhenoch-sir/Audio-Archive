@@ -152,6 +152,8 @@ class ShareController extends Controller {
             $owner = $source === AudioFolder::SOURCE_HOME ? $uid : $this->audioFolder->ownerOf($source);
             $settings['viaShare'] = 0;
         }
+        // Nur der uebernommene Administrator-Link traegt diese Kennung (ab 1.2.0)
+        $settings['fromAdmin'] = false;
         if ($folder === null) {
             return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
         }
@@ -240,6 +242,7 @@ class ShareController extends Controller {
 
         // Herkunft bleibt, wie sie ist; Links koennen nie weitergeteilt werden
         $settings['viaShare'] = $share['settings']['viaShare'];
+        $settings['fromAdmin'] = $share['settings']['fromAdmin'] ?? false;
         if ($share['kind'] === Application::SHARE_KIND_LINK) {
             $settings['allowReshare'] = false;
         }
@@ -361,6 +364,8 @@ class ShareController extends Controller {
                 'look' => $this->appearance->incomingLook($share, $uid),
                 // Darf der Empfaenger weiterteilen? (ab 0.26.0)
                 'allowReshare' => $settings['allowReshare'] && $this->shares->sharingAllowed(),
+                // Namensmuster des Teilenden (ab 1.2.0, Vikunja #67)
+                'nameRules' => $settings['nameRules'] ?? [],
             ];
         }
 

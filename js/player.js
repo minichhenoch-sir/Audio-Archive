@@ -171,6 +171,7 @@ const Player = (() => {
   let onPlayStateChange = null; // Callback: Play/Pause gewechselt (Animation in der Liste)
   let folderLabeler = null;     // Name des Ordners einer Aufnahme (app.js, ab 1.1.0)
   let onOpenFolder = null;      // Callback: Ordner der laufenden Aufnahme oeffnen (ab 1.1.0)
+  let nameFormatter = null;     // Anzeigename nach Namensmustern (app.js, ab 1.2.0)
 
   function formatTime(seconds) {
     if (!isFinite(seconds) || seconds < 0) return '0:00';
@@ -248,8 +249,17 @@ const Player = (() => {
   function trackTitle(track) {
     // Titel aus der Datei (Tags), sonst der Dateiname. Die Verwaltung kann
     // auf "immer Dateiname" umstellen (ab 0.33.0/0.35.1, Vikunja #44).
-    if (!AudioArchive.listDisplay.titleFromTags) return track.name;
-    return (track.title && track.title.trim()) || track.name;
+    // Ohne Titel aus der Datei: Name, ab 1.2.0 nach den Namensmustern der Freigabe
+    let name = track.name;
+    if (nameFormatter) {
+      try {
+        name = nameFormatter(track) || track.name;
+      } catch (e) {
+        name = track.name;
+      }
+    }
+    if (!AudioArchive.listDisplay.titleFromTags) return name;
+    return (track.title && track.title.trim()) || name;
   }
 
   // ------------------------------------------------------------------
@@ -3061,6 +3071,11 @@ const Player = (() => {
     /** Liefert den Anzeigenamen des Ordners einer Aufnahme (ab 1.1.0). */
     setFolderLabeler(fn) {
       folderLabeler = fn;
+    },
+
+    /** Anzeigename einer Aufnahme nach den Namensmustern (ab 1.2.0). */
+    setNameFormatter(fn) {
+      nameFormatter = fn;
     },
 
     /** Ordnername im Player angetippt: Ordner oeffnen (ab 1.1.0). */

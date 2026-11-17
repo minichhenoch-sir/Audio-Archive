@@ -13,7 +13,7 @@
 * **Plays in the background** with lock-screen and headset controls, remembers where you stopped, continues with the next folder
 * **Many formats:** MP3, M4A/AAC, Ogg Vorbis, Opus, FLAC, WAV, WebM, AIFF – optionally converted to MP3 on the fly (needs ffmpeg on the server)
 * **Installable as an app** (PWA) on phones and desktops, with **offline** listening of saved folders
-* **Share without an account:** a public link with password, plus links that users create for single folders (expiry date, own design, offline/download allowed or not)
+* **Share without an account:** links that users create in the app for any folder (password, expiry date, own design, offline/download allowed or not, display patterns for file and folder names)
 * **Comments and ratings** per recording, overview and Excel export for admins
 * **Designs:** own colours, background image, cover images, or Nextcloud's look
 * **Help and contact** button that notifies a group in Nextcloud
@@ -29,14 +29,14 @@ Optional: ffmpeg in the Nextcloud container for MP3 conversion; a working backgr
 * **Spielt im Hintergrund** mit Steuerung auf dem Sperrbildschirm, merkt sich die Stelle, macht mit dem nächsten Ordner weiter
 * **Viele Formate:** MP3, M4A/AAC, Ogg Vorbis, Opus, FLAC, WAV, WebM, AIFF – auf Wunsch unterwegs in MP3 umgewandelt (ffmpeg auf dem Server nötig)
 * **Als App installierbar** (PWA) auf Telefon und Rechner, gespeicherte Ordner auch **offline**
-* **Teilen ohne Konto:** öffentlicher Link mit Passwort sowie Links, die Nutzer für einzelne Ordner anlegen (Ablaufdatum, eigene Gestaltung, Offline/Herunterladen erlaubt oder nicht)
+* **Teilen ohne Konto:** Links, die Nutzer in der App für beliebige Ordner anlegen (Passwort, Ablaufdatum, eigene Gestaltung, Offline/Herunterladen erlaubt oder nicht, Namensmuster für Datei- und Ordnernamen)
 * **Kommentare und Bewertungen** je Aufnahme, Übersicht und Excel-Export für Administratoren
 * **Gestaltung:** eigene Farben, Hintergrundbild, Cover-Bilder oder Nextcloud-Optik
 * **Hilfe und Kontakt:** Knopf, der eine Gruppe in Nextcloud benachrichtigt
 
 Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
     ]]></description>
-    <version>1.1.0</version>
+    <version>1.2.0</version>
     <!-- "agpl": SPDX identifiers are only accepted by the App Store for min-version >= 31 -->
     <licence>agpl</licence>
     <author homepage="https://github.com/minichhenoch-sir">Henoch Minich</author>

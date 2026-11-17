@@ -19,8 +19,8 @@ including listeners without a Nextcloud account.
   conversion to MP3 for devices that cannot play a format (needs `ffmpeg`)
 - Installable as an app (PWA) on phones and desktops; save folders for
   offline listening
-- Public link with password, plus links that users create for single folders
-  (expiry date, own design, offline/download on or off)
+- Links that users create in the app for any folder (password, expiry date,
+  own design, offline/download on or off, display patterns for names)
 - Comments and ratings per recording, overview and Excel export
 - Own colours, background image and cover images, or Nextcloud's look
 - Built-in manual for listeners and administrators (page and PDF, German)

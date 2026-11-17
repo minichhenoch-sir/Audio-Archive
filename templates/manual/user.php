@@ -238,7 +238,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <h3>Mit Personen und Gruppen</h3>
   <p><strong>„Mit Personen teilen“</strong> wählt Nextcloud-Nutzer oder Gruppen aus. Sie finden den Ordner
   in dieser App unter „Mit mir geteilt“. Auf Wunsch dürfen sie ihn selbst weiterteilen.</p>
-  <h3>Öffentlicher Link</h3>
+  <h3>Link für Hörer ohne Konto</h3>
   <p><strong>„Neuer Link“</strong> erstellt einen Link, über den man auch ohne Nextcloud-Konto zuhören kann.
   Für jeden Link einstellbar:</p>
   <ul>
@@ -247,6 +247,33 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li><strong>Ablaufdatum</strong>,</li>
     <li>ob <strong>Offline speichern</strong> und <strong>Herunterladen</strong> erlaubt sind,</li>
     <li>Wiederholen-Vorgabe, Titel, Text über den Aufnahmen und Gestaltung.</li>
+  </ul>
+  <h3>Namen anders anzeigen (Muster)</h3>
+  <p>Unter <strong>„Namen anzeigen (Muster)“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
+  erscheinen – die Dateien selbst bleiben unverändert. Eine Regel hat ein <strong>Muster</strong>, eine
+  <strong>Anzeige</strong> und auf Wunsch eine Liste mit <strong>Werten zum Ersetzen</strong>. Beispiel:</p>
+  <table class="m-table">
+    <tbody>
+      <tr><td>Muster</td><td><code>{Kürzel:3}_{Datum}_{Titel}</code></td></tr>
+      <tr><td>Anzeige</td><td><code>{Titel} – {Kürzel}, {Datum}</code></td></tr>
+      <tr><td>Werte ersetzen</td><td><code>GDB = Gottesdienst</code></td></tr>
+      <tr><td>Ergebnis</td><td><code>GDB_2026-05-12_Psalm_23</code> → „Psalm 23 – Gottesdienst, 12. Mai 2026“</td></tr>
+    </tbody>
+  </table>
+  <ul>
+    <li>Platzhalter im Muster: <code>{x}</code> beliebiger Text, <code>{x:3}</code> genau 3 Zeichen,
+    <code>{x:Zahl}</code>, <code>{x:Buchstaben}</code>, <code>{x:Wort}</code>, <code>{x:Datum}</code>
+    (<code>{Datum}</code> ist immer ein Datum). Alles andere muss so im Namen stehen; Groß-/Kleinschreibung zählt nicht,
+    Leerzeichen und Unterstrich gelten als gleich.</li>
+    <li>In der Anzeige: dieselben Namen, dazu <code>{Datum:kurz}</code> (12.05.2026), <code>{Datum:Jahr}</code>,
+    <code>{Datum:Monat}</code>, <code>{x:groß}</code>, <code>{x:klein}</code>, <code>{x:Anfang}</code> und
+    <code>{Name}</code> für den ganzen ursprünglichen Namen.</li>
+    <li>Werte ersetzen: eine Zeile je Wert, <code>alt = neu</code>; nur für einen Platzhalter:
+    <code>Kürzel.GDB = Gottesdienst</code>.</li>
+    <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
+    passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau Namen aus dem geöffneten Ordner.</li>
+    <li>Sortiert und gesucht wird weiter nach den echten Namen. Hat eine Aufnahme einen Titel in der Datei
+    (Tags), zeigt der Player diesen.</li>
   </ul>
   <p>Alle deine Freigaben stehen unter <em>Einstellungen → Persönlich → Audio Archive</em>
   („Meine Freigaben“). Dort kannst du Links kopieren und Freigaben löschen.</p>

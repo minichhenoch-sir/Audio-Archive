@@ -53,6 +53,8 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
      data-can-share="<?php echo $escape($_['canShare']); ?>"
      data-api-token="<?php echo $escape($_['apiToken']); ?>"
      data-open-access="<?php echo $escape($_['openAccess']); ?>"
+     data-from-admin="<?php echo $escape($_['fromAdmin'] ?? ''); ?>"
+     data-name-rules="<?php echo $escape($_['nameRules'] ?? '[]'); ?>"
      data-offline-open="<?php echo $escape($_['offlineOpen'] ?? ''); ?>"
      data-requesttoken="<?php echo $escape($_['requestToken']); ?>"
      data-embedded="<?php echo $escape($_['embedded']); ?>"
@@ -520,5 +522,6 @@ $rootClasses[] = 'aa-star-' . (in_array($_['starColor'] ?? '', ['accent', 'yello
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/config.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/player.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/rich-text.js'); ?>"></script>
+<script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/name-rules.js'); ?>"></script>
 <script nonce="<?php echo $nonce; ?>" src="<?php echo $asset('js/app.js'); ?>"></script>
 </div>
