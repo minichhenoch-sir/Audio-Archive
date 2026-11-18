@@ -20,7 +20,8 @@ including listeners without a Nextcloud account.
 - Installable as an app (PWA) on phones and desktops; save folders for
   offline listening
 - Links that users create in the app for any folder (password, expiry date,
-  own design, offline/download on or off, display patterns for names)
+  own design, offline/download on or off, display names for files and
+  folders – set up with a builder, dates in any format and language)
 - Comments and ratings per recording, overview and Excel export
 - Own colours, background image and cover images, or Nextcloud's look
 - Built-in manual for listeners and administrators (page and PDF, German)

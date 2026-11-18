@@ -4,6 +4,26 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.4.0 – 2026-11-18
+
+### Added
+- Builder for display names: pick an example name, the app splits it into
+  parts (text, date, always the same, leave out), the display is put
+  together by tapping – no braces to type. Found values can be translated
+  one by one (e.g. "So" → "Sonntag")
+- Dates in any format: presets or an own format from simple building blocks
+  (day, month, month name, year, weekday), month and day names in a chosen
+  language or in the listener's language
+- Rules only for a chosen folder (with or without subfolders), only for one
+  folder level, with exceptions; own names for single folders or recordings
+- Overview table of all building blocks in the form and in the manual
+
+### Changed
+- The former notation stays available for advanced users; rules from
+  earlier versions keep working unchanged
+- The app starts in a share (since 1.3.0): the list now shows the display
+  names right away, not only after opening another folder
+
 ## 1.3.0 – 2026-11-18
 
 ### Changed

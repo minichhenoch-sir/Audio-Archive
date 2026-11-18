@@ -1100,8 +1100,23 @@
   function seedNames(entries, source) {
     const rules = nameRulesFor(source);
     if (!rules.length || !Array.isArray(entries)) return;
-    window.AANameRules.applyAll(rules, entries.filter((e) => e.type === 'dir').map((e) => e.name), 'dir');
-    window.AANameRules.applyAll(rules, entries.filter((e) => e.type !== 'dir').map((e) => e.name), 'file');
+    // Je uebergeordnetem Ordner (Suchtreffer liegen in vielen), ab 1.4.0 mit
+    // Pfad - Regeln koennen nur fuer bestimmte Ordner gelten
+    const groups = new Map();
+    entries.forEach((e) => {
+      if (!e || !e.name) return;
+      const p = String(e.path || e.name);
+      const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
+      if (!groups.has(parent)) groups.set(parent, { dirs: [], files: [] });
+      groups.get(parent)[e.type === 'dir' ? 'dirs' : 'files'].push(e);
+    });
+    groups.forEach((g, parent) => {
+      if (g.dirs.length) window.AANameRules.applyAll(rules, g.dirs.map((e) => e.name), 'dir', parent);
+      if (g.files.length) {
+        window.AANameRules.applyAll(rules, g.files.map((e) => e.name), 'file', parent,
+          g.files.map((e) => (e.path ? String(e.path).split('/').pop() : e.file || e.name)));
+      }
+    });
   }
 
   /** Suchtreffer: Namen, die der Server schon mit Nachbarn berechnet hat. */
@@ -1110,7 +1125,7 @@
     if (!rules.length) return;
     list.forEach((e) => {
       if (e && Object.prototype.hasOwnProperty.call(e, 'shown')) {
-        window.AANameRules.remember(rules, e.name, e.type === 'dir' ? 'dir' : 'file', e.shown);
+        window.AANameRules.remember(rules, e.name, e.type === 'dir' ? 'dir' : 'file', e.shown, e.path);
       }
     });
   }
@@ -1118,7 +1133,7 @@
   /** Angezeigter Name einer Aufnahme (ohne Endung) nach den Mustern. */
   function fileLabel(entry, source = entry.source || view.source) {
     const rules = nameRulesFor(source);
-    const shown = rules.length ? window.AANameRules.apply(rules, entry.name, 'file') : null;
+    const shown = rules.length ? window.AANameRules.apply(rules, entry.name, 'file', entry.path) : null;
     return shown || entry.name;
   }
 
@@ -1129,17 +1144,21 @@
    */
   function shownPath(path, entry, source) {
     if (!nameRulesFor(source).length) return path;
+    // path ist der Teil unterhalb des Suchordners, entry.path der ganze Pfad
+    const fullParts = String(entry.path || path || '').split('/');
     const parts = String(path || '').split('/');
+    const offset = fullParts.length - parts.length;
     const last = parts.length - 1;
     return parts.map((part, i) => (i === last && entry.type === 'file'
       ? fileLabel(entry, source)
-      : prettyFolderName(part, source))).join('/');
+      : prettyFolderName(part, source, fullParts.slice(0, offset + i + 1).join('/')))).join('/');
   }
 
-  function prettyFolderName(raw, source = view.source) {
+  /** path: ganzer Pfad des Ordners (ab 1.4.0; fehlt er, gilt der Name). */
+  function prettyFolderName(raw, source = view.source, path) {
     const rules = nameRulesFor(source);
     if (rules.length) {
-      const shown = window.AANameRules.apply(rules, String(raw || ''), 'dir');
+      const shown = window.AANameRules.apply(rules, String(raw || ''), 'dir', path);
       if (shown) return shown;
     }
     // Ab 0.33.0 (Vikunja #44) nur noch, wenn die Verwaltung es einschaltet -
@@ -1167,8 +1186,9 @@
   }
 
   /** Weg zu einem Ordner zum Vorlesen im Player: "August 2026 · Teil 1" */
-  function prettyPath(path) {
-    return path.split('/').map(prettyFolderName).join(' \u00b7 ');
+  function prettyPath(path, source = view.source) {
+    const parts = String(path).split('/');
+    return parts.map((part, i) => prettyFolderName(part, source, parts.slice(0, i + 1).join('/'))).join(' \u00b7 ');
   }
 
   /** Anzeigename einer Quelle - Wurzel im Pfad und im Ordnerbaum. */
@@ -1219,7 +1239,19 @@
             .then((res) => (res.ok ? res.json() : Promise.reject(new Error('incoming'))))
             .then((data) => {
               const list = Array.isArray(data.shares) ? data.shares : [];
+              // Seit 1.3.0 startet die App oft direkt in einer Freigabe -
+              // kommen deren Namensmuster erst jetzt (oder geaendert), die
+              // Liste mit den angezeigten Namen neu zeichnen (ab 1.4.0)
+              const src = typeof view === 'object' && view ? view.source : '';
+              const before = AudioArchive.isIncoming(src) ? JSON.stringify((byId[idOf(src)] || {}).nameRules || []) : null;
               remember(list);
+              if (before !== null && before !== JSON.stringify((byId[idOf(src)] || {}).nameRules || [])
+                && Array.isArray(currentEntries) && currentEntries.length) {
+                setTimeout(() => {
+                  renderEntries();
+                  renderBreadcrumb();
+                }, 0);
+              }
               return list;
             })
             .catch(() => Object.values(byId))
@@ -2290,7 +2322,7 @@
       if (entry.type === 'dir') {
         const dirRow = makeRow({
           icon: folderIcon(),
-          label: prettyFolderName(entry.name),
+          label: prettyFolderName(entry.name, view.source, entry.path),
           meta: folderMeta(entry),
           onClick: () => navigate(entry.path),
         });
@@ -2559,7 +2591,7 @@
       const base = scopeBase();
       input.placeholder = base === ''
         ? 'Suchen: Titel, Künstler, Ordner …'
-        : 'In „' + prettyFolderName(base.split('/').pop()) + '“ suchen …';
+        : 'In „' + prettyFolderName(base.split('/').pop(), view.source, base) + '“ suchen …';
     }
 
     async function offlineSearch(q) {
@@ -2679,7 +2711,7 @@
         return;
       }
       const n = results.length;
-      const where = searchBase !== '' ? ' in „' + prettyFolderName(searchBase.split('/').pop()) + '“' : '';
+      const where = searchBase !== '' ? ' in „' + prettyFolderName(searchBase.split('/').pop(), view.source, searchBase) + '“' : '';
       if (reading) {
         libraryStatus.textContent = (n === 0 ? 'Suche läuft' : n + ' Treffer bisher')
           + ' – Titel und Künstler werden noch gelesen'
@@ -2711,7 +2743,7 @@
         if (entry.type === 'dir') {
           listContainer.appendChild(makeRow({
             icon: folderIcon(),
-            label: prettyFolderName(entry.name),
+            label: prettyFolderName(entry.name, view.source, entry.path),
             sub: where ? prettyPath(where) : sourceLabel(view.source),
             meta: folderMeta(entry),
             onClick: () => {
@@ -2838,7 +2870,7 @@
         card.hidden = true;
         return;
       }
-      const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/'))) : sourceLabel(entry.source);
+      const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/')), entry.source) : sourceLabel(entry.source);
       card.innerHTML = '';
       const go = document.createElement('button');
       go.type = 'button';
@@ -3093,11 +3125,11 @@
       libraryStatus.textContent = results.length + (results.length === 1 ? ' Favorit' : ' Favoriten') + (note ? ' (' + note + ')' : '');
       const files = results.filter((e) => e.type === 'file');
       results.forEach((entry) => {
-        const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/'))) : sourceLabel(entry.source);
+        const where = entry.path.includes('/') ? prettyPath(entry.path.slice(0, entry.path.lastIndexOf('/')), entry.source) : sourceLabel(entry.source);
         if (entry.type === 'dir') {
           const r = makeRow({
             icon: folderIcon(),
-            label: prettyFolderName(entry.name, entry.source),
+            label: prettyFolderName(entry.name, entry.source, entry.path),
             sub: where,
             meta: folderMeta(entry),
             onClick: () => {
@@ -3152,7 +3184,7 @@
     if (segments.length > 0) {
       const parentName = segments.length === 1
         ? sourceLabel(view.source)
-        : prettyFolderName(segments[segments.length - 2]);
+        : prettyFolderName(segments[segments.length - 2], view.source, segments.slice(0, -1).join('/'));
       crumbBack.setAttribute('aria-label', 'Zurück zu ' + parentName);
       crumbBack.title = 'Zurück zu ' + parentName;
     }
@@ -3176,7 +3208,7 @@
       const isLast = i === segments.length - 1;
       const targetPath = segments.slice(0, i + 1).join('/');
       const el = document.createElement(isLast ? 'span' : 'button');
-      el.textContent = prettyFolderName(segment);
+      el.textContent = prettyFolderName(segment, view.source, targetPath);
 
       if (isLast) {
         el.className = 'crumb crumb--current';
@@ -3681,7 +3713,7 @@
   }
   Player.setFolderLabeler((track) => {
     const dir = folderOfTrack(track);
-    return dir ? prettyFolderName(dir.split('/').pop(), track.source || view.source) : sourceLabel(track.source || view.source);
+    return dir ? prettyFolderName(dir.split('/').pop(), track.source || view.source, dir) : sourceLabel(track.source || view.source);
   });
   // Titel im Player ohne Titel aus der Datei: Name nach den Mustern (ab 1.2.0)
   Player.setNameFormatter((track) => fileLabel(track, track.source || view.source));
@@ -3905,10 +3937,10 @@
       }
       try {
         const dirs = await fetchChildren(node.source, node.path);
-        seedNames(dirs.map((d) => ({ type: 'dir', name: d.name })), node.source);
+        seedNames(dirs.map((d) => ({ type: 'dir', name: d.name, path: d.path })), node.source);
         node.children.innerHTML = '';
         dirs.forEach((dir) => {
-          const child = createNode(node.source, dir.path, prettyFolderName(dir.name, node.source), dir.hasChildren, folderSvg, false);
+          const child = createNode(node.source, dir.path, prettyFolderName(dir.name, node.source, dir.path), dir.hasChildren, folderSvg, false);
           node.children.appendChild(child.li);
         });
         node.loaded = true;
@@ -4155,7 +4187,7 @@
     let current = []; // Freigaben des geoeffneten Ordners
 
     function folderName() {
-      return view.path === '' ? sourceLabel(view.source) : prettyFolderName(view.path.split('/').pop());
+      return view.path === '' ? sourceLabel(view.source) : prettyFolderName(view.path.split('/').pop(), view.source, view.path);
     }
 
     async function request(url, options = {}) {
@@ -4881,11 +4913,11 @@
       if (isNew) syncCustom();
       panel.appendChild(look);
 
-      // Namensmuster (ab 1.2.0, Vikunja #67): Namen anders anzeigen.
+      // Namensmuster (ab 1.2.0, Vikunja #67), Baukasten ab 1.4.0 (#72): Namen anders anzeigen.
       // Vorschau mit den Namen des geoeffneten Ordners.
       let rulesEditor = null;
       if (window.AANameRules) {
-        const names = group('Namen anzeigen (Muster)');
+        const names = group('Namen anzeigen');
         const samples = (currentEntries || []).map((e) => ({ name: e.name, kind: e.type === 'dir' ? 'dir' : 'file' }));
         // Vorschau auch mit den Namen aller Unterordner (ab 1.2.4)
         const namesFrom = { path: view.path, source: view.source };

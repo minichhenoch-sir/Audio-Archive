@@ -101,6 +101,8 @@ class ShareService {
     ];
 
     /** Hoechstzahl an Namensmustern je Freigabe. */
+    /** Eigene Namen fuer einzelne Ordner/Dateien je Freigabe (ab 1.4.0) */
+    private const MAX_NAME_OVERRIDES = 500;
     private const MAX_NAME_RULES = 30;
 
     /**
@@ -798,26 +800,65 @@ class ShareService {
             return [];
         }
         $out = [];
+        $rules = 0;
+        $names = 0;
+        $path = static fn (mixed $p): string => mb_substr(NameRules::cleanPath((string)$p), 0, 1000);
         foreach ($value as $rule) {
             if (!is_array($rule)) {
                 continue;
             }
+            // Eigener Name fuer genau einen Ordner bzw. eine Datei (ab 1.4.0)
+            if (($rule['kind'] ?? '') === 'name') {
+                $p = $path($rule['path'] ?? '');
+                $name = mb_substr(trim((string)($rule['name'] ?? '')), 0, 300);
+                if ($p === '' || $name === '' || $names >= self::MAX_NAME_OVERRIDES) {
+                    continue;
+                }
+                $out[] = ['kind' => 'name', 'target' => ($rule['target'] ?? '') === 'file' ? 'file' : 'dir',
+                    'path' => $p, 'name' => $name];
+                $names++;
+                continue;
+            }
             $pattern = mb_substr(trim((string)($rule['pattern'] ?? '')), 0, 300);
             $display = mb_substr(trim((string)($rule['display'] ?? '')), 0, 300);
-            if ($pattern === '' || $display === '') {
+            if ($pattern === '' || $display === '' || $rules >= self::MAX_NAME_RULES) {
                 continue;
             }
             $applies = (string)($rule['applies'] ?? 'both');
-            $out[] = [
+            $clean = [
                 'pattern' => $pattern,
                 'display' => $display,
                 'map' => mb_substr(str_replace("\r\n", "\n", (string)($rule['map'] ?? '')), 0, 8000),
                 'applies' => in_array($applies, ['files', 'folders'], true) ? $applies : 'both',
                 'spaces' => ($rule['spaces'] ?? true) !== false,
             ];
-            if (count($out) >= self::MAX_NAME_RULES) {
-                break;
+            // Ab 1.4.0: Sprache, Bereich, Ebene, Ausnahmen, Baukasten - nur
+            // wenn gesetzt, damit alte Regeln unveraendert bleiben (ohne lang = Deutsch)
+            if (array_key_exists('lang', $rule)) {
+                $lang = (string)$rule['lang'];
+                $clean['lang'] = preg_match('/^[A-Za-z]{2,3}([_-][A-Za-z0-9]{2,8})?$/', $lang) ? $lang : '';
             }
+            if (is_array($rule['where'] ?? null) && $path($rule['where']['path'] ?? '') !== '') {
+                $clean['where'] = ['path' => $path($rule['where']['path']), 'sub' => ($rule['where']['sub'] ?? true) !== false];
+            }
+            $level = (int)($rule['level'] ?? 0);
+            if ($level > 0) {
+                $clean['level'] = min($level, 20);
+            }
+            if (is_array($rule['except'] ?? null)) {
+                $except = array_values(array_filter(array_map($path, $rule['except']), static fn ($p) => $p !== ''));
+                if ($except !== []) {
+                    $clean['except'] = array_slice(array_values(array_unique($except)), 0, 100);
+                }
+            }
+            if (is_array($rule['builder'] ?? null)) {
+                $json = json_encode($rule['builder'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if (is_string($json) && strlen($json) <= 20000) {
+                    $clean['builder'] = json_decode($json, true);
+                }
+            }
+            $out[] = $clean;
+            $rules++;
         }
         return $out;
     }

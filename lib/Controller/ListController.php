@@ -675,6 +675,7 @@ class ListController extends Controller {
             if ($rules !== []) {
                 $dirNames = [];
                 $fileNames = [];
+                $realNames = [];
                 foreach ($listing as $c) {
                     if (str_starts_with($c->getName(), '.')) {
                         continue;
@@ -683,10 +684,13 @@ class ListController extends Controller {
                         $dirNames[] = $c->getName();
                     } else {
                         $fileNames[] = NameRules::withoutExtension($c->getName());
+                        $realNames[] = $c->getName();
                     }
                 }
-                $shownDirs = NameRules::applyAll($rules, $dirNames, 'dir');
-                $shownFiles = NameRules::applyAll($rules, $fileNames, 'file');
+                // Mit dem Pfad des Ordners (ab 1.4.0): Regeln koennen nur fuer
+                // bestimmte Ordner gelten, eigene Namen fuer einzelne Eintraege
+                $shownDirs = NameRules::applyAll($rules, $dirNames, 'dir', $relative);
+                $shownFiles = NameRules::applyAll($rules, $fileNames, 'file', $relative, $realNames);
             }
             foreach ($listing as $child) {
                 $name = $child->getName();

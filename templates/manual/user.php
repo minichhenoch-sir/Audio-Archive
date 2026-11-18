@@ -254,48 +254,71 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li>ob <strong>Offline speichern</strong> und <strong>Herunterladen</strong> erlaubt sind,</li>
     <li>Wiederholen-Vorgabe, Titel, Text über den Aufnahmen (auf Wunsch mit ✕ ausblendbar) und Gestaltung.</li>
   </ul>
-  <h3>Namen anders anzeigen (Muster)</h3>
-  <p>Unter <strong>„Namen anzeigen (Muster)“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
-  erscheinen – die Dateien selbst bleiben unverändert. Eine Regel hat ein <strong>Muster</strong>, eine
-  <strong>Anzeige</strong> und auf Wunsch eine Liste mit <strong>Werten zum Ersetzen</strong>. Beispiel:</p>
+  <h3>Namen anders anzeigen</h3>
+  <p>Unter <strong>„Namen anzeigen“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
+  erscheinen – die Dateien selbst bleiben unverändert. Dafür gibt es einen <strong>Baukasten</strong>; Klammern
+  muss niemand tippen:</p>
+  <ol>
+    <li><strong>Beispiel wählen:</strong> „+ Regel“ tippen, einen Namen aus dem Ordner wählen (oder eintippen) und
+    „Zerlegen“ tippen. Die App teilt ihn an <code>_</code>, <code>-</code>, Punkt und Leerzeichen in Teile und
+    erkennt ein Datum von selbst.</li>
+    <li><strong>Was bedeuten die Teile?</strong> Für jeden Teil wählen: <em>Text</em>, <em>Datum</em>,
+    <em>immer gleich</em> oder <em>weglassen</em> – und auf Wunsch einen Namen vergeben (z. B. „Tag“). Ein Tipp auf ein
+    Trennzeichen verbindet zwei Teile zu einem (z. B. „Psalm_23“ als ein Titel); ✂ trennt Buchstaben von Ziffern.</li>
+    <li><strong>Was soll angezeigt werden?</strong> Teile per „+“ hinzufügen, mit ← → ordnen, mit ✕ entfernen,
+    mit „+ Text“ eigenen Text einfügen. Beim Datum das Format wählen – aus der Liste oder als eigenes Format.</li>
+    <li><strong>Werte übersetzen</strong> (optional): Die App listet die Werte, die in den Namen vorkommen, z. B. „So“ –
+    daneben eintragen, was erscheinen soll („Sonntag“).</li>
+    <li><strong>Wo die Regel gilt:</strong> Dateien und/oder Ordner, die ganze Freigabe oder nur ein bestimmter Ordner
+    (mit oder ohne Unterordner), alle Ebenen oder nur eine Ebene, dazu Ausnahmen.</li>
+  </ol>
   <table class="m-table">
     <tbody>
-      <tr><td>Muster</td><td><code>{Kürzel:3}_{Datum}_{Titel}</code></td></tr>
-      <tr><td>Anzeige</td><td><code>{Titel} – {Kürzel}, {Datum}</code></td></tr>
-      <tr><td>Werte ersetzen</td><td><code>GDB = Gottesdienst</code></td></tr>
-      <tr><td>Ergebnis</td><td><code>GDB_2026-05-12_Psalm_23</code> → „Psalm 23 – Gottesdienst, 12. Mai 2026“</td></tr>
+      <tr><td>Beispielname</td><td><code>GBO_2026-05-17_So_mp3_a</code></td></tr>
+      <tr><td>Teile</td><td>GBO <em>weglassen</em> · 2026-05-17 <em>Datum</em> · So <em>Text „Tag“</em> ·
+      mp3 <em>immer gleich</em> · a <em>Text „Zeit“</em></td></tr>
+      <tr><td>Anzeige</td><td>Datum (Format <code>TT.MM</code>) · Tag · Zeit (<em>nur wenn mehrere</em>)</td></tr>
+      <tr><td>Werte</td><td>So → Sonntag · a → Vormittag · b → Abend</td></tr>
+      <tr><td>Ergebnis</td><td>„17.05 Sonntag Vormittag“ und „17.05 Sonntag Abend“ – gibt es an einem Tag nur eine
+      Aufnahme, nur „10.05 Sonntag“</td></tr>
+    </tbody>
+  </table>
+  <p><strong>Datum:</strong> Zur Auswahl stehen fertige Formate (z. B. „17. Mai 2026“, „17.05.2026“, „Mai 2026“,
+  „So, 17.05.2026“, „2026-05-17“, „05/17/2026“) oder ein eigenes Format aus diesen Bausteinen:</p>
+  <table class="m-table">
+    <thead><tr><th>Baustein</th><th>Bedeutung</th><th>Beispiel</th></tr></thead>
+    <tbody>
+      <tr><td><code>T</code> / <code>TT</code></td><td>Tag / zweistellig</td><td>7 / 07</td></tr>
+      <tr><td><code>M</code> / <code>MM</code></td><td>Monat als Zahl / zweistellig</td><td>5 / 05</td></tr>
+      <tr><td><code>MMM</code> / <code>MMMM</code></td><td>Monatsname kurz / lang</td><td>Mai / Mai</td></tr>
+      <tr><td><code>JJ</code> / <code>JJJJ</code></td><td>Jahr zweistellig / vierstellig</td><td>26 / 2026</td></tr>
+      <tr><td><code>WW</code> / <code>WWWW</code></td><td>Wochentag kurz / lang</td><td>So / Sonntag</td></tr>
+      <tr><td><code>'Text'</code></td><td>Text in Hochkommas bleibt, wie er ist</td><td><code>'am' T.M.</code> → am 17.5.</td></tr>
     </tbody>
   </table>
   <ul>
-    <li>Platzhalter im Muster: <code>{x}</code> beliebiger Text, <code>{x:3}</code> genau 3 Zeichen,
-    <code>{x:Zahl}</code>, <code>{x:Buchstaben}</code>, <code>{x:Wort}</code>, <code>{x:Datum}</code>
-    (<code>{Datum}</code> ist immer ein Datum). Alles andere muss so im Namen stehen; Groß-/Kleinschreibung zählt nicht,
-    Leerzeichen und Unterstrich gelten als gleich.</li>
-    <li>In der Anzeige: dieselben Namen, dazu <code>{Datum:kurz}</code> (12.05.2026), <code>{Datum:Jahr}</code>,
-    <code>{Datum:Monat}</code>, <code>{x:groß}</code>, <code>{x:klein}</code>, <code>{x:Anfang}</code> und
-    <code>{Name}</code> für den ganzen ursprünglichen Namen.</li>
-    <li><code>{x:mehrere}</code>: x erscheint nur, wenn es im selben Ordner einen Namen gibt, der sich nur in x
-    unterscheidet – etwa Vormittag und Abend am selben Tag. Gibt es an dem Tag nur einen, entfällt x. Text in eckigen
-    Klammern <code>[ … ]</code> entfällt ganz, wenn alle Platzhalter darin leer sind. Mehrere Zusätze mit Komma:
-    <code>{x:mehrere,groß}</code>.</li>
-    <li>Werte ersetzen: eine Zeile je Wert, <code>alt = neu</code>; nur für einen Platzhalter:
-    <code>Kürzel.GDB = Gottesdienst</code>.</li>
-    <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
-    passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau passende Namen aus dem geöffneten Ordner
-    und allen Unterordnern; im Feld „Namen ausprobieren“ lässt sich jeder beliebige Name testen.</li>
-    <li>Feste Zeichen wie <code>_</code> oder <code>-</code> stehen einfach so im Muster, ohne Klammern:
-    <code>{J:4}-{M:2}-{T:2}</code>.</li>
-    <li>Weitere Beispiele: Muster <code>{Datum}_mp3</code> mit Anzeige <code>{Datum}</code> macht aus
-    <code>2026_05_mp3</code> „Mai 2026“. Muster <code>{Ort:3}_{J:2}{M:2}{T:2}_{Tag}_mp3_{Zeit}</code> mit Anzeige
-    <code>{T}.{M} {Tag} {Zeit}</code> und den Werten <code>Tag.So = Sonntag</code>, <code>Zeit.a = Vormittag</code> macht aus
-    <code>GBO_260517_So_mp3_a</code> „17.05 Sonntag Vormittag“. Mit der Anzeige
-    <code>{T}.{M} {Tag}[ {Zeit:mehrere}]</code> steht „Vormittag“ nur dabei, wenn es am selben Tag noch einen
-    weiteren Gottesdienst gibt – sonst nur „17.05 Sonntag“.</li>
+    <li>Auch international: <code>D</code>/<code>DD</code> für den Tag, <code>Y</code>/<code>YY</code>/<code>YYYY</code>
+    für das Jahr. Punkt, Komma, Schrägstrich und Leerzeichen erscheinen, wie sie sind. Steht im Namen nur Jahr und
+    Monat (<code>2026-05</code>), entfallen Tag und Wochentag.</li>
+    <li><strong>Sprache</strong> der Monats- und Tagesnamen: je Regel wählbar – Deutsch, English, Français und viele
+    mehr, oder „Sprache des Hörers“ (dann sieht jeder die Namen in seiner Sprache).</li>
+    <li>Je Teil in der Anzeige: <strong>Schreibweise</strong> (wie im Namen, GROSS, klein, erster Buchstabe groß) und
+    <strong>nur wenn mehrere</strong> – der Teil erscheint nur, wenn es im selben Ordner einen sonst gleichen Namen
+    gibt.</li>
+    <li><strong>Eigene Namen:</strong> Unter „Eigene Namen für einzelne Ordner oder Aufnahmen“ einen Ordner oder eine
+    Aufnahme wählen und den Namen eintragen, der erscheinen soll. Das geht allen Regeln vor.</li>
+    <li>Mehrere Regeln sind möglich – die erste passende gilt (mit „↑ Nach oben“ ordnen), passt keine, bleibt der
+    Name. Jede Regel zeigt eine <strong>Vorschau</strong> mit Namen aus dem Ordner und allen Unterordnern; im Feld
+    „Namen ausprobieren“ lässt sich jeder Name testen. Die Übersicht aller Bausteine steht auch im Formular
+    („Übersicht: alle Bausteine“).</li>
     <li>Ordner-Regeln wirken überall, wo Ordner erscheinen: in der Liste, im Pfad, in der Seitenleiste, im Titel
     des Links (ohne eigenen Titel), im Player und bei „Mit mir geteilt“.</li>
-    <li>Die <strong>Suche</strong> findet auf solchen Freigaben die <strong>angezeigten</strong> Namen – nicht mehr die
-    Dateinamen. Titel, Künstler und Album aus der Datei werden weiter durchsucht. Sortiert wird nach den echten
-    Namen. Hat eine Aufnahme einen Titel in der Datei (Tags), zeigt der Player diesen.</li>
+    <li>Die <strong>Suche</strong> findet auf solchen Freigaben die <strong>angezeigten</strong> Namen. Titel, Künstler
+    und Album aus der Datei werden weiter durchsucht. Sortiert wird nach den echten Namen. Hat eine Aufnahme einen
+    Titel in der Datei (Tags), zeigt der Player diesen.</li>
+    <li><strong>Für Fortgeschrittene</strong> bleibt die Schreibweise mit Klammern aufklappbar (z. B. Muster
+    <code>{Kürzel:3}_{Datum}_{Titel}</code>, Anzeige <code>{Titel} – {Datum:"T. MMMM JJJJ"}</code>). Regeln aus
+    früheren Versionen erscheinen dort und gelten unverändert weiter.</li>
   </ul>
   <p>Alle deine Freigaben stehen unter <em>Einstellungen → Persönlich → Audio Archive</em>
   („Meine Freigaben“). Dort kannst du Links kopieren und Freigaben löschen.</p>

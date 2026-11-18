@@ -1830,6 +1830,140 @@ body.has-bg-image #audioarchive .explorer-row.active {
   overflow-wrap: anywhere;
 }
 
+/* Baukasten fuer Namensmuster (ab 1.4.0, Vikunja #72) */
+#audioarchive details.name-rule > summary.name-rule-summary {
+  cursor: pointer;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  padding: 2px 0;
+}
+#audioarchive details.name-rule[open] > summary.name-rule-summary { margin-bottom: 8px; }
+#audioarchive .nb-step { margin: 0 0 12px; }
+#audioarchive .nb-step-title {
+  margin: 0 0 6px;
+  font-weight: 600;
+  font-size: calc(0.9 * var(--aa-rem));
+}
+#audioarchive .nb-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+#audioarchive .nb-row > .panel-input { flex: 1 1 160px; min-width: 0; width: auto; }
+#audioarchive .nb-mini {
+  border: 1px solid var(--glass-light-border);
+  background: transparent;
+  color: inherit;
+  border-radius: calc(8px * var(--aa-rf, 1));
+  padding: 4px 9px;
+  font: inherit;
+  font-size: calc(0.82 * var(--aa-rem));
+  cursor: pointer;
+  min-height: 30px;
+}
+#audioarchive .nb-mini:hover { border-color: var(--aa-accent-on-surface, var(--color-accent-deep)); }
+#audioarchive .nb-mini.nb-primary {
+  background: var(--aa-accent-on-surface, var(--color-accent-deep));
+  border-color: transparent;
+  color: #fff;
+}
+#audioarchive .nb-parts { display: flex; flex-wrap: wrap; align-items: stretch; gap: 4px; margin-bottom: 6px; }
+#audioarchive .nb-part {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid var(--glass-light-border);
+  border-radius: calc(10px * var(--aa-rf, 1));
+  flex: 0 1 9.5em;
+  min-width: 0;
+  max-width: 100%;
+  position: relative;
+}
+#audioarchive .nb-part .nb-mini[title^="Zwischen"] { position: absolute; top: 3px; right: 3px; min-height: 22px; padding: 0 6px; }
+#audioarchive .nb-part.is-joined { border-style: dashed; }
+#audioarchive .nb-part-text {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+  font-variant-ligatures: none;
+}
+#audioarchive .nb-role-date { border-color: var(--aa-accent-on-surface, var(--color-accent-deep)); }
+#audioarchive .nb-role-skip .nb-part-text,
+#audioarchive .nb-role-fixed .nb-part-text { opacity: 0.6; }
+#audioarchive .nb-part .panel-input { padding: 3px 6px; min-height: 30px; font-size: calc(0.85 * var(--aa-rem)); }
+#audioarchive .nb-sep { align-self: center; min-width: 26px; padding: 2px 6px; font-weight: 700; }
+#audioarchive .nb-sep.is-joined { opacity: 0.6; font-weight: 400; }
+#audioarchive .nb-show {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: flex-start;
+  padding: 8px;
+  border: 1px dashed var(--glass-light-border);
+  border-radius: calc(10px * var(--aa-rf, 1));
+  margin-bottom: 6px;
+  min-height: 44px;
+}
+#audioarchive .nb-piece {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: calc(8px * var(--aa-rf, 1));
+  max-width: 100%;
+}
+#audioarchive .nb-piece.is-part {
+  background: color-mix(in srgb, var(--aa-accent-on-surface, var(--color-accent-deep)) 14%, transparent);
+}
+#audioarchive .nb-piece-name { font-weight: 600; }
+#audioarchive .nb-piece-opts { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+#audioarchive .nb-piece .panel-input { padding: 3px 6px; min-height: 30px; width: auto; font-size: calc(0.85 * var(--aa-rem)); }
+#audioarchive .nb-piece input.nb-text { min-width: 2.5em; width: auto; }
+#audioarchive .nb-piece.is-text { padding: 2px; }
+#audioarchive .nb-piece.is-text .nb-piece-tools .nb-mini { border: 0; padding: 0 4px; opacity: 0.6; }
+#audioarchive .nb-piece-tools { display: flex; gap: 3px; }
+#audioarchive .nb-piece-tools .nb-mini { min-height: 26px; padding: 2px 7px; }
+#audioarchive .nb-multi { font-size: calc(0.82 * var(--aa-rem)); }
+#audioarchive .nb-values-group { margin: 6px 0 8px; }
+#audioarchive .nb-values-head { margin: 0 0 4px; font-weight: 600; }
+#audioarchive .nb-values-group .nb-row { margin-bottom: 4px; }
+#audioarchive .nb-value-from { min-width: 70px; font-variant-ligatures: none; overflow-wrap: anywhere; }
+#audioarchive .nb-chips { list-style: none; margin: 6px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 6px; }
+#audioarchive .nb-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--glass-light-border);
+  overflow-wrap: anywhere;
+}
+#audioarchive .nb-chip .nb-mini { min-height: 24px; padding: 0 7px; border: 0; }
+#audioarchive .nb-field-hint { display: block; margin-top: 2px; }
+#audioarchive .nb-expert, #audioarchive .nb-values, #audioarchive .nb-legend { margin: 8px 0; }
+#audioarchive .nb-expert > summary, #audioarchive .nb-legend > summary,
+#audioarchive .nb-values > summary { cursor: pointer; }
+#audioarchive .nb-actions { justify-content: space-between; margin-top: 10px; }
+#audioarchive .nb-own { margin: 16px 0 8px; }
+#audioarchive .nb-own-row { margin-bottom: 6px; }
+#audioarchive .nb-own-row > .panel-input { flex: 1 1 140px; }
+#audioarchive .nb-legend-head { margin: 10px 0 4px; font-weight: 600; }
+#audioarchive .nb-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: calc(0.82 * var(--aa-rem));
+}
+#audioarchive .nb-table th, #audioarchive .nb-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 4px 6px;
+  border-bottom: 1px solid var(--glass-light-border);
+  overflow-wrap: anywhere;
+}
+#audioarchive .nb-table td:first-child { white-space: nowrap; font-variant-ligatures: none; }
+
 /* ===================== ORDNERBAUM (Seitenleiste) =====================
  *
  * Ohne Baum (oeffentliche Seite) sind die beiden Huellen wirkungslos

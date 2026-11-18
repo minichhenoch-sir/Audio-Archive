@@ -2290,3 +2290,49 @@ eigene Ansicht vor/nach gleich, Zahnrad zeigt „Modern“ mit den Farben,
 vier Link-Seiten spielen ab, Offline ohne Netz spielen alle drei ab der
 gemerkten Stelle, keine Skriptfehler.
 Einspielen: Container-Neustart; Datenbank-Update (`occ upgrade`) nötig.
+
+## 1.4.0: Namen einfacher – Baukasten, Datum frei, Regeln je Ordner
+
+Wunsch von Henoch (Chat, 18.11.2026, 13:53): Die Namensmuster sind zu
+kompliziert; die App ist weltweit nutzbar, feste Datumsregeln passen nicht;
+Bausteine als Tabelle in Formular und Anleitung; mehr Freiheit für einzelne
+Ordner und Dateien. Entscheidungen auf Rückfragen: Baukasten +
+Expertenfeld; Datum frei wählbar (Format und Sprache); Gültigkeit für ganze
+Freigabe, bestimmten Ordner, einzelne Datei/Ordner, Ausnahmen, nur
+Dateien/Ordner, bestimmte Ebene; nur die Namensmuster umbauen (Vikunja #72).
+
+- **Regeln** (`js/name-rules.js`, `lib/Service/NameRules.php`, gleich gebaut
+  und gegeneinander getestet): neue Felder `lang` ('' = Sprache des Hörers;
+  fehlt bei alten Regeln = Deutsch wie bisher), `where` {path, sub}, `level`,
+  `except`, `builder`; eigene Namen als `{kind: 'name', target, path, name}`
+  in derselben Liste, gehen allen Regeln vor. Pfade relativ zum geteilten
+  Ordner; Dateien werden auch ohne Endung erkannt.
+- **Datum:** `{x:"T. MMMM JJJJ"}` bzw. `{x:TT.MM.JJJJ}` – Bausteine T/TT, M/MM,
+  MMM/MMMM, JJ/JJJJ, WW/WWWW (auch D/DD, Y/YY/YYYY), `'Text'` bleibt; Namen
+  über `Intl.DateTimeFormat` bzw. `IntlDateFormatter` (Rückfall Deutsch).
+  Nur Jahr+Monat: Tag und Wochentag entfallen samt Trennzeichen.
+- **Aufrufe mit Pfad:** `apply(rules, name, kind, path)`,
+  `applyAll(rules, names, kind, parent, realNames)`, `remember(…, path)`;
+  in `app.js` alle `prettyFolderName`/`fileLabel`/`seedNames`/`shownPath`/
+  `prettyPath` mit vollem Pfad; Server-Suche (`ListController::search`) mit
+  Ordnerpfad und echten Dateinamen; `showFolder` = Pfad ''.
+- **Baukasten** im Teilen-Formular: Beispiel zerlegen (`splitSample`: an
+  `_ - .` und Leerzeichen, Datum am Stück, Endungen wie „mp3“ = immer gleich),
+  Teile verbinden/teilen, Anzeige aus Teilen + Text (zwischen zwei Teilen
+  automatisch ein Leerzeichen; „nur wenn mehrere“ setzt `[ … ]`), Werte
+  übersetzen (gefundene Werte je Teil), Bereich/Ebene/Ausnahmen mit
+  Vorschlagslisten aus `/api/names`, eigene Namen, Übersichtstabelle.
+  `generate()` erzeugt Muster/Anzeige/Werte; Änderungen im Expertenfeld
+  schalten den Baukasten für die Regel aus.
+- **Startliste:** Kommen die Regeln einer Freigabe erst nach dem ersten
+  Zeichnen (Start direkt in der Freigabe seit 1.3.0), zeichnet `Incoming.load`
+  Liste und Pfad neu.
+- **Server:** `ShareService::normalizeNameRules` übernimmt die neuen Felder
+  (höchstens 30 Regeln + 500 eigene Namen, `builder` ≤ 20 KB).
+
+Geprüft in Sandbox-NC 34.0.3: alte Regeln gleiche Anzeige wie 1.3.0 (auch bei
+englischer Browsersprache), JS = PHP in 14 Fällen (Bereich, Ebene, Ausnahme,
+eigene Namen, Formate in de/en/fr/es), Henochs GBO-Regel nur per Baukasten →
+„10.05 Sonntag“, „17.05 Sonntag Vormittag/Abend“ bei bob, auf der Link-Seite
+und in der Server-Suche; alte Regel im Expertenbereich.
+Einspielen: Container-Neustart; keine Datenbankänderung.

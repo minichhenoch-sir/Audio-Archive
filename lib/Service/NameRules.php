@@ -26,24 +26,30 @@ class NameRules {
     /**
      * Anzeigename nach den Regeln, oder null wenn keine passt. Ohne Blick
      * auf die Nachbarn - {x:mehrere} bleibt sichtbar; dafuer applyAll().
+     * $path: Pfad des Namens im geteilten Ordner (ab 1.4.0, fuer Bereiche
+     * und eigene Namen); null = der Name selbst.
      *
      * @param list<array> $rules
      * @param string $kind 'file' oder 'dir'
      */
-    public static function apply(array $rules, string $name, string $kind): ?string {
+    public static function apply(array $rules, string $name, string $kind, ?string $path = null): ?string {
         if ($rules === [] || $name === '') {
             return null;
         }
+        $where = $path === null ? $name : self::cleanPath($path);
         // Fertige Namen merken (ab 1.2.2)
-        $key = md5(serialize($rules)) . '|' . $kind . '|' . $name;
+        $key = md5(serialize($rules)) . '|' . $kind . '|' . $where . '|' . $name;
         if (array_key_exists($key, self::$results)) {
             return self::$results[$key];
         }
         if (count(self::$results) > 20000) {
             self::$results = [];
         }
-        $m = self::match($rules, $name, $kind);
-        $shown = $m === null ? null : self::render($m['rule'], $m['slots'], $m['values'], $name, []);
+        $shown = self::overrideFor($rules, $kind, $where);
+        if ($shown === null) {
+            $m = self::match($rules, $name, $kind, $where);
+            $shown = $m === null ? null : self::render($m['rule'], $m['slots'], $m['values'], $name, []);
+        }
         return self::$results[$key] = ($shown === '' ? null : $shown);
     }
 
@@ -53,22 +59,32 @@ class NameRules {
     /**
      * Alle Namen eines Ordners auf einmal (ab 1.2.3): wie apply(), dazu
      * {x:mehrere} - x entfaellt, wenn kein Nachbar sich nur in x unterscheidet.
+     * $parent: Pfad des Ordners (ab 1.4.0); $realNames: echte Dateinamen
+     * (mit Endung) in derselben Reihenfolge, falls bekannt.
      *
      * @param list<string> $names
+     * @param list<string>|null $realNames
      * @return array<string, string|null>
      */
-    public static function applyAll(array $rules, array $names, string $kind): array {
+    public static function applyAll(array $rules, array $names, string $kind, ?string $parent = null, ?array $realNames = null): array {
         $out = [];
         if ($rules === []) {
             return $out;
         }
         $found = [];
-        foreach ($names as $name) {
+        foreach (array_values($names) as $i => $name) {
             $name = (string)$name;
             if ($name === '') {
                 continue;
             }
-            $m = self::match($rules, $name, $kind);
+            $real = $realNames !== null && isset($realNames[$i]) ? (string)$realNames[$i] : $name;
+            $where = $parent === null ? $name : self::join($parent, $real);
+            $own = self::overrideFor($rules, $kind, $where);
+            if ($own !== null) {
+                $out[$name] = $own;
+                continue;
+            }
+            $m = self::match($rules, $name, $kind, $where);
             if ($m === null) {
                 $out[$name] = null;
             } else {
@@ -107,14 +123,13 @@ class NameRules {
     }
 
     /** @return array{rule: array, index: int, slots: list<array>, values: array<string, string>}|null */
-    private static function match(array $rules, string $name, string $kind): ?array {
+    private static function match(array $rules, string $name, string $kind, string $path): ?array {
         foreach ($rules as $index => $rule) {
-            $pattern = (string)($rule['pattern'] ?? '');
-            if ($pattern === '') {
+            if (!is_array($rule) || self::isOverride($rule)) {
                 continue;
             }
-            $applies = (string)($rule['applies'] ?? 'both');
-            if (($kind === 'dir' && $applies === 'files') || ($kind === 'file' && $applies === 'folders')) {
+            $pattern = (string)($rule['pattern'] ?? '');
+            if ($pattern === '' || !self::covers($rule, $kind, $path)) {
                 continue;
             }
             $c = self::compile($pattern);
@@ -126,6 +141,78 @@ class NameRules {
                 $values[self::lower($slot['name'])] = $m[$i + 1] ?? '';
             }
             return ['rule' => $rule, 'index' => (int)$index, 'slots' => $c['slots'], 'values' => $values];
+        }
+        return null;
+    }
+
+    // ---- Wo eine Regel gilt (ab 1.4.0), wie in js/name-rules.js ----
+
+    public static function cleanPath(string $p): string {
+        return trim((string)preg_replace('#/+#', '/', str_replace('\\', '/', $p)), '/');
+    }
+
+    private static function join(string $parent, string $name): string {
+        $p = self::cleanPath($parent);
+        return $p === '' ? $name : $p . '/' . $name;
+    }
+
+    private static function stripExt(string $p): string {
+        return (string)preg_replace('/\.[A-Za-z0-9]{1,5}$/', '', $p);
+    }
+
+    private static function samePath(string $a, string $b, string $kind): bool {
+        return $a === $b || ($kind === 'file' && self::stripExt($a) === self::stripExt($b));
+    }
+
+    private static function depth(string $p): int {
+        return $p === '' ? 0 : count(explode('/', $p));
+    }
+
+    private static function isOverride(array $rule): bool {
+        return ($rule['kind'] ?? '') === 'name';
+    }
+
+    private static function covers(array $rule, string $kind, string $path): bool {
+        $applies = (string)($rule['applies'] ?? 'both');
+        if (($kind === 'dir' && $applies === 'files') || ($kind === 'file' && $applies === 'folders')) {
+            return false;
+        }
+        $p = self::cleanPath($path);
+        $where = is_array($rule['where'] ?? null) ? $rule['where'] : null;
+        $area = $where !== null ? self::cleanPath((string)($where['path'] ?? '')) : '';
+        if ($area !== '') {
+            $sub = ($where['sub'] ?? true) !== false;
+            $slash = strrpos($p, '/');
+            $parent = $slash === false ? '' : substr($p, 0, $slash);
+            if ($sub ? !str_starts_with($p, $area . '/') : $parent !== $area) {
+                return false;
+            }
+        }
+        $level = (int)($rule['level'] ?? 0);
+        if ($level > 0 && self::depth($p) - self::depth($area) !== $level) {
+            return false;
+        }
+        foreach (is_array($rule['except'] ?? null) ? $rule['except'] : [] as $e) {
+            $x = self::cleanPath((string)$e);
+            if ($x !== '' && (self::samePath($p, $x, $kind) || str_starts_with($p, $x . '/'))) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static function overrideFor(array $rules, string $kind, string $path): ?string {
+        $p = self::cleanPath($path);
+        foreach ($rules as $rule) {
+            if (!is_array($rule) || !self::isOverride($rule) || (string)($rule['name'] ?? '') === '') {
+                continue;
+            }
+            if ((($rule['target'] ?? '') === 'file') !== ($kind === 'file')) {
+                continue;
+            }
+            if (self::samePath($p, self::cleanPath((string)($rule['path'] ?? '')), $kind)) {
+                return (string)$rule['name'];
+            }
         }
         return null;
     }
@@ -149,19 +236,36 @@ class NameRules {
         return self::$multi[$display];
     }
 
-    /** @return array{multi: bool, fmt: string} */
+    /**
+     * Zusaetze {x:mehrere,groß,"T. MMMM JJJJ"} (Datumsformat ab 1.4.0).
+     *
+     * @return array{multi: bool, kase: string, date: string}
+     */
     private static function splitOpt(string $raw): array {
-        $parts = array_values(array_filter(array_map(
-            static fn ($p) => self::lower(trim($p)), explode(',', $raw)
-        ), static fn ($p) => $p !== ''));
-        $fmt = '';
-        foreach ($parts as $p) {
-            if ($p !== 'mehrere') {
-                $fmt = $p;
-                break;
+        $date = '';
+        if (preg_match('/"([^"]*)"/u', $raw, $q)) {
+            $date = $q[1];
+            $raw = str_replace($q[0], '', $raw);
+        }
+        $multi = false;
+        $kase = '';
+        foreach (explode(',', $raw) as $p) {
+            $p = trim($p);
+            if ($p === '') {
+                continue;
+            }
+            $low = self::lower($p);
+            if ($low === 'mehrere') {
+                $multi = true;
+            } elseif (in_array($low, ['groß', 'gross', 'klein', 'anfang'], true)) {
+                $kase = $low;
+            } elseif (in_array($low, ['kurz', 'lang', 'jahr', 'monat', 'tag', 'iso'], true)) {
+                $date = $date !== '' ? $date : $low;
+            } elseif ($date === '' && preg_match("/^(?:'[^']*'|[TMJWDY.\\s\\/:-])+$/u", $p)) {
+                $date = $p;
             }
         }
-        return ['multi' => in_array('mehrere', $parts, true), 'fmt' => $fmt];
+        return ['multi' => $multi, 'kase' => $kase, 'date' => $date];
     }
 
     /** Name nach den Regeln, sonst unveraendert. */
@@ -188,9 +292,16 @@ class NameRules {
             if (!in_array($name, $names, true)) {
                 $names[] = $name;
             }
-            return self::applyAll($rules, $names, 'dir')[$name] ?? $name;
+            // Der geteilte Ordner selbst hat den Pfad '' (ab 1.4.0)
+            $own = self::overrideFor($rules, 'dir', '');
+            if ($own !== null) {
+                return $own;
+            }
+            $shown = self::applyAll($rules, $names, 'dir')[$name] ?? null;
+            $m = self::match($rules, $name, 'dir', '');
+            return $m === null ? $name : ($shown ?? $name);
         } catch (\Throwable $e) {
-            return self::show($rules, $name, 'dir');
+            return self::apply($rules, $name, 'dir', '') ?? $name;
         }
     }
 
@@ -200,14 +311,15 @@ class NameRules {
             return $path;
         }
         $parts = explode('/', $path);
+        $out = $parts;
         $last = count($parts) - 1;
         foreach ($parts as $i => $part) {
             $kind = $i === $last ? $lastKind : 'dir';
             $base = $kind === 'file' ? self::withoutExtension($part) : $part;
-            $shown = self::apply($rules, $base, $kind);
-            $parts[$i] = $shown ?? $part;
+            $shown = self::apply($rules, $base, $kind, implode('/', array_slice($parts, 0, $i + 1)));
+            $out[$i] = $shown ?? $part;
         }
-        return implode('/', $parts);
+        return implode('/', $out);
     }
 
     public static function withoutExtension(string $file): string {
@@ -284,12 +396,15 @@ class NameRules {
             $types[self::lower($slot['name'])] = $slot['type'];
         }
         $spaces = ($rule['spaces'] ?? true) !== false;
-        $one = static function (string $rawName, string $rawOpt) use ($values, $types, $map, $spaces, $original, $hidden): string {
+        // Alte Regeln (vor 1.4.0) ohne Sprache: Deutsch wie bisher
+        $lang = array_key_exists('lang', $rule) ? (string)$rule['lang'] : 'de';
+        $one = static function (string $rawName, string $rawOpt) use ($values, $types, $map, $spaces, $original, $hidden, $lang): string {
             $lower = self::lower(trim($rawName));
             if (isset($hidden[$lower])) {
                 return '';
             }
-            $opt = self::splitOpt($rawOpt)['fmt'];
+            $o = self::splitOpt($rawOpt);
+            $opt = $o['kase'];
             if (array_key_exists($lower, $values)) {
                 $value = (string)$values[$lower];
             } elseif ($lower === 'name') {
@@ -304,10 +419,10 @@ class NameRules {
             if (isset($map['all'][$key])) {
                 return self::applyCase($map['all'][$key], $opt);
             }
-            if (($types[$lower] ?? '') === 'datum' || in_array($opt, ['kurz', 'lang', 'jahr', 'monat', 'tag', 'iso'], true)) {
+            if (($types[$lower] ?? '') === 'datum' || $o['date'] !== '') {
                 $date = self::parseDate($value);
                 if ($date !== null) {
-                    return self::formatDate($date, $opt);
+                    return self::applyCase(self::formatDate($date, $o['date'], $lang), $opt);
                 }
             }
             if ($spaces) {
@@ -385,16 +500,89 @@ class NameRules {
         return ($m < 1 || $m > 12 || $d < 0 || $d > 31) ? null : ['y' => $y, 'm' => $m, 'd' => $d];
     }
 
-    private static function formatDate(array $date, string $how): string {
+    private static function formatDate(array $date, string $how, string $lang = 'de'): string {
         $two = static fn (int $n): string => str_pad((string)$n, 2, '0', STR_PAD_LEFT);
         return match ($how) {
             'kurz' => $date['d'] ? $two($date['d']) . '.' . $two($date['m']) . '.' . $date['y'] : $two($date['m']) . '.' . $date['y'],
             'jahr' => (string)$date['y'],
-            'monat' => self::MONTHS[$date['m'] - 1],
+            'monat' => self::localName('month', $date['m'], $lang, true),
             'tag' => $date['d'] ? (string)$date['d'] : '',
             'iso' => $date['y'] . '-' . $two($date['m']) . ($date['d'] ? '-' . $two($date['d']) : ''),
-            default => ($date['d'] ? $date['d'] . '. ' : '') . self::MONTHS[$date['m'] - 1] . ' ' . $date['y'],
+            '', 'lang' => ($date['d'] ? $date['d'] . '. ' : '') . self::localName('month', $date['m'], $lang, true) . ' ' . $date['y'],
+            default => self::customDate($date, $how, $lang),
         };
+    }
+
+    /** Eigenes Datumsformat ("T. MMMM JJJJ"), ab 1.4.0 - wie js/name-rules.js. */
+    private static function customDate(array $date, string $fmt, string $lang): string {
+        $two = static fn (int $n): string => str_pad((string)$n, 2, '0', STR_PAD_LEFT);
+        if (!$date['d']) {
+            $fmt = (string)preg_replace('#(WWWW|WW|TT|T|DD|D)[\s.,/-]*#u', '', $fmt);
+            $fmt = (string)preg_replace('#^[\s.,/-]+|[\s.,/-]+$#u', '', $fmt);
+        }
+        $wd = $date['d'] ? (int)gmdate('w', gmmktime(0, 0, 0, $date['m'], $date['d'], $date['y'])) : 0;
+        return (string)preg_replace_callback("/'[^']*'|WWWW|WW|MMMM|MMM|MM|M|TT|T|DD|D|JJJJ|JJ|YYYY|YY/u",
+            static function (array $t) use ($date, $lang, $wd, $two): string {
+                $t = $t[0];
+                if ($t[0] === "'") {
+                    return substr($t, 1, -1);
+                }
+                return match ($t) {
+                    'WWWW' => self::localName('day', $wd, $lang, true),
+                    'WW' => self::localName('day', $wd, $lang, false),
+                    'MMMM' => self::localName('month', $date['m'], $lang, true),
+                    'MMM' => self::localName('month', $date['m'], $lang, false),
+                    'MM' => $two($date['m']),
+                    'M' => (string)$date['m'],
+                    'TT', 'DD' => $two($date['d']),
+                    'T', 'D' => (string)$date['d'],
+                    'JJJJ', 'YYYY' => (string)$date['y'],
+                    'JJ', 'YY' => substr((string)$date['y'], -2),
+                    default => $t,
+                };
+            }, $fmt);
+    }
+
+    /** @var array<string, string> */
+    private static array $names = [];
+    private static ?string $hearer = null;
+
+    /** Sprache des Hoerers (Nextcloud bzw. Browser), fuer lang ''. */
+    private static function hearerLang(): string {
+        if (self::$hearer === null) {
+            try {
+                self::$hearer = (string)\OCP\Server::get(\OCP\L10N\IFactory::class)->findLanguage();
+            } catch (\Throwable $e) {
+                self::$hearer = 'de';
+            }
+        }
+        return self::$hearer !== '' ? self::$hearer : 'de';
+    }
+
+    /** Monats- bzw. Tagesname (Intl, Rueckfall Deutsch/Englisch). */
+    private static function localName(string $kind, int $n, string $lang, bool $long): string {
+        $loc = str_replace('-', '_', $lang !== '' ? $lang : self::hearerLang());
+        $key = $kind . '|' . $n . '|' . $loc . '|' . ($long ? 1 : 0);
+        if (isset(self::$names[$key])) {
+            return self::$names[$key];
+        }
+        $out = '';
+        if (class_exists(\IntlDateFormatter::class)) {
+            try {
+                $pattern = $kind === 'month' ? ($long ? 'LLLL' : 'LLL') : ($long ? 'cccc' : 'ccc');
+                $f = new \IntlDateFormatter($loc, \IntlDateFormatter::NONE, \IntlDateFormatter::NONE, 'UTC', null, $pattern);
+                $ts = $kind === 'month' ? gmmktime(0, 0, 0, $n, 15, 2001) : gmmktime(0, 0, 0, 1, 7 + $n, 2001);
+                $out = (string)$f->format($ts);
+            } catch (\Throwable $e) {
+                $out = '';
+            }
+        }
+        if ($out === '') {
+            $out = $kind === 'month'
+                ? ($long ? self::MONTHS[$n - 1] : mb_substr(self::MONTHS[$n - 1], 0, 3))
+                : ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][$n];
+        }
+        return self::$names[$key] = $out;
     }
 
     private static function applyCase(string $value, string $opt): string {
