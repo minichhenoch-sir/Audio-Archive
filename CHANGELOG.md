@@ -4,6 +4,17 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.5.0 – 2026-11-18
+
+### Changed
+- The share form is split into tabs: access, features, appearance, names
+- The share form stays open while browsing the subfolders of the shared
+  folder; list, path and sidebar already show the display names of the
+  unsaved rules. Leaving the shared folder with unsaved changes asks:
+  save, discard or cancel
+- Display names: values are translated right at the part of the name
+  (e.g. "So" → "Sonntag"), including values that do not occur yet
+
 ## 1.4.0 – 2026-11-18
 
 ### Added

@@ -2336,3 +2336,36 @@ eigene Namen, Formate in de/en/fr/es), Henochs GBO-Regel nur per Baukasten →
 „10.05 Sonntag“, „17.05 Sonntag Vormittag/Abend“ bei bob, auf der Link-Seite
 und in der Server-Suche; alte Regel im Expertenbereich.
 Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## 1.5.0: Teilen-Formular mit Tabs, offen beim Durchklicken
+
+Wünsche von Henoch (Chat, 18.11.2026, 14:31): Werte direkt beim Teil der
+Regel festlegen; Formular in Tabs; beim Durchklicken der Unterordner offen
+lassen – nur innerhalb des geteilten Ordners. Entscheidungen auf Rückfragen:
+Tabs Zugang · Funktionen · Aussehen · Namen; Namen live mit ungespeicherten
+Regeln; beim Verlassen nachfragen; „+ Wert“ für weitere Werte (Vikunja #73).
+
+- **Werte im Teil** (`js/name-rules.js`): Text-Teile zeigen „Anzeigen als“
+  mit den gefundenen Werten (`foundValues`) und „+ Wert“; der frühere
+  Schritt 4 entfällt. Gespeichert wie bisher in `builder.values` → `map`.
+- **Tabs** (`openForm` in `js/app.js`): die vier Gruppen werden zu Bereichen
+  mit Tab-Leiste (`.panel-tabs`, auf dem Handy waagerecht verschiebbar);
+  Fehler öffnen den passenden Tab; der zuletzt gewählte Tab bleibt beim
+  nächsten Bearbeiten.
+- **Offen bleiben:** `formState` {source, path, dirty, save}. `onFolderLoaded`
+  schließt nicht, solange `inScope()`. `navigate()` und `popstate` fragen über
+  `shareGuard` – ohne Änderungen wird still geschlossen, sonst Dialog
+  `.aa-confirm` (Speichern / Verwerfen / Abbrechen). Speichern ist jetzt
+  `doSave()` mit Rückgabewert.
+- **Live-Vorschau:** Der Baukasten meldet Änderungen (`editor(…, onChange)`,
+  gebündelt 250 ms); `namePreview` {source, rules} hat in `nameRulesFor()`
+  Vorrang. Die Regeln werden auf Pfade der aktuellen Ansicht umgerechnet
+  (`scopedRules`: Bereich = geteilter Ordner, Ausnahmen und eigene Namen mit
+  dessen Pfad davor). Liste, Pfad und `Tree.relabel()` zeichnen neu.
+
+Geprüft in Sandbox-NC 34.0.3 (Playwright): Tabs, „+ Wert“ Mo → Montag
+gespeichert, Unterordner mit offenem Formular und Live-Namen in der eigenen
+Ansicht, Verlassen → Dialog (Abbrechen bleibt, Verwerfen wechselt, Speichern
+speichert und wechselt), ohne Änderungen kein Dialog, neuer Link bleibt offen,
+Handy-Breite 390 px.
+Einspielen: Container-Neustart; keine Datenbankänderung.

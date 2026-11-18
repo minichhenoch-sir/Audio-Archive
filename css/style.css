@@ -1964,6 +1964,77 @@ body.has-bg-image #audioarchive .explorer-row.active {
 }
 #audioarchive .nb-table td:first-child { white-space: nowrap; font-variant-ligatures: none; }
 
+/* Tabs im Teilen-Formular (ab 1.5.0, Vikunja #73) */
+#audioarchive .panel-tabs {
+  display: flex;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  scrollbar-width: none;
+  gap: 4px;
+  margin: 10px 0 4px;
+  border-bottom: 1px solid var(--glass-light-border);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--glass-row-bg);
+}
+#audioarchive .panel-tab {
+  border: 0;
+  border-bottom: 3px solid transparent;
+  background: transparent;
+  color: var(--color-ink-soft);
+  font: inherit;
+  font-weight: 600;
+  padding: 8px 12px;
+  cursor: pointer;
+  min-height: 40px;
+}
+#audioarchive .panel-tab.is-active {
+  color: var(--color-ink);
+  border-bottom-color: var(--aa-accent-on-surface, var(--color-accent-deep));
+}
+#audioarchive .panel-tab-pane > legend { display: none; }
+#audioarchive .panel-tab { white-space: nowrap; flex: 0 0 auto; }
+@media (max-width: 480px) {
+  #audioarchive .panel-tab { padding: 8px 7px; font-size: calc(0.88 * var(--aa-rem)); }
+}
+#audioarchive .panel-tab-pane { margin-top: 8px; }
+
+/* Werte direkt im Teil (ab 1.5.0) */
+#audioarchive .nb-part.has-values { flex: 1 1 13em; }
+#audioarchive .nb-values { display: flex; flex-direction: column; gap: 3px; margin-top: 2px; }
+#audioarchive .nb-values-head { font-size: calc(0.78 * var(--aa-rem)); color: var(--color-ink-soft); }
+#audioarchive .nb-value-row { display: flex; align-items: center; gap: 4px; }
+#audioarchive .nb-value-row .nb-value-from { min-width: 2.6em; max-width: 45%; font-weight: 600; }
+#audioarchive .nb-value-row .panel-input { flex: 1 1 4em; min-width: 0; width: auto; padding: 3px 6px; min-height: 28px; }
+#audioarchive .nb-value-add .nb-value-new { flex: 0 1 4em; }
+#audioarchive .nb-value-add .nb-mini { white-space: nowrap; }
+
+/* Rueckfrage beim Verlassen des geteilten Ordners (ab 1.5.0) */
+#audioarchive .aa-confirm {
+  position: fixed;
+  inset: 0;
+  z-index: 10050;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.35);
+}
+#audioarchive .aa-confirm-box {
+  max-width: 420px;
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: calc(16px * var(--aa-rf, 1));
+  background: var(--glass-row-bg);
+  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--glass-light-border);
+  color: var(--color-ink);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+#audioarchive .aa-confirm-title { margin: 0 0 6px; font-weight: 700; font-size: calc(1.05 * var(--aa-rem)); }
+
 /* ===================== ORDNERBAUM (Seitenleiste) =====================
  *
  * Ohne Baum (oeffentliche Seite) sind die beiden Huellen wirkungslos

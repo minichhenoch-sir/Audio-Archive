@@ -1042,12 +1042,27 @@
   // schließt Zurück die App wie gewohnt.
   // ------------------------------------------------------------------
   function navigate(newPath, source = view.source) {
+    // Offenes Teilen-Formular mit Aenderungen: erst nachfragen (ab 1.5.0)
+    const guard = shareGuard ? shareGuard(source, newPath) : null;
+    if (guard) return guard.then((ok) => (ok ? goTo(newPath, source) : undefined));
+    return goTo(newPath, source);
+  }
+
+  function goTo(newPath, source) {
     if (searchApi && searchApi.active()) searchApi.clear();
     if (favApi && favApi.active()) favApi.close(false);
     view = { source, path: newPath };
     history.pushState({ view }, '');
     return loadLibrary(newPath, source);
   }
+
+  /*
+   * Teilen-Formular (ab 1.5.0): shareGuard(source, path) liefert null, wenn
+   * der Wechsel ohne Rueckfrage geht, sonst ein Promise<boolean>.
+   * namePreview: noch nicht gespeicherte Namensregeln fuer die Ansicht.
+   */
+  let shareGuard = null;
+  let namePreview = null;
 
   function startSource() {
     if (AudioArchive.isPublic() || !AudioArchive.loggedIn) return 'shared';
@@ -1086,6 +1101,8 @@
    */
   function nameRulesFor(source) {
     if (!window.AANameRules) return [];
+    // Teilen-Formular offen: so, wie es nach dem Speichern aussieht (ab 1.5.0)
+    if (namePreview && namePreview.source === source) return namePreview.rules;
     if (AudioArchive.apiToken) return AudioArchive.nameRules;
     const share = Incoming.get(source);
     return share && Array.isArray(share.nameRules) ? share.nameRules : [];
@@ -1313,8 +1330,16 @@
 
   window.addEventListener('popstate', (e) => {
     if (mainScreen.hidden) return; // nicht relevant, solange nicht eingeloggt
-    view = (e.state && e.state.view) ? e.state.view : { source: startSource(), path: '' };
-    if (!view.source) view.source = 'shared';
+    const target = (e.state && e.state.view) ? e.state.view : { source: startSource(), path: '' };
+    if (!target.source) target.source = 'shared';
+    const guard = shareGuard ? shareGuard(target.source, target.path) : null;
+    if (guard) {
+      // Erst bleiben, nach der Antwort ggf. wechseln
+      history.pushState({ view }, '');
+      guard.then((ok) => { if (ok) goTo(target.path, target.source); });
+      return;
+    }
+    view = target;
     loadLibrary(view.path, view.source);
   });
 
@@ -4074,6 +4099,18 @@
         build();
       },
 
+      /** Angezeigte Ordnernamen neu berechnen (Live-Vorschau, ab 1.5.0). */
+      relabel() {
+        nodes.forEach((node) => {
+          if (!node.path || typeof node.source !== 'string' || node.source === 'shares' || node.source === 'incoming') return;
+          const text = node.item.querySelector('.tree-label-text');
+          if (!text) return;
+          const label = prettyFolderName(node.path.split('/').pop(), node.source, node.path);
+          text.textContent = label;
+          text.parentNode.title = label;
+        });
+      },
+
       /** "Meine Freigaben" neu laden (nach Anlegen/Loeschen). */
       refreshShares() {
         const node = nodes.get(key('shares', ''));
@@ -4235,9 +4272,93 @@
       return b;
     }
 
+    // Offenes Formular (ab 1.5.0): { source, path, dirty, save }
+    let formState = null;
+    let lastTab = 'access';
+
     function close() {
       panel.hidden = true;
       panel.textContent = '';
+      formState = null;
+      if (namePreview) {
+        namePreview = null;
+        refreshShownNames();
+      }
+    }
+
+    function inScope(source, path) {
+      if (!formState || source !== formState.source) return false;
+      const base = formState.path;
+      return base === '' || path === base || String(path).startsWith(base + '/');
+    }
+
+    /** Regeln einer Freigabe auf Pfade der aktuellen Ansicht umrechnen. */
+    function scopedRules(rules, base) {
+      if (!base) return rules;
+      const j = (x) => (x ? base + '/' + x : base);
+      return rules.map((r) => {
+        if (r.kind === 'name') return { ...r, path: j(r.path) };
+        const where = r.where && r.where.path ? { path: j(r.where.path), sub: r.where.sub !== false } : { path: base, sub: true };
+        return { ...r, where, except: (r.except || []).map(j) };
+      });
+    }
+
+    /** Noch nicht gespeicherte Namensregeln gleich in Liste, Pfad und Baum zeigen. */
+    function previewNames(rules) {
+      if (!formState) return;
+      namePreview = { source: formState.source, rules: scopedRules(rules || [], formState.path) };
+      refreshShownNames();
+    }
+
+    function refreshShownNames() {
+      if (!(searchApi && searchApi.active()) && !(favApi && favApi.active()) && Array.isArray(currentEntries)) renderEntries();
+      renderBreadcrumb();
+      Tree.relabel();
+    }
+
+    /** Rueckfrage beim Verlassen des geteilten Ordners mit Aenderungen. */
+    function askLeave() {
+      return new Promise((resolve) => {
+        const host = document.getElementById('audioarchive') || document.body;
+        const overlay = el('div', 'aa-confirm');
+        const box = el('div', 'aa-confirm-box');
+        box.setAttribute('role', 'alertdialog');
+        box.append(el('p', 'aa-confirm-title', 'Ungespeicherte Änderungen'),
+          el('p', 'panel-hint', 'Du verlässt den Ordner, den du gerade teilst. Sollen die Änderungen an der Freigabe gespeichert werden?'));
+        const row = el('div', 'panel-row');
+        const done = (value) => {
+          overlay.remove();
+          resolve(value);
+        };
+        row.append(
+          button('Speichern', 'panel-button--primary', async () => {
+            overlay.remove();
+            const ok = formState ? await formState.save() : true;
+            if (ok) close();
+            resolve(!!ok);
+          }),
+          button('Verwerfen', '', () => {
+            close();
+            done(true);
+          }),
+          button('Abbrechen', '', () => done(false))
+        );
+        box.appendChild(row);
+        overlay.appendChild(box);
+        host.appendChild(overlay);
+        row.querySelector('button').focus();
+      });
+    }
+
+    if (enabled) {
+      shareGuard = (source, path) => {
+        if (!formState || inScope(source, path)) return null;
+        if (!formState.dirty) {
+          close();
+          return null;
+        }
+        return askLeave();
+      };
     }
 
     function showError(target, message) {
@@ -4257,6 +4378,12 @@
 
     // ---------- Liste der Freigaben dieses Ordners ----------
     async function openList(highlightId) {
+      // Formular zu: keine Vorschau, keine Rueckfrage mehr
+      formState = null;
+      if (namePreview) {
+        namePreview = null;
+        refreshShownNames();
+      }
       panel.hidden = false;
       panel.textContent = '';
       panel.appendChild(el('h2', 'panel-title', 'Teilen: ' + folderName()));
@@ -4916,8 +5043,10 @@
       // Namensmuster (ab 1.2.0, Vikunja #67), Baukasten ab 1.4.0 (#72): Namen anders anzeigen.
       // Vorschau mit den Namen des geoeffneten Ordners.
       let rulesEditor = null;
+      let namesGroup = null;
       if (window.AANameRules) {
         const names = group('Namen anzeigen');
+        namesGroup = names;
         const samples = (currentEntries || []).map((e) => ({ name: e.name, kind: e.type === 'dir' ? 'dir' : 'file' }));
         // Vorschau auch mit den Namen aller Unterordner (ab 1.2.4)
         const namesFrom = { path: view.path, source: view.source };
@@ -4925,7 +5054,7 @@
           .then((res) => (res.ok ? res.json() : { groups: [] }))
           .then((data) => (Array.isArray(data.groups) ? data.groups : []));
         rulesEditor = window.AANameRules.editor(Array.isArray(st.nameRules) ? st.nameRules : [], samples,
-          offlineMode ? null : loadGroups);
+          offlineMode ? null : loadGroups, () => { if (rulesEditor) previewNames(rulesEditor.value()); });
         names.appendChild(rulesEditor.el);
         panel.appendChild(names);
       }
@@ -4935,7 +5064,8 @@
       panel.appendChild(error);
 
       const saveLabel = isNew ? (isInternal ? 'Teilen' : 'Link anlegen') : 'Speichern';
-      const save = button(saveLabel, 'panel-button--primary', async () => {
+      // Speichern liefert true/false (ab 1.5.0 auch fuer die Rueckfrage beim Verlassen)
+      const doSave = async () => {
         showError(error, '');
         const settings = {
           title: title.value,
@@ -4961,11 +5091,13 @@
         const rulesError = rulesEditor ? rulesEditor.error() : '';
         if (rulesError) {
           showError(error, 'Namensmuster: ' + rulesError);
-          return;
+          showTab('names');
+          return false;
         }
         if (isInternal && members.value().length === 0) {
           showError(error, 'Bitte mindestens eine Person oder Gruppe auswählen.');
-          return;
+          showTab('access');
+          return false;
         }
         const body = { settings, expires: expires.value };
         if (isInternal) {
@@ -4998,15 +5130,60 @@
           }
           Tree.refreshShares();
           openList(data.share ? data.share.id : null);
+          return true;
         } catch (err) {
           showError(error, err.message);
           save.disabled = false;
+          return false;
         }
-      });
+      };
+      const save = button(saveLabel, 'panel-button--primary', () => { doSave(); });
+
 
       const row = el('div', 'panel-row panel-actions');
       row.append(save, button('Abbrechen', '', () => openList()));
       panel.appendChild(row);
+
+      // Tabs statt eines langen Formulars (ab 1.5.0, Vikunja #73)
+      const panes = [['access', 'Zugang', access], ['functions', 'Funktionen', functions],
+        ['look', 'Aussehen', look], ['names', 'Namen', namesGroup]].filter((x) => x[2]);
+      const tabBar = el('div', 'panel-tabs');
+      tabBar.setAttribute('role', 'tablist');
+      const tabButtons = {};
+      panes.forEach(([id, label, pane]) => {
+        const t = el('button', 'panel-tab', label);
+        t.type = 'button';
+        t.setAttribute('role', 'tab');
+        t.addEventListener('click', () => showTab(id));
+        tabButtons[id] = t;
+        tabBar.appendChild(t);
+        pane.classList.add('panel-tab-pane');
+        pane.setAttribute('role', 'tabpanel');
+      });
+      panel.insertBefore(tabBar, panes[0][2]);
+      function showTab(id) {
+        if (!tabButtons[id]) id = panes[0][0];
+        lastTab = id;
+        panes.forEach(([pid, , pane]) => {
+          const on = pid === id;
+          pane.hidden = !on;
+          tabButtons[pid].classList.toggle('is-active', on);
+          tabButtons[pid].setAttribute('aria-selected', on ? 'true' : 'false');
+        });
+      }
+      showTab(isNew ? 'access' : lastTab);
+
+      // Offen bleiben in den Unterordnern; Aenderungen merken (ab 1.5.0)
+      formState = {
+        source: view.source,
+        path: view.path,
+        dirty: false,
+        save: doSave,
+      };
+      const markDirty = () => { if (formState) formState.dirty = true; };
+      panel.addEventListener('input', markDirty);
+      panel.addEventListener('change', markDirty);
+      if (rulesEditor) previewNames(rulesEditor.value());
       panel.scrollIntoView({ block: 'nearest' });
     }
 
@@ -5049,6 +5226,8 @@
           }).catch(() => openList());
           return;
         }
+        // Formular bleibt offen, solange man im geteilten Ordner bleibt (ab 1.5.0)
+        if (formState && inScope(view.source, view.path)) return;
         close();
       },
 

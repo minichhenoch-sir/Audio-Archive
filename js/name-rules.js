@@ -801,9 +801,17 @@ window.AANameRules = (() => {
    * @param {Array} samples Beispielnamen [{name, kind}] des geoeffneten Ordners
    * @param {function(): Promise<Array>} [loadGroups] liefert die Namen samt
    *        Unterordnern: [{path, dirs: [], files: []}]
+   * @param {function()} [onChange] bei jeder Aenderung (ab 1.5.0)
    * @returns {{el: HTMLElement, value: function(): Array, error: function(): string}}
    */
-  function editor(rules, samples, loadGroups) {
+  function editor(rules, samples, loadGroups, onChange) {
+    // Aenderungen melden (ab 1.5.0: Live-Vorschau in der Liste), gebuendelt
+    let changeTimer = null;
+    const changed = () => {
+      if (typeof onChange !== 'function') return;
+      clearTimeout(changeTimer);
+      changeTimer = setTimeout(() => onChange(), 250);
+    };
     const root = el('div', 'name-rules');
     root.appendChild(el('p', 'panel-hint',
       'Datei- und Ordnernamen anders anzeigen – die Dateien selbst bleiben, wie sie sind. Wähle einen Beispielnamen, '
@@ -922,8 +930,6 @@ window.AANameRules = (() => {
       const step2 = el('div', 'nb-step');
       // ---- 3. Anzeige
       const step3 = el('div', 'nb-step');
-      // ---- 4. Werte
-      const step4 = el('div', 'nb-step');
       // ---- 5. Gilt fuer
       const step5 = el('div', 'nb-step');
       step5.appendChild(el('p', 'nb-step-title', 'Wo die Regel gilt'));
@@ -1012,6 +1018,7 @@ window.AANameRules = (() => {
         items.splice(i - 1, 0, item);
         list.insertBefore(box, items[i].box);
         renumber();
+        changed();
       });
       const remove = el('button', 'panel-button panel-button--danger', 'Regel entfernen');
       remove.type = 'button';
@@ -1020,10 +1027,11 @@ window.AANameRules = (() => {
         if (i >= 0) items.splice(i, 1);
         box.remove();
         renumber();
+        changed();
       });
       actions.append(up, remove);
 
-      body.append(step1, step2, step3, step4, langWrap, step5,
+      body.append(step1, step2, step3, langWrap, step5,
         el('p', 'nb-step-title', 'Vorschau'), status, preview, labelled('Namen ausprobieren', tryInput), tryResult,
         expert, actions);
 
@@ -1057,7 +1065,6 @@ window.AANameRules = (() => {
       function renderBuilder() {
         step2.textContent = '';
         step3.textContent = '';
-        step4.textContent = '';
         if (!b) {
           expertNote.textContent = 'Diese Regel ist von Hand geschrieben. Zum Baukasten oben einen Beispielnamen wählen und „Zerlegen“ tippen.';
           expertNote.appendChild(document.createTextNode(' '));
@@ -1119,6 +1126,12 @@ window.AANameRules = (() => {
               card.appendChild(nm);
             }
           }
+          // Werte direkt beim Teil uebersetzen (ab 1.5.0, Wunsch von Henoch):
+          // gefundene Werte stehen schon da, weitere mit "+ Wert"
+          if (!joinedWithPrev && p.role === 'text') {
+            card.classList.add('has-values');
+            card.appendChild(valuesFor(p));
+          }
           // Buchstaben und Ziffern ohne Trennzeichen (z. B. So1) teilen
           let cut = -1;
           for (let k = 1; p.role === 'text' && !joinedWithPrev && k < p.text.length && cut < 0; k++) {
@@ -1138,7 +1151,8 @@ window.AANameRules = (() => {
         });
         step2.appendChild(row);
         step2.appendChild(el('p', 'panel-hint',
-          'Tipp: Auf ein Trennzeichen tippen verbindet zwei Teile zu einem (z. B. „Psalm_23“ als ein Titel).'));
+          'Bei Text-Teilen steht darunter, was angezeigt werden soll – z. B. „So“ als „Sonntag“; leer = wie im Namen. '
+          + 'Ein Tipp auf ein Trennzeichen verbindet zwei Teile zu einem (z. B. „Psalm_23“ als ein Titel).'));
 
         // ---- 3. Anzeige zusammenstellen
         step3.appendChild(el('p', 'nb-step-title', '3. Was soll angezeigt werden?'));
@@ -1242,54 +1256,71 @@ window.AANameRules = (() => {
           refresh();
         }));
         step3.appendChild(add);
-        renderValues();
       }
 
-      /** 4. Werte uebersetzen: gefundene Werte je Text-Teil. */
-      function renderValues() {
-        step4.textContent = '';
-        if (!b) return;
-        const textGroups = groupsOf(b).filter((g) => g.role === 'text');
-        if (!textGroups.length) return;
+      /** Werte, die in den Namen fuer diesen Teil vorkommen (hoechstens 40). */
+      function foundValues(part) {
+        const out = new Set();
         const g = generate(b);
         const c = compile(g.pattern);
-        if (c.error) return;
-        const found = {};
-        textGroups.forEach((tg) => { found[tg.id] = new Set(); });
+        if (c.error) return out;
+        const idx = c.slots.findIndex((x) => x.name.toLowerCase() === cleanName(part.name).toLowerCase());
+        if (idx < 0) return out;
         const kinds = applies.value === 'files' ? ['files'] : applies.value === 'folders' ? ['dirs'] : ['dirs', 'files'];
         groups.forEach((gr) => kinds.forEach((k) => (gr[k] || []).forEach((n) => {
+          if (out.size >= 40) return;
           const m = String(n).match(c.re);
-          if (!m) return;
-          textGroups.forEach((tg) => {
-            const idx = c.slots.findIndex((s) => s.name.toLowerCase() === cleanName(tg.name).toLowerCase());
-            if (idx >= 0 && found[tg.id].size < 40) found[tg.id].add(m[idx + 1]);
-          });
+          if (m) out.add(m[idx + 1]);
         })));
-        const details = el('details', 'nb-values');
-        const anySet = textGroups.some((tg) => b.values[tg.id] && Object.values(b.values[tg.id]).some((v) => v));
-        details.open = anySet;
-        details.appendChild(el('summary', 'nb-step-title', '4. Werte übersetzen (optional) – z. B. „So“ als „Sonntag“'));
-        textGroups.forEach((tg) => {
-          const vals = b.values[tg.id] = b.values[tg.id] || {};
-          const keys = [...new Set([...found[tg.id], ...Object.keys(vals)])].slice(0, 60);
-          if (!keys.length) return;
-          const wrap = el('div', 'nb-values-group');
-          wrap.appendChild(el('p', 'nb-values-head', tg.name));
-          keys.forEach((k) => {
-            const row = el('div', 'nb-row');
-            row.appendChild(el('span', 'nb-value-from', k));
-            row.appendChild(el('span', 'panel-hint', '→'));
-            const to = input(vals[k] || '', 'wie im Namen', 'nb-value-to');
-            to.addEventListener('input', () => {
-              vals[k] = to.value;
-              syncGenerated();
-            });
-            row.appendChild(to);
-            wrap.appendChild(row);
+        return out;
+      }
+
+      /** Werte uebersetzen direkt im Teil (ab 1.5.0): So → Sonntag, + Wert. */
+      function valuesFor(part) {
+        const box = el('div', 'nb-values');
+        const vals = b.values[part.id] = b.values[part.id] || {};
+        box.appendChild(el('span', 'nb-values-head', 'Anzeigen als'));
+        const keys = [...new Set([...foundValues(part), ...Object.keys(vals)])].slice(0, 60);
+        keys.forEach((k) => {
+          const row = el('div', 'nb-value-row');
+          row.appendChild(el('span', 'nb-value-from', k));
+          const to = input(vals[k] || '', 'wie im Namen', 'nb-value-to');
+          to.title = '„' + k + '“ anzeigen als …';
+          to.addEventListener('input', () => {
+            vals[k] = to.value;
+            syncGenerated();
           });
-          details.appendChild(wrap);
+          row.appendChild(to);
+          box.appendChild(row);
         });
-        if (details.childElementCount > 1) step4.appendChild(details);
+        // Weitere Werte, die (noch) nicht im Ordner vorkommen
+        const addRow = el('div', 'nb-value-row nb-value-add');
+        const from = input('', 'Wert', 'nb-value-new');
+        const to = input('', 'anzeigen als', 'nb-value-to');
+        const addBtn = smallButton('+ Wert', 'Weiteren Wert hinzufügen, z. B. Mo → Montag', () => {
+          const f = from.value.trim();
+          if (!f) {
+            from.focus();
+            return;
+          }
+          vals[f] = to.value.trim();
+          renderBuilder();
+          refresh();
+        });
+        [from, to].forEach((x) => x.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter') {
+            ev.preventDefault();
+            addBtn.click();
+          }
+        }));
+        addRow.append(from, to, addBtn);
+        box.appendChild(addRow);
+        return box;
+      }
+
+      function renderValues() {
+        // Werte stehen seit 1.5.0 in den Teilen - bei Aenderung neu zeichnen
+        if (b) renderBuilder();
       }
 
       /** Erzeugte Schreibweise und Vorschau nachziehen, ohne neu aufzubauen. */
@@ -1357,6 +1388,7 @@ window.AANameRules = (() => {
             + (groupsLoaded ? ' (hier und in den Unterordnern).' : ' – Unterordner werden noch durchsucht …');
         }
         preview.appendChild(sum);
+        changed();
         const t = tryInput.value.trim();
         if (t !== '') {
           // Ausprobieren ohne Ort: Bereich, Ebene und Ausnahmen gelten hier nicht
@@ -1433,7 +1465,9 @@ window.AANameRules = (() => {
       row.append(path, el('span', 'panel-hint', '→'), name, smallButton('✕', 'Eigenen Namen entfernen', () => {
         ownItems.splice(ownItems.indexOf(it), 1);
         row.remove();
+        changed();
       }));
+      [path, name].forEach((x) => x.addEventListener('input', changed));
       ownList.appendChild(row);
       ownItems.push(it);
     };

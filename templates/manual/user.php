@@ -237,6 +237,11 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <p>Mit Nextcloud-Konto kannst du Ordner weitergeben – sofern der Administrator dir das erlaubt.
   Ordner öffnen und über der Liste auf <strong>„Diesen Ordner teilen“</strong> tippen.
   Eine Freigabe umfasst immer auch alle Unterordner.</p>
+  <p>Die Einstellungen einer Freigabe stehen in vier <strong>Tabs</strong>: <em>Zugang</em> (Personen bzw. Link,
+  Passwort, Ablaufdatum), <em>Funktionen</em>, <em>Aussehen</em> und <em>Namen</em>. Solange das Formular offen ist,
+  kannst du durch die Unterordner des geteilten Ordners klicken – es bleibt offen, und die Liste zeigt die Namen schon
+  so, wie die Empfänger sie sehen werden, auch vor dem Speichern. Verlässt du den geteilten Ordner mit ungespeicherten
+  Änderungen, fragt die App: <em>Speichern</em>, <em>Verwerfen</em> oder <em>Abbrechen</em>.</p>
   <?php echo $figure('share.jpg', 'Einen Ordner teilen'); ?>
   <h3>Mit Personen und Gruppen</h3>
   <p><strong>„Mit Personen teilen“</strong> wählt Nextcloud-Nutzer oder Gruppen aus. Sie finden den Ordner
@@ -255,7 +260,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li>Wiederholen-Vorgabe, Titel, Text über den Aufnahmen (auf Wunsch mit ✕ ausblendbar) und Gestaltung.</li>
   </ul>
   <h3>Namen anders anzeigen</h3>
-  <p>Unter <strong>„Namen anzeigen“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
+  <p>Im Tab <strong>„Namen“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
   erscheinen – die Dateien selbst bleiben unverändert. Dafür gibt es einen <strong>Baukasten</strong>; Klammern
   muss niemand tippen:</p>
   <ol>
@@ -263,12 +268,13 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     „Zerlegen“ tippen. Die App teilt ihn an <code>_</code>, <code>-</code>, Punkt und Leerzeichen in Teile und
     erkennt ein Datum von selbst.</li>
     <li><strong>Was bedeuten die Teile?</strong> Für jeden Teil wählen: <em>Text</em>, <em>Datum</em>,
-    <em>immer gleich</em> oder <em>weglassen</em> – und auf Wunsch einen Namen vergeben (z. B. „Tag“). Ein Tipp auf ein
-    Trennzeichen verbindet zwei Teile zu einem (z. B. „Psalm_23“ als ein Titel); ✂ trennt Buchstaben von Ziffern.</li>
+    <em>immer gleich</em> oder <em>weglassen</em> – und auf Wunsch einen Namen vergeben (z. B. „Tag“). Bei einem
+    Text-Teil steht direkt darunter <strong>„Anzeigen als“</strong> mit den Werten, die im Ordner vorkommen: neben „So“
+    einfach „Sonntag“ eintragen. Mit <strong>„+ Wert“</strong> kommen weitere dazu, die (noch) nicht vorkommen,
+    z. B. „Mo“ → „Montag“. Leer = wie im Namen. Ein Tipp auf ein Trennzeichen verbindet zwei Teile zu einem
+    (z. B. „Psalm_23“ als ein Titel); ✂ trennt Buchstaben von Ziffern.</li>
     <li><strong>Was soll angezeigt werden?</strong> Teile per „+“ hinzufügen, mit ← → ordnen, mit ✕ entfernen,
     mit „+ Text“ eigenen Text einfügen. Beim Datum das Format wählen – aus der Liste oder als eigenes Format.</li>
-    <li><strong>Werte übersetzen</strong> (optional): Die App listet die Werte, die in den Namen vorkommen, z. B. „So“ –
-    daneben eintragen, was erscheinen soll („Sonntag“).</li>
     <li><strong>Wo die Regel gilt:</strong> Dateien und/oder Ordner, die ganze Freigabe oder nur ein bestimmter Ordner
     (mit oder ohne Unterordner), alle Ebenen oder nur eine Ebene, dazu Ausnahmen.</li>
   </ol>
