@@ -8,6 +8,7 @@ use OCA\AudioArchive\Service\Appearance;
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\BackgroundImage;
 use OCA\AudioArchive\Service\NameRules;
+use OCA\AudioArchive\Service\RichText;
 use OCA\AudioArchive\Service\ShareService;
 use OCP\Collaboration\Collaborators\ISearch;
 use OCP\IConfig;
@@ -178,7 +179,7 @@ class ShareController extends Controller {
                 }
             }
         } else {
-            $memberList = $this->shares->normalizeMembers($members, $uid);
+            $memberList = $this->shares->normalizeMembers($members, $uid, $this->groupManager->isAdmin($uid));
             if ($memberList === []) {
                 return new DataResponse(['error' => 'Bitte mindestens eine Person oder Gruppe auswählen.'], Http::STATUS_BAD_REQUEST);
             }
@@ -234,7 +235,10 @@ class ShareController extends Controller {
         }
 
         if ($share['kind'] === Application::SHARE_KIND_INTERNAL && $members !== null) {
-            $memberList = $this->shares->normalizeMembers($members, $share['creator']);
+            // "Alle angemeldeten Nutzer" waehlen nur Administratoren; steht
+            // es schon drin, darf es beim Bearbeiten bleiben (ab 1.3.0)
+            $allowAll = $this->groupManager->isAdmin((string)$this->uid()) || $this->shares->isForAll($share['id']);
+            $memberList = $this->shares->normalizeMembers($members, $share['creator'], $allowAll);
             if ($memberList === []) {
                 return new DataResponse(['error' => 'Bitte mindestens eine Person oder Gruppe auswählen.'], Http::STATUS_BAD_REQUEST);
             }
@@ -369,6 +373,10 @@ class ShareController extends Controller {
                 'allowReshare' => $settings['allowReshare'] && $this->shares->sharingAllowed(),
                 // Namensmuster des Teilenden (ab 1.2.0, Vikunja #67)
                 'nameRules' => $settings['nameRules'] ?? [],
+                // Text ueber den Aufnahmen der Freigabe (ab 1.3.0)
+                'notice' => RichText::toHtml((string)$settings['notice']),
+                'noticeClosable' => $this->shares->noticeClosable($settings),
+                'forAll' => $this->shares->isForAll($share['id']),
             ];
         }
 
@@ -554,7 +562,9 @@ class ShareController extends Controller {
         $members = [];
         if (!$isLink) {
             foreach ($this->shares->getMembers($share['id']) as $member) {
-                if ($member['type'] === 'user') {
+                if ($member['type'] === ShareService::MEMBER_ALL) {
+                    $label = 'Alle angemeldeten Nutzer';
+                } elseif ($member['type'] === 'user') {
                     $label = $this->userManager->getDisplayName($member['id']) ?? $member['id'];
                 } else {
                     $label = $this->groupManager->get($member['id'])?->getDisplayName() ?? $member['id'];

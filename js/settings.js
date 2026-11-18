@@ -28,22 +28,7 @@
 
   const el = (id) => document.getElementById(id);
 
-  const folder = el('aa-folder');
-  const folderOwner = el('aa-folder-owner');
-  const title = el('aa-title');
-  const subtitle = el('aa-subtitle');
-  const accent = el('aa-accent');
-  const bar = el('aa-bar');
-  const base = el('aa-base');
-  const noticeEnabled = el('aa-notice-enabled'); // ab 0.31.0 (Vikunja #39)
   const noticeClosable = el('aa-notice-closable'); // ab 1.0.5
-  // Ab 0.37.0 (Vikunja #49) mit Formatierungsleiste; .value liefert HTML
-  const betaText = window.AARichText ? window.AARichText.attach(el('aa-beta-text')) : el('aa-beta-text');
-  const betaLinkUrl = el('aa-beta-link-url');
-  const betaLinkLabel = el('aa-beta-link-label');
-  const customDesign = el('aa-custom-design');
-  const adminStyleEnabled = el('aa-admin-style-enabled');
-  const backgroundNextcloud = el('aa-background-nextcloud');
   const userCustomization = el('aa-user-customization');
   const userShares = el('aa-user-shares');
   const featureOffline = el('aa-feature-offline');
@@ -71,90 +56,10 @@
   const featureFolderDownload = el('aa-feature-folder-download');
   const transcode = el('aa-transcode');
   const rememberDays = el('aa-remember-days');
-  const sharedLabel = el('aa-shared-label');
   const status = el('aa-status');
 
   // ---------- Startwerte einsetzen ----------
-  folder.value = state.sourceFolder || '';
-  title.value = state.headerTitle || '';
-  subtitle.value = state.headerSubtitle || '';
-  accent.value = state.themeAccent || '#b9793f';
-  bar.value = state.themeBar || '#291c12';
-  base.value = state.themeBase || '#a86a3d';
-  noticeEnabled.checked = state.noticeEnabled === true;
   noticeClosable.checked = state.noticeClosable !== false;
-  betaText.value = state.betaText || '';
-  betaLinkUrl.value = state.betaLinkUrl || '';
-  betaLinkLabel.value = state.betaLinkLabel || '';
-  /*
-   * Gestaltung (ab 0.17): Vorgabe als Karten mit Vorschau. "Vom
-   * Administrator" ist nur waehlbar, solange sie angeboten wird.
-   */
-  const AAStyle = window.AAStyle;
-  let design = ['nextcloud', 'custom', 'admin'].includes(state.design) ? state.design : 'custom';
-  adminStyleEnabled.checked = state.adminStyleEnabled === true;
-  if (design === 'admin' && !adminStyleEnabled.checked) design = 'custom';
-
-  const modernThumb = () => AAStyle.modernThumb({ accent: accent.value, bar: bar.value, base: base.value });
-  let ncPrimary = '';
-  try {
-    ncPrimary = getComputedStyle(document.documentElement).getPropertyValue('--color-primary-element').trim();
-  } catch (e) { /* egal - dann Nextclouds Standardblau */ }
-
-  const adminEditor = AAStyle.createEditor({
-    value: state.adminStyle || AAStyle.DEFAULTS,
-    imageUrl: state.hasBackground ? OC.generateUrl('/apps/' + APP_ID + '/background') : '',
-    onChange(style) { cards.setThumb('admin', style); },
-  });
-  el('aa-admin-style').appendChild(adminEditor.el);
-
-  const cards = AAStyle.createDesignCards({
-    name: 'aa-design',
-    value: design,
-    options: [
-      { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design', style: AAStyle.classicThumb(ncPrimary) },
-      { value: 'custom', label: 'Modern', desc: 'Rund, Glas, Farben unten', style: modernThumb() },
-      { value: 'admin', label: 'Vom Administrator', desc: 'Frei eingestellt (unten)', style: adminEditor.get(), disabled: !adminStyleEnabled.checked },
-    ],
-    onChange(value) {
-      design = value;
-      updateDesignState();
-    },
-  });
-  el('aa-design-cards').appendChild(cards.el);
-
-  const palettes = AAStyle.createPalettePicker((p) => {
-    accent.value = p.accent;
-    bar.value = p.bar;
-    base.value = p.base;
-    cards.setThumb('custom', modernThumb());
-  }, { accent: accent.value, bar: bar.value, base: base.value });
-  el('aa-palettes').appendChild(palettes.el);
-  [accent, bar, base].forEach((input) => input.addEventListener('input', () => {
-    palettes.mark({ accent: accent.value, bar: bar.value, base: base.value });
-    cards.setThumb('custom', modernThumb());
-  }));
-
-  adminStyleEnabled.addEventListener('change', () => {
-    cards.setDisabled('admin', !adminStyleEnabled.checked);
-    if (!adminStyleEnabled.checked && design === 'admin') {
-      design = 'custom';
-      cards.set(design);
-    }
-    updateDesignState();
-  });
-
-  /*
-   * Farben fuer Modern wirken nur bei dieser Vorgabe (Nutzer koennen
-   * Modern aber auch selbst waehlen). Sie bleiben deshalb bedienbar -
-   * nur abgeblendet.
-   */
-  function updateDesignState() {
-    customDesign.classList.toggle('aa-inactive', design !== 'custom');
-  }
-  updateDesignState();
-
-  backgroundNextcloud.checked = state.backgroundNextcloud === true;
   userCustomization.checked = state.userCustomization !== false;
   userShares.checked = state.userShares !== false;
   featureOffline.checked = state.featureOffline !== false;
@@ -201,179 +106,6 @@
     ? 'ffmpeg ist vorhanden (' + state.ffmpegPath + ').'
     : 'ffmpeg ist auf diesem Server nicht installiert – die Umwandlung ist deshalb nicht möglich.';
   rememberDays.value = String([0, 7, 15, 30, 90].includes(state.rememberDays) ? state.rememberDays : 0);
-  sharedLabel.value = state.sharedLabel || '';
-
-  if (state.sourceFolderOwner) {
-    folderOwner.textContent =
-      'Die Aufnahmen werden aus den Dateien von „' + state.sourceFolderOwner
-      + '“ gelesen – auch für Links auf diesen Ordner.';
-  }
-
-
-  // ---------- Hintergrundbild ----------
-  const backgroundFile = el('aa-background-file');
-  const backgroundRemove = el('aa-background-remove');
-  const backgroundState = el('aa-background-state');
-
-  function showBackgroundState(hasImage) {
-    backgroundRemove.hidden = !hasImage;
-    backgroundState.textContent = hasImage
-      ? 'Ein Hintergrundbild ist gesetzt.'
-      : 'Kein Hintergrundbild gesetzt.';
-  }
-  showBackgroundState(state.hasBackground === true);
-
-  backgroundFile.addEventListener('change', async () => {
-    const file = backgroundFile.files[0];
-    if (!file) return;
-
-    backgroundState.textContent = 'Wird hochgeladen …';
-
-    // Klassischer Datei-Upload statt JSON - der Inhalt geht als FormData raus
-    const form = new FormData();
-    form.append('file', file);
-
-    try {
-      const res = await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/background'), {
-        method: 'POST',
-        headers: { requesttoken: OC.requestToken },
-        body: form,
-      });
-      const data = await res.json().catch(() => ({}));
-
-      if (!res.ok) {
-        backgroundState.textContent = data.error || 'Hochladen fehlgeschlagen.';
-        return;
-      }
-
-      showBackgroundState(true);
-      backgroundState.textContent = 'Hintergrundbild gespeichert.';
-    } catch (err) {
-      backgroundState.textContent = 'Verbindung fehlgeschlagen.';
-    } finally {
-      backgroundFile.value = '';
-    }
-  });
-
-  backgroundRemove.addEventListener('click', async () => {
-    try {
-      await fetch(OC.generateUrl('/apps/' + APP_ID + '/settings/background/remove'), {
-        method: 'POST',
-        headers: { requesttoken: OC.requestToken },
-      });
-      showBackgroundState(false);
-      backgroundState.textContent = 'Hintergrundbild entfernt.';
-    } catch (err) {
-      backgroundState.textContent = 'Entfernen fehlgeschlagen.';
-    }
-  });
-
-  // ---------- Ordnerauswahl ----------
-  el('aa-folder-pick').addEventListener('click', () => {
-    // Nextclouds eigener Dateidialog. Ist er nicht verfügbar (ältere oder
-    // abweichende Fassung), kann der Pfad von Hand eingetragen werden.
-    if (window.OC && OC.dialogs && typeof OC.dialogs.filepicker === 'function') {
-      OC.dialogs.filepicker(
-        'Ordner mit den Aufnahmen wählen',
-        (path) => { folder.value = path; },
-        false,
-        'httpd/unix-directory',
-        true,
-        OC.dialogs.FILEPICKER_TYPE_CHOOSE
-      );
-      return;
-    }
-
-    folder.readOnly = false;
-    folder.focus();
-    setStatus('Die Dateiauswahl ist nicht verfügbar – bitte den Pfad von Hand eintragen.', true);
-  });
-
-  // ---------- Weitere Quellen (ab 0.32.0, Vikunja #8) ----------
-  const extraBox = el('aa-extra-sources');
-
-  function pickFolder(title, done) {
-    if (window.OC && OC.dialogs && typeof OC.dialogs.filepicker === 'function') {
-      OC.dialogs.filepicker(title, done, false, 'httpd/unix-directory', true, OC.dialogs.FILEPICKER_TYPE_CHOOSE);
-      return true;
-    }
-    return false;
-  }
-
-  function addExtraRow(src) {
-    const row = document.createElement('div');
-    row.className = 'aa-extra-row';
-    row.dataset.id = src.id ? String(src.id) : '';
-
-    const name = document.createElement('input');
-    name.type = 'text';
-    name.maxLength = 60;
-    name.placeholder = 'Name, z. B. Hörbücher';
-    name.value = src.name || '';
-    name.className = 'aa-extra-name';
-
-    const path = document.createElement('input');
-    path.type = 'text';
-    path.readOnly = true;
-    path.placeholder = '/Ordner';
-    path.value = src.path || '';
-    path.className = 'aa-extra-path';
-
-    const pick = document.createElement('button');
-    pick.type = 'button';
-    pick.textContent = 'Auswählen …';
-    pick.addEventListener('click', () => {
-      if (!pickFolder('Ordner für „' + (name.value || 'weitere Quelle') + '“ wählen', (p) => { path.value = p; })) {
-        path.readOnly = false;
-        path.focus();
-      }
-    });
-
-    const remove = document.createElement('button');
-    remove.type = 'button';
-    remove.textContent = 'Entfernen';
-    remove.addEventListener('click', () => {
-      row.remove();
-      setStatus('Quelle entfernt – zum Übernehmen „Speichern“ drücken.', false);
-    });
-
-    row.append(name, path, pick);
-    if (src.id) {
-      const open = document.createElement('a');
-      open.className = 'button';
-      open.textContent = 'In der App öffnen';
-      open.href = OC.generateUrl('/apps/' + APP_ID + '/') + '#source=src:' + src.id;
-      open.target = '_blank';
-      open.rel = 'noopener';
-      row.appendChild(open);
-    }
-    row.appendChild(remove);
-    if (src.id && src.found === false) {
-      const warn = document.createElement('p');
-      warn.className = 'settings-hint aa-status--error';
-      warn.textContent = 'Ordner nicht gefunden – die Quelle erscheint nicht in der App.';
-      row.appendChild(warn);
-    }
-    extraBox.appendChild(row);
-    return row;
-  }
-
-  function renderExtraSources(list) {
-    extraBox.innerHTML = '';
-    (list || []).forEach(addExtraRow);
-  }
-  renderExtraSources(state.extraSources);
-  el('aa-extra-add').addEventListener('click', () => {
-    addExtraRow({}).querySelector('.aa-extra-name').focus();
-  });
-
-  function collectExtraSources() {
-    return Array.from(extraBox.querySelectorAll('.aa-extra-row')).map((row) => ({
-      id: parseInt(row.dataset.id || '0', 10) || 0,
-      name: row.querySelector('.aa-extra-name').value,
-      path: row.querySelector('.aa-extra-path').value,
-    }));
-  }
 
   // ---------- Wer darf teilen (ab 0.32.0) ----------
   const shareGroupsBox = el('aa-share-groups');
@@ -402,16 +134,6 @@
     setStatus('Wird gespeichert …', false);
 
     const payload = {
-      sourceFolder: folder.value,
-      headerTitle: title.value,
-      headerSubtitle: subtitle.value,
-      themeAccent: accent.value,
-      themeBar: bar.value,
-      themeBase: base.value,
-      design,
-      adminStyle: adminEditor.get(),
-      adminStyleEnabled: adminStyleEnabled.checked,
-      backgroundNextcloud: backgroundNextcloud.checked,
       userCustomization: userCustomization.checked,
       userShares: userShares.checked,
       featureOffline: featureOffline.checked,
@@ -436,13 +158,7 @@
       featureFolderDownload: featureFolderDownload.checked,
       transcode: transcode.checked,
       rememberDays: parseInt(rememberDays.value, 10) || 0,
-      sharedLabel: sharedLabel.value,
-      noticeEnabled: noticeEnabled.checked,
       noticeClosable: noticeClosable.checked,
-      betaText: betaText.value,
-      betaLinkUrl: betaLinkUrl.value,
-      betaLinkLabel: betaLinkLabel.value,
-      extraSources: collectExtraSources(),
       shareGroups: Array.from(shareGroupsBox.querySelectorAll('input:checked')).map((b) => b.value),
     };
 
@@ -464,9 +180,6 @@
         return;
       }
 
-      if (Array.isArray(data.extraSources)) {
-        renderExtraSources(data.extraSources.map((s) => ({ ...s, found: true })));
-      }
       setStatus('Gespeichert.', false);
     } catch (err) {
       setStatus('Verbindung fehlgeschlagen.', true);
@@ -525,7 +238,7 @@
       if (share.kind === 'internal') {
         // Person oder Gruppe erkennbar (ab 0.26.0, Vikunja #8)
         passwordCell.textContent = ((share.members || [])
-          .map((m) => (m.type === 'group' ? '👥 Gruppe ' : '👤 ') + m.label).join(', ') || '–')
+          .map((m) => (m.type === 'all' ? '🌐 ' : (m.type === 'group' ? '👥 Gruppe ' : '👤 ')) + m.label).join(', ') || '–')
           + (share.settings.allowReshare ? ' · dürfen weiterteilen' : '');
       } else {
         passwordCell.textContent = '🔗 Link' + (share.slug ? ' „' + share.slug + '“' : '')

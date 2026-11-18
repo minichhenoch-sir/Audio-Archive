@@ -29,7 +29,7 @@
     newBtn.addEventListener('click', () => { el('aa-personal-new-hint').hidden = false; });
 
     function members(list) {
-      const out = (list || []).map((m) => (m.type === 'group' ? '👥 Gruppe ' : '👤 ') + m.label);
+      const out = (list || []).map((m) => (m.type === 'all' ? '🌐 ' : (m.type === 'group' ? '👥 Gruppe ' : '👤 ')) + m.label);
       return out.length ? out.join(', ') : 'niemand';
     }
 

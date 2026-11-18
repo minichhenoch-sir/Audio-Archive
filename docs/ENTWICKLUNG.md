@@ -2220,3 +2220,73 @@ Geprüft in Sandbox-NC 34.0.3 mit `2026_05_mp3/GBO_2026-05-17_So_mp3_a|b`
 und `…10_So_mp3_a`: Vorschau „10.05 Sonntag“, „17.05 Sonntag Vormittag“,
 „17.05 Sonntag Nachmittag“ (in 2026_05_mp3), Ausprobieren „GBO_2026-06-07_So_mp3_b“
 → „07.06 Sonntag Nachmittag“; Henochs Muster mit `{-}` ergibt dasselbe.
+
+## 1.3.0: Verwaltung entschlacken – Quellen, Text und Aussehen in die Freigaben
+
+Wunsch von Henoch (Chat, 18.11.2026, 09:16–09:18): Aus der Verwaltung sollen
+**Quellen**, **Text über den Aufnahmen** und **Darstellung** verschwinden und
+in die Freigaben wandern; keine „Gemeinsamen Aufnahmen“ aus der Verwaltung
+mehr. Entscheidungen auf Rückfragen: Quellen werden beim Update Freigaben an
+alle angemeldeten Nutzer; die Darstellung wird in die bestehenden Freigaben
+kopiert; „Nutzer dürfen Gestaltung wählen“ und „Text mit ✕ ausblendbar“
+bleiben in der Verwaltung (✕ zusätzlich je Freigabe). Zum Aussehen der
+eigenen Ansicht (Antwort von Henoch, 18.11.): das bisherige Aussehen beim
+Update in die persönlichen Einstellungen jedes Nutzers kopieren
+(Möglichkeit b) – für die Nutzer ändert sich nichts.
+
+- **Mitgliedsart `all`** (`ShareService::MEMBER_ALL`, Kennung `*`): Freigabe an
+  alle angemeldeten Nutzer, nur Administratoren dürfen sie wählen (bleibt
+  beim Bearbeiten durch andere erhalten). Kästchen „Alle angemeldeten
+  Nutzer“ im Teilen-Formular, 🌐 in Listen. `isForAll()`, `noticeClosable()`,
+  Einstellung `noticeClosable` ('' = Vorgabe, 'yes', 'no').
+- **Verwaltungsseite:** Quellen, Darstellung (Gestaltung, Farben, freie
+  Gestaltung, Hintergrund) und Text entfernt. Übrig unter „Darstellung“:
+  „Nutzer dürfen Gestaltung und Hintergrundbild selbst wählen“ und „Text …
+  mit ✕ ausblendbar“ (Vorgabe).
+- **Migration** `Version10300Date20261118100000` → `AdminSettingsMigration`
+  (läuft einmal, Kennung `admin_settings_migrated`; ein Fehler bricht das
+  Update nicht ab):
+  0. Eigene Ansicht: Gestaltung („Vom Administrator“ wird
+     „Benutzerdefiniert“ mit dessen Werten), Farben und Hintergrundbild der
+     Verwaltung in die persönlichen Einstellungen jedes Nutzers, der sich
+     schon angemeldet hat (`callForSeenUsers`) und dort nichts Eigenes hat –
+     nur, was vom Standard abweicht. Mit übernommenen Farben wird
+     „Modern“ eingetragen, sonst stünde im Zahnrad „Standard“ markiert.
+     Ist „Nutzer dürfen Gestaltung wählen“ aus, wirkt das erst nach dem
+     Einschalten (Hinweis im Update-Protokoll).
+  1. Links ohne eigenes Aussehen bekommen Gestaltung, Farben und
+     Hintergrundbild der Verwaltung fest eingetragen.
+  2. Freigaben ohne eigenen Text bekommen den Text der Verwaltung (mit Link).
+  3. Gemeinsamer Ordner und weitere Quellen → interne Freigaben an alle, im
+     Namen des Ordner-Besitzers, Weiterteilen erlaubt, Titel = Name der
+     Quelle. Links darauf: beim Besitzer `home` + Pfad, sonst wie
+     Weitergeteiltes (`viaShare`). Titel bestehender Freigaben werden nicht
+     kopiert (der Ordnerbaum zeigte sonst den Titel statt des Ordnernamens).
+  Merkt `source_moves` ({"shared": id, "src:1": id}) und
+  `source_move_owners` (Besitzer und Pfad je Quelle).
+- **Übernahme im Browser:** `PlayerPage::sourceMovesFor()` liefert je Nutzer
+  das Ziel – `5` (= `in:5`) bzw. beim Besitzer `"home:<ordner>"`.
+  `config.js` zieht Offline-Verzeichnis (samt `source`/`path`/`key` der
+  Einträge) und Hörstellen um, `app.js` (`adoptSourceMoves`) die Aufnahmen und
+  Ordnerlisten im Cache (Listen-JSON mit neuer Quelle und Pfaden). Alte
+  Einträge werden entfernt – vorher erschien offline der frühere Ordner
+  doppelt im Baum. Startquelle = frühere gemeinsame Freigabe; alte
+  `#open=shared|…`-Links funktionieren.
+- **Hintergrundaufgabe** `ReadMetadata`: liest jetzt auch die Freigaben an
+  alle (vorher nur die Quellen der Verwaltung, die es nicht mehr gibt).
+- **Zahnrad:** „Vorgabe – Wie vom Administrator“ heißt „Standard –
+  Standard-Aussehen der App“.
+- **Anleitung:** Nutzer (Ordnerbaum, Teilen an alle, ✕ je Freigabe,
+  Darstellung) und Verwaltung (Ersteinrichtung neu, Hinweis zum Update auf
+  1.3, Kommentare, Hintergrundaufgabe, Fragen), neues Bild `admin.jpg`.
+
+Geprüft in Sandbox-NC 34.0.3 (Playwright), Update von 1.2.4 mit gemeinsamem
+Ordner (admin), weiterer Quelle (Besitzer bob), Text mit Link, Farben,
+Hintergrundbild, Admin-Link mit Passwort, Link von bob auf den gemeinsamen
+Ordner, Links auf die weitere Quelle, Nutzer mit eigener Gestaltung
+(„Klassisch“ bleibt), nie angemeldetem Nutzer (unverändert) und
+Offline-Daten von drei Nutzern (Empfänger beider Quellen und Besitzer):
+eigene Ansicht vor/nach gleich, Zahnrad zeigt „Modern“ mit den Farben,
+vier Link-Seiten spielen ab, Offline ohne Netz spielen alle drei ab der
+gemerkten Stelle, keine Skriptfehler.
+Einspielen: Container-Neustart; Datenbank-Update (`occ upgrade`) nötig.

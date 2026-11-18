@@ -95,22 +95,30 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
 <section id="schnellstart" class="m-section">
   <h2><span class="m-num">4</span>Ersteinrichtung in fünf Schritten</h2>
   <ol>
-    <li><em>Einstellungen → Verwaltung → Audio Archive</em> öffnen.</li>
-    <li>Unter <strong>Quellen</strong> mit „Auswählen …“ den Ordner mit den Aufnahmen festlegen.</li>
-    <li>Unter <strong>Darstellung</strong> Titel und Gestaltung wählen.</li>
-    <li>Ganz unten auf <strong>Speichern</strong> klicken.</li>
-    <li>Sollen Hörer ohne Konto zuhören: die App öffnen, in „Gemeinsame Aufnahmen“ (oder einem Unterordner)
-    auf <strong>„Diesen Ordner teilen“ → „Neuer Link“</strong> tippen und ein Passwort setzen.</li>
+    <li>Die App öffnen und unter <strong>„Meine Dateien“</strong> den Ordner mit den Aufnahmen öffnen.</li>
+    <li>Auf <strong>„Diesen Ordner teilen“ → „Mit Personen teilen“</strong> tippen und
+    <strong>„Alle angemeldeten Nutzer“</strong> anhaken (🌐). Der Ordner erscheint dann bei allen unter
+    „Mit mir geteilt“, und die App startet mit ihm.</li>
+    <li>In derselben Freigabe Titel, Gestaltung und auf Wunsch einen Text über den Aufnahmen festlegen und speichern.</li>
+    <li>Sollen Hörer ohne Konto zuhören: im Ordner (oder einem Unterordner) <strong>„Diesen Ordner teilen“ →
+    „Neuer Link“</strong> wählen und ein Passwort setzen.</li>
+    <li>Unter <em>Einstellungen → Verwaltung → Audio Archive</em> festlegen, wer teilen darf und welche
+    Funktionen es gibt; ganz unten auf <strong>Speichern</strong> klicken.</li>
   </ol>
-  <p class="m-warn"><strong>Wichtig:</strong> Gespeichert wird nicht nur der Pfad des Quellordners, sondern auch,
-  <strong>wem</strong> die Dateien gehören – dem Administrator, der speichert. Aus dessen Dateien liest die App,
-  auch für Links auf diesen Ordner. Unter dem Feld steht, aus wessen Dateien gelesen wird.</p>
+  <p class="m-warn"><strong>Wichtig:</strong> Die App liest die Aufnahmen aus den Dateien dessen, der die Freigabe
+  anlegt – auch für Links auf diesen Ordner. Ein Ordner für alle gehört also am besten einem Konto, das bleibt.</p>
+  <p class="m-note"><strong>Update auf 1.3:</strong> Bis Version 1.2 gab es auf der Verwaltungsseite die Bereiche
+  „Quellen“, „Text über den Aufnahmen“ und die Gestaltung. Beim Update wird der gemeinsame Ordner – und jede weitere
+  Quelle – zu einer Freigabe an alle angemeldeten Nutzer, angelegt im Namen des Besitzers des Ordners (mit Weiterteilen).
+  Links auf diese Ordner gelten weiter. Text, Gestaltung, Farben und Hintergrundbild werden in die bestehenden Freigaben
+  übernommen; das bisherige Aussehen außerdem in die eigene Ansicht jedes Nutzers, der dort nichts selbst eingestellt hat.
+  Offline Gespeichertes und gemerkte Hörstellen übernimmt jedes Gerät beim nächsten Öffnen mit Verbindung.</p>
   <p class="m-note"><strong>Früherer „Öffentlicher Zugang“:</strong> Bis Version 1.1 gab es auf der Verwaltungsseite einen
   eigenen Link mit gemeinsamem Passwort. Beim Update auf 1.2 wird er automatisch zu einem normalen Link (gleiche Adresse,
   gleiches Passwort, gleiche Funktionen). Er steht unter „Freigaben durch Nutzer“ und lässt sich in der App bearbeiten;
   offline Gespeichertes und „Angemeldet bleiben“ der Hörer gelten weiter. War er abgeschaltet, erscheint er als abgelaufen
   und lässt sich mit einem neuen Ablaufdatum wieder einschalten.</p>
-  <?php echo $figure('admin.jpg', 'Die Verwaltungsseite mit den Quellen'); ?>
+  <?php echo $figure('admin.jpg', 'Die Verwaltungsseite: Freigaben, auch an alle angemeldeten Nutzer (🌐)'); ?>
 </section>
 
 <section id="einstellungen" class="m-section">
@@ -126,11 +134,11 @@ $ncRange = ($_['ncMin'] !== '' && $_['ncMax'] !== '') ? $_['ncMin'] . ' bis ' . 
  * Von Hand ergaenzt wird nur, was die Verwaltungsseite selbst nicht sagt ($extra).
  */
 $extra = [
-    'quellen' => '<p class="m-warn"><strong>Wichtig:</strong> Gespeichert wird auch, <strong>wem</strong> die Dateien gehören – '
-        . 'dem Administrator, der speichert. Aus dessen Dateien liest die App, auch für Links auf diesen Ordner.</p>',
     'freigaben' => $figure('share.jpg', 'Ein Nutzer teilt einen Ordner aus der App heraus')
-        . '<p>Nutzer sehen ihre eigenen Freigaben unter <em>Einstellungen → Persönlich → Audio Archive</em>.</p>',
-    'darstellung' => '<p>Akzent- und Leistenfarbe der Gestaltung „Modern“ färben auch diese Anleitung.</p>',
+        . '<p>Nutzer sehen ihre eigenen Freigaben unter <em>Einstellungen → Persönlich → Audio Archive</em>. '
+        . 'Freigaben an alle angemeldeten Nutzer (🌐) kann nur ein Administrator anlegen.</p>',
+    'darstellung' => '<p>Ist der Schalter für die Gestaltung aus, sehen alle Nutzer ihre eigene Ansicht im Standard-Aussehen; '
+        . 'geteilte Ordner zeigen weiterhin das Aussehen ihrer Freigabe.</p>',
     'funktionen' => '<p>Mehr zur Umwandlung in MP3 und zur Hintergrundaufgabe in <a href="#hintergrund">Abschnitt 7</a>.</p>',
 ];
 $kindMark = ['switch' => '☐', 'choice' => '▾', 'field' => '✎', 'color' => '●', 'button' => '▭', 'range' => '⇔'];
@@ -175,7 +183,7 @@ foreach ($_['settingsRef'] as $n => $sec) {
     // Freie Gestaltung: im Browser aufgebaut, deshalb aus js/style-tokens.js gelesen
     if ($sec['anchor'] === 'darstellung' && $_['styleRef'] !== []) {
         echo '<h4 id="freie-gestaltung">Freie Gestaltung im Einzelnen</h4>' . "\n"
-            . '<p>So lässt sich die Gestaltung „Vom Administrator“ einstellen – genauso „Benutzerdefiniert“ im Zahnrad der Nutzer. '
+            . '<p>So lässt sich die Gestaltung „Benutzerdefiniert“ einstellen – im Zahnrad der Nutzer und beim Teilen eines Ordners. '
             . 'Die Seite zeigt Änderungen sofort.</p>' . "\n";
         $renderItems($_['styleRef']);
     }
@@ -187,7 +195,7 @@ foreach ($_['settingsRef'] as $n => $sec) {
 <section id="kommentare" class="m-section">
   <h2><span class="m-num">6</span>Kommentare einsehen und exportieren</h2>
   <p>Unter den Einstellungen steht der Bereich <strong>Audio Archive – Kommentare</strong>. Administratoren sehen dort alle Kommentare
-  und Bewertungen – aus dem gemeinsamen Ordner, den weiteren Quellen und allen Freigaben. Nutzer sehen unter <em>Persönlich</em>
+  und Bewertungen – aus allen Freigaben. Nutzer sehen unter <em>Persönlich</em>
   nur ihre eigenen und die über ihre Freigaben.</p>
   <ul>
     <li>▶ oder ein Klick auf die Zeile öffnet die Aufnahme in der App.</li>
@@ -202,7 +210,7 @@ foreach ($_['settingsRef'] as $n => $sec) {
   <h2><span class="m-num">7</span>Hintergrundaufgabe und MP3-Umwandlung</h2>
   <h3>Hintergrundaufgabe „ReadMetadata“</h3>
   <p>Läuft über Nextclouds Cron etwa alle 15 Minuten (je Lauf höchstens 40 Sekunden) und liest Länge, Titel, Künstler, Album
-  und Cover aller Aufnahmen im gemeinsamen Ordner und den weiteren Quellen vorab ein. Dadurch öffnen sich auch große Ordner
+  und Cover aller Aufnahmen in den Freigaben an alle angemeldeten Nutzer vorab ein. Dadurch öffnen sich auch große Ordner
   schnell. Voraussetzung: Nextclouds Hintergrundaufgaben laufen – am besten im Modus „Cron“.</p>
   <h3>MP3-Umwandlung mit ffmpeg</h3>
   <p>Manche Formate kann nicht jedes Gerät abspielen – AIFF zum Beispiel nur Safari. Ist „Nicht abspielbare Formate beim
@@ -256,7 +264,10 @@ occ app:remove audioarchive</pre>
     <dt>Im Hilfe-Fenster fehlen E-Mail und Nachrichtenfeld.</dt>
     <dd>Unter <em>Hilfe und Kontakt</em> eine Gruppe oder E-Mail-Adresse eintragen. Die Anleitung ist immer erreichbar.</dd>
     <dt>Auf einem Link fehlen Aufnahmen.</dt>
-    <dd>Ein Link zeigt nur den Ordner, für den er angelegt wurde, samt Unterordnern. Für weitere Quellen eigene Links in der App anlegen.</dd>
+    <dd>Ein Link zeigt nur den Ordner, für den er angelegt wurde, samt Unterordnern. Für weitere Ordner eigene Links in der App anlegen.</dd>
+    <dt>Nach dem Update auf 1.3 fehlt „Gemeinsame Aufnahmen“ oben in der Seitenleiste.</dt>
+    <dd>Der Ordner steht jetzt unter „Mit mir geteilt“ (🌐 für alle); beim Besitzer des Ordners unter „Meine Dateien“.
+    Titel, Gestaltung und Text ändert man in der App über „Diesen Ordner teilen“ an der Freigabe.</dd>
   </dl>
   <p>Fehler und Wünsche: <a href="https://github.com/minichhenoch-sir/Audio-Archive/issues" rel="noopener noreferrer">GitHub-Issues</a>
   · Lizenz: AGPL-3.0-or-later</p>

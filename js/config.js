@@ -26,6 +26,8 @@ const AudioArchive = (() => {
     loggedIn: el.dataset.loggedIn === '1',
     hasShared: el.dataset.hasShared === '1',
     canShare: el.dataset.canShare === '1',
+    // Darf an "alle angemeldeten Nutzer" teilen (Administrator, ab 1.3.0)
+    shareAll: el.dataset.shareAll === '1',
     // Nur auf der Seite einer Nutzer-Freigabe gesetzt (siehe PlayerPage)
     apiToken: el.dataset.apiToken || '',
     openAccess: el.dataset.openAccess === '1',
@@ -104,6 +106,8 @@ const AudioArchive = (() => {
     noticeLinkLabel: el.dataset.noticeLinkLabel || '',
     // ab 1.0.5: Text mit ✕ ausblendbar, Texte fuer "Meine Dateien"
     noticeClosable: el.dataset.noticeClosable === '1',
+    // Vorgabe der Verwaltung, fuer das Freigabe-Formular (ab 1.3.0)
+    noticeClosableDefault: el.dataset.noticeClosableDefault === '1',
     homeTitle: el.dataset.homeTitle || '',
     homeSubtitle: el.dataset.homeSubtitle || '',
     homeNotice: el.dataset.homeNotice || '',
@@ -147,8 +151,112 @@ const AudioArchive = (() => {
   }
   setCoverState(el.dataset.coverIcon || '', el.dataset.coverUrl || '');
 
+  /*
+   * Quellen der Verwaltung sind ab 1.3.0 Freigaben an alle angemeldeten
+   * Nutzer: 'shared' bzw. 'src:<n>' heisst jetzt 'in:<id>', die Pfade
+   * bleiben gleich. Beim Besitzer des Ordners liegt er dagegen in seinen
+   * eigenen Dateien ('home', Pfad mit dem Ordner davor). Einmal je Browser
+   * werden die Eintraege im Geraet umgezogen - offline gespeicherte Ordner
+   * und die gemerkten Hoerstellen; die alten Eintraege verschwinden dabei.
+   * Laeuft vor player.js, das die Hoerstellen beim Laden liest. Die
+   * Aufnahmen selbst (Cache) zieht app.js um (adoptSourceMoves).
+   */
+  const joinPath = (base, rest) => [base, rest].filter((p) => p).join('/').replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+  const sourceMoveTargets = (() => {
+    if (!data.loggedIn || data.apiToken) return {};
+    try {
+      const raw = JSON.parse(el.dataset.sourceMoves || '{}');
+      const out = {};
+      Object.keys(raw || {}).forEach((from) => {
+        if (from !== 'shared' && !/^src:\d+$/.test(from)) return;
+        const value = raw[from];
+        if (typeof value === 'string' && value.startsWith('home:')) {
+          out[from] = { to: 'home', base: value.slice(5).replace(/^\/+|\/+$/g, '') };
+        } else {
+          const id = parseInt(value, 10);
+          if (id > 0) out[from] = { to: 'in:' + id, base: '' };
+        }
+      });
+      return out;
+    } catch (e) {
+      return {};
+    }
+  })();
+  const sourceMoves = {};
+  Object.keys(sourceMoveTargets).forEach((from) => { sourceMoves[from] = sourceMoveTargets[from].to; });
+  const moveMark = (from) => from + '>' + sourceMoveTargets[from].to + (sourceMoveTargets[from].base ? ':' + sourceMoveTargets[from].base : '');
+
+  (function moveLocalSources() {
+    const froms = Object.keys(sourceMoveTargets);
+    if (!froms.length) return;
+    const DONE = 'audioarchive_sources_moved';
+    try {
+      const done = JSON.parse(localStorage.getItem(DONE) || '[]');
+      const todo = froms.filter((f) => !done.includes(moveMark(f)));
+      if (!todo.length) return;
+
+      // Eintrag einer Aufnahme bzw. eines Ordners auf die neue Quelle umschreiben
+      const moveEntry = (entry, from) => {
+        if (!entry || typeof entry !== 'object') return entry;
+        const target = sourceMoveTargets[from];
+        const copy = { ...entry };
+        if ((copy.source || 'shared') === from) {
+          copy.source = target.to;
+          if (typeof copy.path === 'string') copy.path = joinPath(target.base, copy.path);
+          if (typeof copy.key === 'string') copy.key = target.to + '|' + (copy.path || '');
+        }
+        return copy;
+      };
+
+      // Offline-Verzeichnis: 'pfad' (shared), '@@src:n:pfad' -> '@@in:id:pfad'
+      // bzw. beim Besitzer '@@home:ordner/pfad'
+      const index = JSON.parse(localStorage.getItem('audioarchive_offline_index') || 'null');
+      if (index && typeof index === 'object') {
+        Object.keys(index).forEach((key) => {
+          todo.forEach((from) => {
+            let rest = null;
+            if (from === 'shared' && !key.startsWith('@@')) rest = key;
+            else if (from !== 'shared' && key.startsWith('@@' + from + ':')) rest = key.slice(from.length + 3);
+            if (rest === null) return;
+            const t = sourceMoveTargets[from];
+            const target = '@@' + t.to + ':' + joinPath(t.base, rest);
+            if (!index[target]) {
+              const item = { ...index[key] };
+              if (Array.isArray(item.entries)) item.entries = item.entries.map((e) => moveEntry(e, from));
+              index[target] = item;
+            }
+            delete index[key];
+          });
+        });
+        localStorage.setItem('audioarchive_offline_index', JSON.stringify(index));
+      }
+
+      // Hoerstellen: 'user#shared|pfad' -> 'user#in:id|pfad' bzw. 'user#home|ordner/pfad'
+      const pos = JSON.parse(localStorage.getItem('audioarchive_positions') || 'null');
+      if (pos && typeof pos === 'object') {
+        Object.keys(pos).forEach((key) => {
+          todo.forEach((from) => {
+            const prefix = 'user#' + from + '|';
+            if (!key.startsWith(prefix)) return;
+            const t = sourceMoveTargets[from];
+            const path = joinPath(t.base, key.slice(prefix.length));
+            const target = 'user#' + t.to + '|' + path;
+            if (!pos[target]) pos[target] = { ...moveEntry(pos[key], from), path, source: t.to };
+            delete pos[key];
+          });
+        });
+        localStorage.setItem('audioarchive_positions', JSON.stringify(pos));
+      }
+
+      localStorage.setItem(DONE, JSON.stringify(done.concat(todo.map(moveMark))));
+    } catch (e) { /* ohne Speicher: nichts zu uebernehmen */ }
+  })();
+
   return {
     ...data,
+    sourceMoves,
+    sourceMoveTargets,
+    joinPath,
 
     /** Adresse eines Endpunkts, z.B. api('list') oder api('public/login'). */
     api(name) {
@@ -333,7 +441,7 @@ const AudioArchive = (() => {
      * (ab 0.26.0, Vikunja #8: Person oder Gruppe muss erkennbar sein).
      */
     describeMembers(members) {
-      const list = (members || []).map((m) => (m.type === 'group' ? '👥 Gruppe ' : '👤 ') + m.label);
+      const list = (members || []).map((m) => (m.type === 'all' ? '🌐 ' : (m.type === 'group' ? '👥 Gruppe ' : '👤 ')) + m.label);
       return list.length ? list.join(', ') : 'niemand';
     },
 

@@ -4,6 +4,31 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.3.0 – 2026-11-18
+
+### Changed
+- The admin settings no longer hold sources, appearance or the text above
+  the recordings. Every share sets its own title, design, colours,
+  background image and text; new shares start with the standard look
+- Admins can share a folder with **all signed-in users** (🌐). Such shares
+  replace the former "shared folder" and the additional sources
+- Whether the text above the recordings can be closed with ✕ can be set per
+  share (the admin setting stays as the default)
+- The background job that reads titles, lengths and covers now covers the
+  shares with all signed-in users
+
+### Migration (runs once when updating)
+- The shared folder and every additional source become shares with all
+  signed-in users, created in the name of the folder's owner (resharing
+  allowed). Existing links on these folders keep working
+- Text, design, colours and background image of the admin settings are
+  copied into existing shares, and the former look into the personal view
+  of every user who had not chosen their own (users who have signed in at
+  least once)
+- Each browser moves offline recordings and remembered positions to the new
+  share on its next start with a connection (for the folder's owner: into
+  their own files); old entries are removed
+
 ## 1.2.4 – 2026-11-18
 
 ### Changed

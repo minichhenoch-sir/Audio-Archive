@@ -5,6 +5,7 @@ namespace OCA\AudioArchive\BackgroundJob;
 
 use OCA\AudioArchive\Service\AudioFolder;
 use OCA\AudioArchive\Service\MetadataReader;
+use OCA\AudioArchive\Service\ShareService;
 use OCP\AppFramework\Utility\ITimeFactory;
 use OCP\BackgroundJob\IJob;
 use OCP\BackgroundJob\TimedJob;
@@ -15,6 +16,8 @@ use Psr\Log\LoggerInterface;
 /**
  * Liest im Hintergrund die Angaben (Laenge, Titel, Kuenstler, Album, Cover)
  * aller Aufnahmen der Quellen des Administrators (ab 0.34.0, Vikunja #43).
+ * Ab 1.3.0 sind das die Freigaben an alle angemeldeten Nutzer (dorthin
+ * sind der gemeinsame Ordner und die weiteren Quellen beim Update gewandert).
  *
  * Vorher wurden sie erst gelesen, wenn jemand einen Ordner zum ersten Mal
  * oeffnete oder suchte - das dauerte dann ein paar Sekunden. Jetzt sind sie
@@ -34,6 +37,7 @@ class ReadMetadata extends TimedJob {
         ITimeFactory $time,
         private AudioFolder $audioFolder,
         private MetadataReader $metadata,
+        private ShareService $shares,
         private LoggerInterface $logger,
     ) {
         parent::__construct($time);
@@ -55,7 +59,7 @@ class ReadMetadata extends TimedJob {
         }
     }
 
-    /** @return list<Folder> gemeinsamer Ordner und weitere Quellen, ohne doppelte */
+    /** @return list<Folder> Freigaben an alle (frueher: Quellen), ohne doppelte */
     private function roots(): array {
         $roots = [];
         $seen = [];
@@ -69,6 +73,12 @@ class ReadMetadata extends TimedJob {
             $add($this->audioFolder->getRoot());
             foreach ($this->audioFolder->extraSources() as $extra) {
                 $add($this->audioFolder->folderOf($extra['owner'], $extra['path']));
+            }
+            foreach ($this->shares->listAll() as $share) {
+                if ($share['kind'] === \OCA\AudioArchive\AppInfo\Application::SHARE_KIND_INTERNAL
+                    && !$this->shares->isExpired($share) && $this->shares->isForAll((int)$share['id'])) {
+                    $add($this->shares->rootFolder($share));
+                }
             }
         } catch (\Throwable $e) {
             $this->logger->warning('Audio Archive: Quellen fuer das Lesen im Hintergrund nicht verfuegbar', ['app' => 'audioarchive', 'exception' => $e]);

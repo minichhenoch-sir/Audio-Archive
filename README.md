@@ -45,10 +45,13 @@ Manually: extract the release archive into `custom_apps/` (folder
 
 ## Setup
 
-*Settings → Administration → Audio Archive*: choose the folder with the
-recordings, optionally enable the public link and set a password, adjust the
-design. Users open the player from the app menu; listeners without an account
-use the public link.
+Open the app, go to the folder with the recordings under "Meine Dateien" and
+choose *Diesen Ordner teilen → Mit Personen teilen → Alle angemeldeten Nutzer*
+(admins only): every signed-in user then finds it under "Mit mir geteilt".
+Title, design and the text above the recordings are set per share. For
+listeners without an account create a link (*Neuer Link*, with password).
+*Settings → Administration → Audio Archive* controls who may share and which
+features are available.
 
 The full administrator manual (German) is linked at the top of that page
 (also as PDF); the manual for listeners opens from the (i) button in the app.

@@ -557,16 +557,21 @@
     if (!notice) return;
 
     const home = noticeArea === 'home';
-    const html = (home ? AudioArchive.homeNotice : AudioArchive.noticeText).trim();
-    const url = home ? '' : AudioArchive.noticeLinkUrl.trim();
+    // Mit mir geteilter Ordner mit eigenem Text (ab 1.3.0)
+    const share = noticeArea.startsWith('in:') ? Incoming.get(noticeArea) : null;
+    const shareText = share && share.notice ? String(share.notice).trim() : '';
+    const html = shareText || (home ? AudioArchive.homeNotice : AudioArchive.noticeText).trim();
+    const url = (home || shareText) ? '' : AudioArchive.noticeLinkUrl.trim();
     const label = AudioArchive.noticeLinkLabel.trim() || 'Mehr erfahren';
+    const closable = share && typeof share.noticeClosable === 'boolean'
+      ? share.noticeClosable : AudioArchive.noticeClosable;
 
     notice.textContent = '';
     notice.hidden = true;
     if (html === '' && url === '') return;
 
     const key = noticeKey(html, url);
-    if (AudioArchive.noticeClosable && closedNotices().includes(key)) return;
+    if (closable && closedNotices().includes(key)) return;
 
     if (html !== '') {
       const body = document.createElement('div');
@@ -585,7 +590,7 @@
       notice.appendChild(link);
     }
 
-    if (AudioArchive.noticeClosable) {
+    if (closable) {
       const close = document.createElement('button');
       close.type = 'button';
       close.className = 'notice-close';
@@ -977,7 +982,14 @@
         src = decodeURIComponent(openJump[1]);
         target = decodeURIComponent(openJump[2]).replace(/^\/+/, '');
       } catch (e) { /* kaputte Adresse: ignorieren */ }
-      if (target !== '' && (src === 'shared' || src === 'home' || AudioArchive.extraSources.some((s) => s.id === src))) {
+      // Fruehere Quellen der Verwaltung sind ab 1.3.0 Freigaben
+      const moved = (AudioArchive.sourceMoveTargets || {})[src];
+      if (moved) {
+        src = moved.to;
+        target = AudioArchive.joinPath(moved.base, target);
+      }
+      if (target !== '' && (src === 'shared' || src === 'home' || AudioArchive.isIncoming(src)
+        || AudioArchive.extraSources.some((s) => s.id === src))) {
         view.source = src;
         openTarget = target;
       }
@@ -1039,7 +1051,9 @@
 
   function startSource() {
     if (AudioArchive.isPublic() || !AudioArchive.loggedIn) return 'shared';
-    return AudioArchive.hasShared ? 'shared' : 'home';
+    if (AudioArchive.hasShared) return 'shared';
+    // Frueherer gemeinsamer Ordner, ab 1.3.0 eine Freigabe an alle
+    return AudioArchive.sourceMoves.shared || 'home';
   }
 
   /*
@@ -1234,7 +1248,7 @@
         // Ab 1.0.5: "Meine Dateien" mit eigenen Texten statt denen der
         // gemeinsamen Aufnahmen
         const home = source === 'home' && AudioArchive.loggedIn && !AudioArchive.isPublic();
-        setNoticeArea(home ? 'home' : 'main');
+        setNoticeArea(home ? 'home' : (share ? source : 'main'));
         if (share && share.useShareDesign && share.hasLook && share.look) {
           Look.show(share.look, source);
         } else if (home) {
@@ -1410,6 +1424,93 @@
     try {
       localStorage.setItem(done, '1');
     } catch (e) { /* dann beim naechsten Start noch einmal - schadet nicht */ }
+  }
+
+  /**
+   * Offline gespeicherte Aufnahmen der frueheren Quellen der Verwaltung
+   * (ab 1.3.0) unter der Adresse der neuen Freigabe ablegen: ohne
+   * source-Angabe bzw. 'source=src:n' -> 'source=in:id', beim Besitzer
+   * 'source=home' mit dem Ordner vor dem Pfad. Die alten Eintraege werden
+   * danach entfernt. Verzeichnis und Hoerstellen hat config.js schon
+   * umgezogen.
+   */
+  async function adoptSourceMoves() {
+    const moves = AudioArchive.sourceMoveTargets || {};
+    const froms = Object.keys(moves);
+    if (!froms.length || !('caches' in window)) return;
+    const DONE = 'audioarchive_sources_cached';
+    const mark = (f) => f + '>' + moves[f].to + (moves[f].base ? ':' + moves[f].base : '');
+    let done = [];
+    try {
+      done = JSON.parse(localStorage.getItem(DONE) || '[]');
+    } catch (e) {
+      return;
+    }
+    const todo = froms.filter((f) => !done.includes(mark(f)));
+    if (!todo.length) return;
+    try {
+      const cache = await caches.open(OFFLINE_AUDIO_CACHE_NAME);
+      const apiBase = new URL(AudioArchive.api(''), location.href).href;
+      const requests = await cache.keys();
+      for (const request of requests) {
+        const href = request.url;
+        const q = href.indexOf('?');
+        if (!href.startsWith(apiBase) || q < 0) continue;
+        const params = new URLSearchParams(href.slice(q + 1));
+        if (params.has('s')) continue;
+        const from = params.get('source') || 'shared';
+        if (!todo.includes(from)) continue;
+        const move = moves[from];
+        // Genau wie AudioArchive.sourceQuery(): source zuerst, Rest unveraendert
+        const rest = href.slice(q + 1).split('&')
+          .filter((part) => !part.startsWith('source='))
+          .map((part) => {
+            if (!move.base || !part.startsWith('path=')) return part;
+            let path = '';
+            try {
+              path = decodeURIComponent(part.slice(5).replace(/\+/g, ' '));
+            } catch (e) {
+              return part;
+            }
+            return 'path=' + encodeURIComponent(AudioArchive.joinPath(move.base, path));
+          })
+          .join('&');
+        const target = href.slice(0, q + 1) + AudioArchive.sourceQuery(move.to) + rest;
+        if (!(await cache.match(target))) {
+          let response = await cache.match(request);
+          if (!response) continue;
+          if (href.slice(0, q).endsWith('/list')) response = await moveListResponse(response, move);
+          await cache.put(target, response);
+        }
+        await cache.delete(request);
+      }
+      localStorage.setItem(DONE, JSON.stringify(done.concat(todo.map(mark))));
+    } catch (e) { /* dann beim naechsten Start noch einmal */ }
+  }
+
+  /**
+   * Gespeicherte Ordnerliste auf die neue Quelle umschreiben (ab 1.3.0):
+   * Quelle und - beim Besitzer - alle Pfade mit dem Ordner davor.
+   */
+  async function moveListResponse(response, move) {
+    try {
+      const body = await response.clone().json();
+      const join = (p) => AudioArchive.joinPath(move.base, p || '');
+      const oldPath = String(body.path || '');
+      body.source = move.to;
+      if (move.base) {
+        body.parent = oldPath === ''
+          ? (move.base.includes('/') ? move.base.slice(0, move.base.lastIndexOf('/')) : '')
+          : join(body.parent);
+        body.path = join(oldPath);
+        if (Array.isArray(body.entries)) {
+          body.entries = body.entries.map((e) => (e && typeof e.path === 'string' ? { ...e, path: join(e.path) } : e));
+        }
+      }
+      return new Response(JSON.stringify(body), { status: response.status, headers: response.headers });
+    } catch (e) {
+      return response;
+    }
   }
 
   /** Nach erfolgreicher Anmeldung am Server den lokalen Pruefwert ablegen. */
@@ -1795,6 +1896,7 @@
    */
   async function checkSession() {
     await adoptAdminOffline();
+    await adoptSourceMoves();
     try {
       const res = await fetch(AudioArchive.statusUrl(), { credentials: 'same-origin' });
       const data = await res.json();
@@ -4298,6 +4400,26 @@
       input.setAttribute('autocomplete', 'off');
       const results = el('div', 'member-results');
       results.hidden = true;
+
+      // Alle angemeldeten Nutzer (ab 1.3.0): ersetzt die frueheren Quellen
+      // der Verwaltung; waehlbar fuer Administratoren
+      const ALL = 'all|*';
+      let everyone = null;
+      if (AudioArchive.shareAll || chosen.has(ALL)) {
+        everyone = checkbox('Alle angemeldeten Nutzer', chosen.has(ALL));
+        everyone.wrap.classList.add('member-all');
+        chosen.delete(ALL);
+        const sync = () => {
+          const on = everyone.input.checked;
+          chips.hidden = on;
+          input.hidden = on;
+          if (on) results.hidden = true;
+        };
+        everyone.input.addEventListener('change', sync);
+        wrap.appendChild(everyone.wrap);
+        // nach dem Einfuegen der uebrigen Teile
+        setTimeout(sync, 0);
+      }
       wrap.append(chips, input, results);
 
       function renderChips() {
@@ -4361,7 +4483,9 @@
       renderChips();
       return {
         wrap,
-        value: () => Array.from(chosen.values()).map((m) => ({ type: m.type, id: m.id })),
+        value: () => (everyone && everyone.input.checked
+          ? [{ type: 'all', id: '*' }]
+          : Array.from(chosen.values()).map((m) => ({ type: m.type, id: m.id }))),
       };
     }
 
@@ -4483,9 +4607,21 @@
         wrap.appendChild(el('span', 'panel-field-label', 'Text über den Aufnahmen (optional)'));
         if (notice) wrap.appendChild(notice.el);
         wrap.appendChild(el('span', 'panel-hint',
-          'Steht über der Liste, z. B. ein Gruß oder ein Hinweis – mit Schriftart, Größe, Farbe und mehr. Leer = Text der Verwaltung, falls eingestellt.'));
+          'Steht über der Liste, z. B. ein Gruß oder ein Hinweis – mit Schriftart, Größe, Farbe und mehr. Leer = kein Text.'));
         look.appendChild(wrap);
       }
+      // Text mit ✕ ausblendbar - je Freigabe (ab 1.3.0)
+      const noticeClosable = el('select', 'panel-input');
+      [['', 'Vorgabe der Verwaltung (' + (AudioArchive.noticeClosableDefault ? 'ja' : 'nein') + ')'],
+        ['yes', 'Ja – jeder kann ihn mit ✕ schließen'],
+        ['no', 'Nein – der Text bleibt stehen']].forEach(([value, label]) => {
+        const opt = el('option', '', label);
+        opt.value = value;
+        noticeClosable.appendChild(opt);
+      });
+      noticeClosable.value = ['yes', 'no'].includes(st.noticeClosable) ? st.noticeClosable : '';
+      look.appendChild(field('Text mit ✕ ausblendbar', noticeClosable,
+        'Geschlossen bleibt er auf diesem Gerät weg, bis der Text geändert wird.'));
 
       /*
        * Gestaltung der Freigabe (ab 0.17): dieselben vier wie persoenlich,
@@ -4496,7 +4632,7 @@
       if (chosenDesign === 'admin' && !AudioArchive.adminStyleOffered) chosenDesign = '';
       const classicThumb = AAStyle.classicThumb(AudioArchive.ncPrimary() ? '#' + AudioArchive.ncPrimary().replace('#', '') : '');
       const cardOptions = [
-        { value: '', label: 'Vorgabe', desc: isInternal ? 'Wie beim Empfänger' : 'Wie vom Administrator eingestellt', style: AAStyle.DEFAULTS },
+        { value: '', label: isInternal ? 'Vorgabe' : 'Standard', desc: isInternal ? 'Wie beim Empfänger' : 'Standard-Aussehen der App', style: AAStyle.DEFAULTS },
         { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design, Hell/Dunkel automatisch', style: classicThumb },
         { value: 'custom', label: 'Modern', desc: 'Rund mit Glaseffekt, Farben wählbar', style: AAStyle.DEFAULTS },
       ];
@@ -4773,6 +4909,7 @@
           title: title.value,
           subtitle: subtitle.value,
           notice: notice ? notice.value : (st.notice || ''),
+          noticeClosable: noticeClosable.value,
           design: chosenDesign,
           // Werte fuer "Benutzerdefiniert": bei Wahl, und bereits vorhandene
           // bleiben erhalten, wenn voruebergehend anders gewaehlt wird
@@ -4988,7 +5125,7 @@
       usBackgroundRemove.hidden = !has;
       usBackgroundState.textContent = has
         ? 'Eigenes Bild gesetzt. Es gilt in allen Gestaltungen.'
-        : 'Kein eigenes Bild – es gilt die Vorgabe.';
+        : 'Kein eigenes Bild.';
     }
 
     /** Schreibender Aufruf mit Nextclouds Anfrage-Token. */
@@ -5047,7 +5184,7 @@
       usColors.hidden = !usOwnColors.checked;
       const data = us.loaded || {};
       if (us.design === '') {
-        usDesignHint.textContent = 'Es gilt, was der Administrator vorgibt – derzeit „'
+        usDesignHint.textContent = 'Es gilt das Standard-Aussehen der App – derzeit „'
           + (DESIGN_NAMES[data.adminDesign] || 'Modern') + '“.';
         usDesignHint.hidden = false;
       } else if (us.design === 'nextcloud') {
@@ -5077,7 +5214,7 @@
         : (data.adminDesign === 'admin' ? adminStyle : adminModern);
 
       const options = [
-        { value: '', label: 'Vorgabe', desc: 'Wie vom Administrator eingestellt', style: defaultThumb },
+        { value: '', label: 'Standard', desc: 'Standard-Aussehen der App', style: defaultThumb },
         { value: 'nextcloud', label: 'Klassisch', desc: 'Nextcloud-Design, Hell/Dunkel automatisch', style: classic },
         { value: 'custom', label: 'Modern', desc: 'Rund mit Glaseffekt, Farben wählbar', style: adminModern },
       ];

@@ -294,8 +294,13 @@ class PlayerPage {
             'hasShared' => $this->audioFolder->hasSharedRoot() ? '1' : '',
             // Weitere Quellen des Administrators, nur angemeldet (ab 0.32.0, Vikunja #8)
             'sources' => json_encode($uid !== null ? $this->extraSourcesFor() : []),
+            // Frueher Quellen der Verwaltung, jetzt Freigaben (ab 1.3.0):
+            // Offline Gespeichertes und Hoerstellen im Browser uebernehmen
+            'sourceMoves' => $uid !== null ? $this->sourceMovesFor($uid) : '{}',
             // Freigaben anlegen: angemeldet und vom Administrator erlaubt
             'canShare' => ($uid !== null && $this->shares->sharingAllowed()) ? '1' : '',
+            // An "alle angemeldeten Nutzer" teilen nur Administratoren (ab 1.3.0)
+            'shareAll' => ($uid !== null && \OCP\Server::get(\OCP\IGroupManager::class)->isAdmin($uid)) ? '1' : '',
             // Adresse der eigenstaendigen Fassung, fuer den Knopf
             // "App installieren" auf der eingebetteten Seite
             'standaloneUrl' => $this->urlGenerator->linkToRoute(
@@ -397,7 +402,9 @@ class PlayerPage {
             'homeTitle' => $homeTexts['title'],
             'homeSubtitle' => $homeTexts['subtitle'],
             'homeNotice' => $homeTexts['notice'],
-            'noticeClosable' => $this->appConfig->getValueBool(
+            // Auf der Seite einer Freigabe deren eigene Wahl (ab 1.3.0)
+            'noticeClosable' => $this->shares->noticeClosable($shareSettings ?? []) ? '1' : '',
+            'noticeClosableDefault' => $this->appConfig->getValueBool(
                 Application::APP_ID, Application::SETTING_NOTICE_CLOSABLE, true
             ) ? '1' : '',
             // Leer, wenn kein Bild gilt - dann zeigt die App den Verlauf aus
@@ -523,5 +530,28 @@ class PlayerPage {
         }
         $parts = explode(':', $token);
         return (string)end($parts);
+    }
+
+    /**
+     * Fruehere Quellen der Verwaltung fuer diesen Nutzer (ab 1.3.0):
+     * {"shared": 5} = jetzt Freigabe in:5; beim Besitzer des Ordners
+     * {"shared": "home:Gemeinsam"} = jetzt in seinen eigenen Dateien.
+     */
+    private function sourceMovesFor(string $uid): string {
+        $moves = json_decode($this->appConfig->getValueString(
+            Application::APP_ID, AdminSettingsMigration::MOVES_KEY, '{}'), true);
+        if (!is_array($moves) || $moves === []) {
+            return '{}';
+        }
+        $owners = json_decode($this->appConfig->getValueString(
+            Application::APP_ID, AdminSettingsMigration::MOVE_OWNERS_KEY, '{}'), true);
+        $out = [];
+        foreach ($moves as $from => $id) {
+            $owner = is_array($owners) ? ($owners[$from] ?? null) : null;
+            $out[$from] = (is_array($owner) && ($owner['owner'] ?? '') === $uid)
+                ? 'home:' . (string)($owner['base'] ?? '')
+                : (int)$id;
+        }
+        return (string)json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     }
 }

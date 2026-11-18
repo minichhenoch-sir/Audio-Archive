@@ -25,37 +25,6 @@ $help = static function (string $anchor) use ($_): void {
         <a class="aa-manual-user" href="<?php p($_['userManualUrl'] ?? ''); ?>" target="_blank" rel="noopener">Anleitung für Hörer und Nutzer</a>
     </p>
 
-    <!-- ============ Quellen (ab 0.32.0 mehrere, Vikunja #8) ============ -->
-    <h3>Quellen <?php $help('quellen'); ?></h3>
-    <p class="settings-hint">
-        Ordner mit den Aufnahmen. Unterordner werden so angezeigt, wie sie
-        angelegt sind. Der erste ist der gemeinsame Ordner („Gemeinsame
-        Aufnahmen“) für alle angemeldeten Nutzer.
-    </p>
-    <div class="aa-row">
-        <input type="text" id="aa-folder" placeholder="/Aufnahmen" readonly>
-        <button type="button" id="aa-folder-pick">Auswählen …</button>
-    </div>
-    <p class="settings-hint" id="aa-folder-owner"></p>
-
-    <h4 class="aa-subheading">Weitere Quellen</h4>
-    <p class="settings-hint">
-        Jede weitere Quelle erscheint in der App für alle angemeldeten Nutzer
-        als eigener Eintrag oben in der Seitenleiste (z.&nbsp;B.
-        „Hörbücher“). <strong>Links</strong> dafür – mit eigenem Passwort,
-        Wunschnamen, „Angemeldet bleiben“ und eigener Gestaltung – legt man in
-        der App an: Quelle öffnen → „Diesen Ordner teilen“ → „Neuer Link“. Alle
-        Links stehen unten unter „Freigaben durch Nutzer“.
-    </p>
-    <div id="aa-extra-sources" class="aa-extra-sources"></div>
-    <p>
-        <button type="button" id="aa-extra-add">+ Weitere Quelle</button>
-    </p>
-    <p class="settings-hint">
-        Entfernen nimmt die Quelle aus der Seitenleiste. Bereits angelegte
-        Links bleiben gültig, bis sie unten gelöscht werden.
-    </p>
-
     <!-- ============ Freigaben durch Nutzer ============ -->
     <h3>Freigaben durch Nutzer <?php $help('freigaben'); ?></h3>
     <p>
@@ -111,97 +80,15 @@ $help = static function (string $anchor) use ($_): void {
     </table>
     <p class="settings-hint" id="aa-shares-state">Freigaben werden geladen …</p>
 
-    <!-- ============ Darstellung ============ -->
+    <!-- ============ Darstellung ============
+         Ab 1.3.0 legt jede Freigabe ihr Aussehen selbst fest; hier steht
+         nur noch, ob Nutzer ihre eigene Ansicht gestalten duerfen. -->
     <h3>Darstellung <?php $help('darstellung'); ?></h3>
-    <div class="aa-field">
-        <label for="aa-title">Titel</label>
-        <input type="text" id="aa-title" placeholder="Audio Archive">
-    </div>
-    <div class="aa-field">
-        <label for="aa-subtitle">Zusatzzeile (optional)</label>
-        <input type="text" id="aa-subtitle">
-    </div>
-    <div class="aa-field">
-        <label for="aa-shared-label">Name des gemeinsamen Ordners</label>
-        <input type="text" id="aa-shared-label" maxlength="60" placeholder="Gemeinsame Aufnahmen">
-        <p class="settings-hint">
-            So heißt der Quellordner oben im Pfad und in der Seitenleiste – für
-            angemeldete Nutzer und auf dem früheren Link der Verwaltung. Leer =
-            „Gemeinsame Aufnahmen“ bzw. auf dem Link „Aufnahmen“.
-        </p>
-    </div>
-    <div class="aa-field">
-        <label>Gestaltung (Vorgabe für alle)</label>
-        <!-- Karten mit Vorschau, aufgebaut von js/settings.js -->
-        <div id="aa-design-cards"></div>
-        <p class="settings-hint">
-            <strong>Klassisch</strong> übernimmt Farben, Hintergrund und Schrift
-            von Nextcloud (Einstellungen → Verwaltung → Design) und wechselt mit
-            dem Hell-/Dunkelmodus. <strong>Modern</strong> ist rund mit
-            Glaseffekt in wählbaren Farben. <strong>Vom Administrator</strong>
-            ist die frei einstellbare Gestaltung weiter unten – wählbar, sobald
-            sie angeboten wird. Gilt auch für Links, die keine eigene Gestaltung
-            haben – dort ohne Nextcloud-Kopfleiste. Nutzer können im Player über das Zahnrad eine
-            andere Gestaltung wählen (sofern unten erlaubt), auch
-            „Benutzerdefiniert“.
-        </p>
-    </div>
-
-    <!-- Farben fuer "Modern"; bei anderer Vorgabe abgeblendet -->
-    <div id="aa-custom-design">
-    <h4>Farben für „Modern“</h4>
-    <div id="aa-palettes"></div>
-    <div class="aa-colors">
-        <div class="aa-field">
-            <label for="aa-accent">Akzentfarbe</label>
-            <input type="color" id="aa-accent" value="#b9793f">
-        </div>
-        <div class="aa-field">
-            <label for="aa-bar">Leisten</label>
-            <input type="color" id="aa-bar" value="#291c12">
-        </div>
-        <div class="aa-field">
-            <label for="aa-base">Grundton</label>
-            <input type="color" id="aa-base" value="#a86a3d">
-        </div>
-    </div>
-    </div>
-
-    <h4>Vom Administrator bereitgestellte Gestaltung</h4>
-    <p>
-        <input type="checkbox" id="aa-admin-style-enabled" class="checkbox">
-        <label for="aa-admin-style-enabled">Anbieten – als Vorgabe und zur Auswahl für alle Nutzer und Freigaben</label>
-    </p>
     <p class="settings-hint">
-        Farben, Ecken, Glaseffekt, Schrift und Hintergrund frei festlegen.
-        Wer sie gewählt hat, sieht Änderungen hier nach dem Speichern
-        automatisch. Wird sie nicht mehr angeboten, gilt dort wieder die
-        Vorgabe.
+        Titel, Gestaltung, Farben, Hintergrundbild und Text über den Aufnahmen
+        legt jede Freigabe selbst fest (in der App: Ordner → „Diesen Ordner
+        teilen“). Neue Freigaben beginnen mit dem Standard-Aussehen.
     </p>
-    <div id="aa-admin-style"></div>
-
-    <div class="aa-field">
-        <label>Hintergrundbild</label>
-        <p class="settings-hint">
-            Optional. Wird hinter der Oberfläche durchscheinend gezeigt.
-            PNG, JPEG oder WebP, höchstens 8 MB. Ohne Bild erscheint ein
-            Verlauf aus dem Grundton.
-        </p>
-        <div class="aa-row">
-            <input type="file" id="aa-background-file" accept="image/png,image/jpeg,image/webp">
-            <button type="button" id="aa-background-remove" hidden>Entfernen</button>
-        </div>
-        <p class="settings-hint" id="aa-background-state"></p>
-    </div>
-
-    <p>
-        <input type="checkbox" id="aa-background-nextcloud" class="checkbox">
-        <label for="aa-background-nextcloud">Hintergrundbild auch bei Nextcloud-Gestaltung verwenden</label>
-    </p>
-    <p class="settings-hint">
-        Sonst zeigt die Nextcloud-Gestaltung Nextclouds eigenen Hintergrund.
-    </p>
-
     <p>
         <input type="checkbox" id="aa-user-customization" class="checkbox">
         <label for="aa-user-customization">Nutzer dürfen Gestaltung und Hintergrundbild selbst wählen</label>
@@ -209,6 +96,16 @@ $help = static function (string $anchor) use ($_): void {
     <p class="settings-hint">
         Angemeldete Nutzer finden das in der App über das Zahnrad. Es gilt nur
         für ihre eigene Ansicht, nicht für Links.
+    </p>
+    <p>
+        <input type="checkbox" id="aa-notice-closable" class="checkbox">
+        <label for="aa-notice-closable">Text über den Aufnahmen lässt sich mit ✕ ausblenden</label>
+    </p>
+    <p class="settings-hint">
+        Vorgabe für alle Texte über den Aufnahmen – der eigenen Ansicht der
+        Nutzer und der Freigaben. Eingeschaltet kann jeder den Text auf seinem
+        Gerät mit ✕ schließen; er erscheint wieder, sobald der Text geändert
+        wird. Jede Freigabe kann das auch selbst festlegen.
     </p>
 
     <!-- ============ Funktionen ============ -->
@@ -435,49 +332,6 @@ $help = static function (string $anchor) use ($_): void {
         </p>
     </div>
 
-    <!-- ============ Text ueber den Aufnahmen ============ -->
-    <h3>Text über den Aufnahmen <?php $help('text'); ?></h3>
-    <p class="settings-hint">
-        Ein frei formulierbarer Text über der Liste, z.&nbsp;B. ein Gruß, ein
-        Zitat oder ein Hinweis. Er erscheint ohne Überschrift. Das hier ist
-        die Vorgabe: Angemeldete Nutzer können für ihre eigene Ansicht (Zahnrad
-        → Texte) und beim Teilen für jeden Link einen eigenen Text setzen.
-    </p>
-    <p>
-        <input type="checkbox" id="aa-notice-enabled" class="checkbox">
-        <label for="aa-notice-enabled">Diesen Text anzeigen</label>
-    </p>
-    <p>
-        <input type="checkbox" id="aa-notice-closable" class="checkbox">
-        <label for="aa-notice-closable">Text lässt sich mit ✕ ausblenden</label>
-    </p>
-    <p class="settings-hint">
-        Eingeschaltet kann jeder den Text auf seinem Gerät mit ✕ schließen; er
-        erscheint wieder, sobald der Text geändert wird. Ausgeschaltet bleibt er
-        dauerhaft stehen. Gilt auch für die eigenen Texte der Nutzer und der Links.
-    </p>
-    <div class="aa-field">
-        <span class="aa-field-label">Text</span>
-        <textarea id="aa-beta-text" aria-label="Text über den Aufnahmen"
-                  placeholder="z. B. Herzlich willkommen!"></textarea>
-        <p class="settings-hint">
-            Mit der Leiste lassen sich Schriftart, Größe, Farbe, Ausrichtung,
-            Listen und Links festlegen – erst Text markieren, dann wählen.
-        </p>
-    </div>
-    <div class="aa-field">
-        <label for="aa-beta-link-url">Link-Adresse (optional)</label>
-        <input type="text" id="aa-beta-link-url" placeholder="https://…">
-    </div>
-    <div class="aa-field">
-        <label for="aa-beta-link-label">Link-Beschriftung</label>
-        <input type="text" id="aa-beta-link-label" placeholder="Rückmeldung geben">
-        <p class="settings-hint">
-            Wird anstelle der Adresse angezeigt – so bleibt der Hinweis auch
-            auf dem Telefon kurz.
-        </p>
-    </div>
-
     <p class="aa-actions">
         <button type="button" id="aa-save" class="primary">Speichern</button>
         <span id="aa-status" class="aa-status"></span>
@@ -488,8 +342,7 @@ $help = static function (string $anchor) use ($_): void {
 <div class="section aa-comments-section">
     <h2>Audio Archive – Kommentare <?php $help('kommentare'); ?></h2>
     <p class="settings-hint">
-        Alle Kommentare und Bewertungen zu Aufnahmen: im gemeinsamen Ordner,
-        in den weiteren Quellen und in allen Freigaben der Nutzer (nur für
+        Alle Kommentare und Bewertungen zu Aufnahmen in allen Freigaben (nur für
         Administratoren; Nutzer sehen unter „Persönlich“ ihre eigenen und die
         über ihre Freigaben). ▶ bzw. ein Klick auf die Zeile öffnet die
         Aufnahme in Audio Archive. Als Excel-Datei herunterladen, in den

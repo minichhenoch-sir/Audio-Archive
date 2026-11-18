@@ -40,7 +40,7 @@ use OCP\Security\ISecureRandom;
  */
 class ShareService {
 
-    private const TABLE = 'audioarchive_shares';
+    public const TABLE = 'audioarchive_shares';
     private const MEMBERS = 'audioarchive_share_members';
     private const SESSION_KEY = 'audioarchive_share_tokens';
 
@@ -95,10 +95,21 @@ class ShareService {
         // Namensmuster (ab 1.2.0, Vikunja #67): Regeln, wie Datei- und
         // Ordnernamen angezeigt werden; ausgewertet in js/name-rules.js
         'nameRules' => [],
+        // Text ueber den Aufnahmen mit X ausblendbar (ab 1.3.0):
+        // '' = Vorgabe der Verwaltung, 'yes' oder 'no'
+        'noticeClosable' => '',
     ];
 
     /** Hoechstzahl an Namensmustern je Freigabe. */
     private const MAX_NAME_RULES = 30;
+
+    /**
+     * Empfaenger "alle angemeldeten Nutzer" (ab 1.3.0): ersetzt den
+     * gemeinsamen Ordner und die weiteren Quellen der Verwaltung. Nur
+     * Administratoren duerfen so teilen.
+     */
+    public const MEMBER_ALL = 'all';
+    public const MEMBER_ALL_ID = '*';
 
     /** Wie tief Weitergeteiltes hoechstens verkettet sein darf. */
     private const MAX_RESHARE_DEPTH = 5;
@@ -385,7 +396,7 @@ class ShareService {
      * @param mixed $input Liste aus {type, id}
      * @return list<array{type: string, id: string}>
      */
-    public function normalizeMembers(mixed $input, string $creator): array {
+    public function normalizeMembers(mixed $input, string $creator, bool $allowAll = false): array {
         if (!is_array($input)) {
             return [];
         }
@@ -396,6 +407,12 @@ class ShareService {
             }
             $type = (string)($entry['type'] ?? '');
             $id = trim((string)($entry['id'] ?? ''));
+            if ($type === self::MEMBER_ALL) {
+                if ($allowAll) {
+                    $out[self::MEMBER_ALL] = ['type' => self::MEMBER_ALL, 'id' => self::MEMBER_ALL_ID];
+                }
+                continue;
+            }
             if ($id === '' || strlen($id) > 64) {
                 continue;
             }
@@ -413,6 +430,28 @@ class ShareService {
             $out[$type . '|' . $id] = ['type' => $type, 'id' => $id];
         }
         return array_values($out);
+    }
+
+    /**
+     * Darf der Text ueber den Aufnahmen dieser Freigabe mit X ausgeblendet
+     * werden? Eigene Wahl der Freigabe, sonst Vorgabe der Verwaltung (ab 1.3.0).
+     */
+    public function noticeClosable(array $settings): bool {
+        $own = (string)($settings['noticeClosable'] ?? '');
+        if ($own === 'yes' || $own === 'no') {
+            return $own === 'yes';
+        }
+        return $this->appConfig->getValueBool(Application::APP_ID, Application::SETTING_NOTICE_CLOSABLE, true);
+    }
+
+    /** Ist die Freigabe an alle angemeldeten Nutzer geteilt? (ab 1.3.0) */
+    public function isForAll(int $shareId): bool {
+        foreach ($this->getMembers($shareId) as $member) {
+            if ($member['type'] === self::MEMBER_ALL) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /** Ersetzt die Empfaenger einer Freigabe. */
@@ -450,6 +489,9 @@ class ShareService {
             return false;
         }
         foreach ($this->getMembers($share['id']) as $member) {
+            if ($member['type'] === self::MEMBER_ALL) {
+                return true;
+            }
             if ($member['type'] === 'user' && $member['id'] === $uid) {
                 return true;
             }
@@ -492,6 +534,7 @@ class ShareService {
 
         $qb = $this->db->getQueryBuilder();
         $conditions = [
+            $qb->expr()->eq('m.member_type', $qb->createNamedParameter(self::MEMBER_ALL)),
             $qb->expr()->andX(
                 $qb->expr()->eq('m.member_type', $qb->createNamedParameter('user')),
                 $qb->expr()->eq('m.member', $qb->createNamedParameter($uid))
@@ -729,6 +772,9 @@ class ShareService {
         }
         if ($out['coverIcon'] !== AppIcon::COVER_CUSTOM && !in_array($out['coverIcon'], AppIcon::COVER_ICONS, true)) {
             $out['coverIcon'] = '';
+        }
+        if (!in_array($out['noticeClosable'], ['', 'yes', 'no'], true)) {
+            $out['noticeClosable'] = '';
         }
         if ($out['repeatDefault'] !== '' && !in_array($out['repeatDefault'], Application::REPEAT_MODES, true)) {
             $out['repeatDefault'] = '';

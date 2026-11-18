@@ -110,10 +110,11 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   Teil davon bringt dich dorthin zurück. Mit Nextcloud-Konto gibt es links zusätzlich den
   <strong>Ordnerbaum</strong> (auf schmalen Bildschirmen über das Symbol ☰ oben links). Dort findest du:</p>
   <ul>
-    <li>den gemeinsamen Ordner mit den Aufnahmen und eventuell weitere Quellen (z.&nbsp;B. „Hörbücher“),</li>
     <li><strong>„Meine Dateien“</strong> – Aufnahmen aus deinen eigenen Nextcloud-Dateien,</li>
     <li><strong>„Meine Freigaben“</strong> – Ordner, die du selbst geteilt hast,</li>
-    <li><strong>„Mit mir geteilt“</strong> – Ordner, die andere in dieser App mit dir geteilt haben,</li>
+    <li><strong>„Mit mir geteilt“</strong> – Ordner, die andere in dieser App mit dir geteilt haben. Dazu gehören
+      auch die Aufnahmen, die für alle angemeldeten Nutzer freigegeben sind (🌐, z.&nbsp;B. das gemeinsame Archiv) –
+      mit ihnen startet die App,</li>
     <li><strong>„Favoriten“</strong> <?php echo $opt('favoriten'); ?>,</li>
     <li>ganz unten <strong>„Zu Nextcloud“</strong> – zurück zur Nextcloud-Oberfläche.</li>
   </ul>
@@ -126,7 +127,8 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   alles durchsucht.<?php } ?> Das ✕ löscht die Suche.</p>
   <h3>Text über den Aufnahmen</h3>
   <p>Steht über der Liste ein Text mit <strong>✕</strong>, kannst du ihn damit auf deinem Gerät ausblenden.
-  Ändert sich der Text, erscheint er wieder. Ohne ✕ hat die Verwaltung festgelegt, dass er stehen bleibt.</p>
+  Ändert sich der Text, erscheint er wieder. Ohne ✕ soll er stehen bleiben – das legt fest, wer den Ordner
+  geteilt hat (sonst gilt die Vorgabe der Verwaltung).</p>
   <h3>Sortieren</h3>
   <p>Neben dem Pfad steht die Sortierung: <strong>Name</strong>, <strong>Neueste</strong> oder
   <strong>Zufällig</strong>. Der Pfeil daneben dreht die Reihenfolge um. Dein Gerät merkt sich die Wahl.</p>
@@ -238,7 +240,10 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <?php echo $figure('share.jpg', 'Einen Ordner teilen'); ?>
   <h3>Mit Personen und Gruppen</h3>
   <p><strong>„Mit Personen teilen“</strong> wählt Nextcloud-Nutzer oder Gruppen aus. Sie finden den Ordner
-  in dieser App unter „Mit mir geteilt“. Auf Wunsch dürfen sie ihn selbst weiterteilen.</p>
+  in dieser App unter „Mit mir geteilt“. Auf Wunsch dürfen sie ihn selbst weiterteilen. Administratoren
+  können zusätzlich <strong>„Alle angemeldeten Nutzer“</strong> anhaken (🌐) – so wird zum Beispiel das gemeinsame
+  Archiv für alle freigegeben. Titel, Gestaltung und Text über den Aufnahmen stellst du je Freigabe ein; neue
+  Freigaben beginnen mit dem Standard-Aussehen.</p>
   <h3>Link für Hörer ohne Konto</h3>
   <p><strong>„Neuer Link“</strong> erstellt einen Link, über den man auch ohne Nextcloud-Konto zuhören kann.
   Für jeden Link einstellbar:</p>
@@ -247,7 +252,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li><strong>Passwort</strong> (ohne Passwort kann jeder mit dem Link zuhören),</li>
     <li><strong>Ablaufdatum</strong>,</li>
     <li>ob <strong>Offline speichern</strong> und <strong>Herunterladen</strong> erlaubt sind,</li>
-    <li>Wiederholen-Vorgabe, Titel, Text über den Aufnahmen und Gestaltung.</li>
+    <li>Wiederholen-Vorgabe, Titel, Text über den Aufnahmen (auf Wunsch mit ✕ ausblendbar) und Gestaltung.</li>
   </ul>
   <h3>Namen anders anzeigen (Muster)</h3>
   <p>Unter <strong>„Namen anzeigen (Muster)“</strong> legst du fest, wie Datei- und Ordnernamen für die Empfänger
@@ -303,7 +308,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <p>Mit Nextcloud-Konto öffnet das <strong>Zahnrad</strong> oben die „Darstellung“. Sie gilt nur für
   deine eigene Ansicht – andere Nutzer und geteilte Links bleiben unverändert.</p>
   <ul>
-    <li><strong>Gestaltung:</strong> Klassisch (wie Nextcloud), Modern (mit eigenen Farben) oder Benutzerdefiniert<?php
+    <li><strong>Gestaltung:</strong> Standard (Aussehen der App), Klassisch (wie Nextcloud), Modern (mit eigenen Farben) oder Benutzerdefiniert<?php
       // Was „Benutzerdefiniert“ bietet, kommt direkt aus dem Editor (js/style-tokens.js, ab 1.0.3)
       $styleLabels = array_values(array_unique(array_map(static fn ($i) => $i['label'], array_filter(
           $_['styleRef'], static fn ($i) => in_array($i['kind'], ['color', 'range', 'choice', 'switch'], true)
@@ -311,8 +316,8 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
       if ($styleLabels !== []) { ?> – dort einstellbar: <?php echo $escape(implode(', ', $styleLabels)); ?><?php } ?>,</li>
     <li><strong>Funktionen:</strong> Favoriten, Kommentare und Bewertung ein- oder ausblenden, Wiederholen-Vorgabe,</li>
     <li><strong>Texte für „Meine Dateien“:</strong> eigener Titel, Zusatzzeile und Text über deinen eigenen Dateien
-      (ohne Eintrag: Titel „Meine Dateien“, keine Zusatzzeile, kein Text). Über den gemeinsamen Aufnahmen stehen
-      immer die Texte der Verwaltung,</li>
+      (ohne Eintrag: Titel „Meine Dateien“, keine Zusatzzeile, kein Text). Über geteilten Ordnern stehen
+      die Texte, die beim Teilen festgelegt wurden,</li>
     <li><strong>Hintergrundbild</strong> wählen oder entfernen.</li>
   </ul>
   <p>Mit „Übernehmen“ speichern. Unten im Fenster steht die Version der App.</p>
