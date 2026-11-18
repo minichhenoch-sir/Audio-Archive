@@ -4751,7 +4751,13 @@
       if (window.AANameRules) {
         const names = group('Namen anzeigen (Muster)');
         const samples = (currentEntries || []).map((e) => ({ name: e.name, kind: e.type === 'dir' ? 'dir' : 'file' }));
-        rulesEditor = window.AANameRules.editor(Array.isArray(st.nameRules) ? st.nameRules : [], samples);
+        // Vorschau auch mit den Namen aller Unterordner (ab 1.2.4)
+        const namesFrom = { path: view.path, source: view.source };
+        const loadGroups = () => fetch(AudioArchive.namesUrl(namesFrom.path, namesFrom.source), { credentials: 'same-origin' })
+          .then((res) => (res.ok ? res.json() : { groups: [] }))
+          .then((data) => (Array.isArray(data.groups) ? data.groups : []));
+        rulesEditor = window.AANameRules.editor(Array.isArray(st.nameRules) ? st.nameRules : [], samples,
+          offlineMode ? null : loadGroups);
         names.appendChild(rulesEditor.el);
         panel.appendChild(names);
       }

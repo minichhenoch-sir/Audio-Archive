@@ -532,6 +532,76 @@ class ListController extends Controller {
      * nicht gelesene Dateien werden nur innerhalb eines Zeitbudgets gelesen.
      * Reicht es nicht, meldet die Antwort complete=false.
      */
+    /**
+     * Namen fuer die Vorschau der Namensmuster (ab 1.2.4): Ordner und
+     * Aufnahmen des geoeffneten Ordners UND seiner Unterordner, je Ordner
+     * gruppiert (fuer {x:mehrere} zaehlen nur Nachbarn im selben Ordner).
+     * Nur Namen aus dem Dateisystem, keine Angaben aus den Dateien - schnell.
+     */
+    #[PublicPage]
+    #[NoCSRFRequired]
+    public function names(string $path = '', string $source = AudioFolder::SOURCE_SHARED, string $s = ''): DataResponse {
+        $scope = $this->scope->resolve($source, $s);
+        if (is_int($scope)) {
+            return new DataResponse(['error' => 'Nicht gefunden.'], $scope);
+        }
+        $root = $scope['root'];
+        $start = $root;
+        if (trim($path, '/') !== '') {
+            $node = $this->audioFolder->resolveIn($root, $path);
+            if (!$node instanceof Folder) {
+                return new DataResponse(['error' => 'Ordner nicht gefunden.'], Http::STATUS_NOT_FOUND);
+            }
+            $start = $node;
+        }
+        $groups = [];
+        $total = 0;
+        $complete = true;
+        $queue = [[$start, '', 0]];
+        while ($queue !== []) {
+            [$folder, $rel, $depth] = array_shift($queue);
+            if (count($groups) >= 400 || $total >= 4000) {
+                $complete = false;
+                break;
+            }
+            try {
+                $listing = $folder->getDirectoryListing();
+            } catch (\Throwable $e) {
+                continue;
+            }
+            $dirs = [];
+            $files = [];
+            $sub = [];
+            foreach ($listing as $child) {
+                $name = $child->getName();
+                if (str_starts_with($name, '.')) {
+                    continue;
+                }
+                if ($child instanceof Folder) {
+                    $dirs[] = $name;
+                    if ($depth < 8) {
+                        $sub[] = [$child, ltrim($rel . '/' . $name, '/'), $depth + 1];
+                    } else {
+                        $complete = false;
+                    }
+                } elseif ($this->audioFolder->isAllowedFile($child)) {
+                    $files[] = NameRules::withoutExtension($name);
+                }
+            }
+            if ($dirs !== [] || $files !== []) {
+                natcasesort($dirs);
+                natcasesort($files);
+                $groups[] = ['path' => $rel, 'dirs' => array_values($dirs), 'files' => array_values($files)];
+                $total += count($dirs) + count($files);
+            }
+            usort($sub, static fn ($a, $b) => strnatcasecmp($a[1], $b[1]));
+            foreach ($sub as $item) {
+                $queue[] = $item;
+            }
+        }
+        return new DataResponse(['groups' => $groups, 'complete' => $complete]);
+    }
+
     #[PublicPage]
     #[NoCSRFRequired]
     public function search(string $q = '', string $source = AudioFolder::SOURCE_SHARED, string $s = '', string $path = ''): DataResponse {

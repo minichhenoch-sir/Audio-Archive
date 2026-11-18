@@ -276,7 +276,10 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li>Werte ersetzen: eine Zeile je Wert, <code>alt = neu</code>; nur für einen Platzhalter:
     <code>Kürzel.GDB = Gottesdienst</code>.</li>
     <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
-    passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau Namen aus dem geöffneten Ordner.</li>
+    passt keine, bleibt der Name. Unter jeder Regel zeigt eine Vorschau passende Namen aus dem geöffneten Ordner
+    und allen Unterordnern; im Feld „Namen ausprobieren“ lässt sich jeder beliebige Name testen.</li>
+    <li>Feste Zeichen wie <code>_</code> oder <code>-</code> stehen einfach so im Muster, ohne Klammern:
+    <code>{J:4}-{M:2}-{T:2}</code>.</li>
     <li>Weitere Beispiele: Muster <code>{Datum}_mp3</code> mit Anzeige <code>{Datum}</code> macht aus
     <code>2026_05_mp3</code> „Mai 2026“. Muster <code>{Ort:3}_{J:2}{M:2}{T:2}_{Tag}_mp3_{Zeit}</code> mit Anzeige
     <code>{T}.{M} {Tag} {Zeit}</code> und den Werten <code>Tag.So = Sonntag</code>, <code>Zeit.a = Vormittag</code> macht aus

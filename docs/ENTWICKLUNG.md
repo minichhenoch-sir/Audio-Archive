@@ -2197,3 +2197,26 @@ nichts angehängt wird.
 
 Beispiel: Anzeige `{T}.{M} {Tag}[ {Zeit:mehrere}]` → „10.05 Sonntag“,
 „17.05 Sonntag Vormittag“, „17.05 Sonntag Nachmittag“.
+
+## 1.2.4: Muster-Vorschau mit Unterordnern, Namen ausprobieren
+
+Rückmeldung von Henoch (Chat, 18.11.2026, 08:59, mit Bildschirmfoto): Die
+Vorschau durchsucht keine Unterordner – seine GBO-Ordner liegen in den
+Monatsordnern, also zeigte sie „passt noch kein Name“. Außerdem war die
+neue Regel unklar (er schrieb `{-}` für einen festen Bindestrich).
+
+- Neuer Endpunkt `GET /api/names` (`ListController::names`): Namen von
+  Ordnern und Aufnahmen des geöffneten Ordners samt Unterordnern, je Ordner
+  gruppiert (höchstens 400 Ordner, 4000 Namen, Tiefe 8), nur aus dem
+  Dateisystem – schnell.
+- `AANameRules.editor(regeln, beispiele, loadGroups)`: Vorschau rechnet je
+  Ordner mit `applyAll` (für `{x:mehrere}`), zeigt bis zu 8 Treffer mit
+  Ordner, die Anzahl, und hat das Feld „Namen ausprobieren“.
+- Hinweistext: feste Zeichen ohne Klammern (`{J:4}-{M:2}-{T:2}`); `{-}`
+  funktioniert zwar (Platzhalter „-“ mit beliebigem Text), ist aber nicht
+  nötig.
+
+Geprüft in Sandbox-NC 34.0.3 mit `2026_05_mp3/GBO_2026-05-17_So_mp3_a|b`
+und `…10_So_mp3_a`: Vorschau „10.05 Sonntag“, „17.05 Sonntag Vormittag“,
+„17.05 Sonntag Nachmittag“ (in 2026_05_mp3), Ausprobieren „GBO_2026-06-07_So_mp3_b“
+→ „07.06 Sonntag Nachmittag“; Henochs Muster mit `{-}` ergibt dasselbe.

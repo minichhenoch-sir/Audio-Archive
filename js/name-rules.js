@@ -354,7 +354,8 @@ window.AANameRules = (() => {
   // Eingabe im Freigabe-Formular
   // ------------------------------------------------------------------
 
-  const HELP = 'Platzhalter im Muster: {x} beliebiger Text · {x:3} genau 3 Zeichen · {x:Zahl} · '
+  const HELP = 'Feste Zeichen wie _ oder - stehen einfach so im Muster, ohne { }: {J:4}-{M:2}-{T:2}. '
+    + 'Platzhalter im Muster: {x} beliebiger Text · {x:3} genau 3 Zeichen · {x:Zahl} · '
     + '{x:Buchstaben} · {x:Wort} · {x:Datum}. In der Anzeige dieselben Namen, dazu {Datum:kurz}, '
     + '{Datum:Jahr}, {Datum:Monat}, {x:groß}, {x:klein}, {x:Anfang} und {Name} für den ganzen Namen. '
     + '{x:mehrere} zeigt x nur, wenn es im selben Ordner einen gleichen Namen mit anderem x gibt; '
@@ -363,10 +364,12 @@ window.AANameRules = (() => {
   /**
    * Baut die Eingabe fuer eine Freigabe.
    * @param {Array} rules   gespeicherte Regeln
-   * @param {Array} samples Beispielnamen [{name, kind}] fuer die Vorschau
+   * @param {Array} samples Beispielnamen [{name, kind}] des geoeffneten Ordners
+   * @param {function(): Promise<Array>} [loadGroups] liefert (ab 1.2.4) die
+   *        Namen samt Unterordnern: [{path, dirs: [], files: []}]
    * @returns {{el: HTMLElement, value: function(): Array, error: function(): string}}
    */
-  function editor(rules, samples) {
+  function editor(rules, samples, loadGroups) {
     const root = document.createElement('div');
     root.className = 'name-rules';
     const list = document.createElement('div');
@@ -380,7 +383,27 @@ window.AANameRules = (() => {
     root.appendChild(hint);
     root.appendChild(list);
 
-    const sampleList = Array.isArray(samples) ? samples.slice(0, 2000) : [];
+    // Namen fuer die Vorschau, je Ordner gruppiert ({x:mehrere} zaehlt nur
+    // Nachbarn im selben Ordner). Zuerst der geoeffnete Ordner, dann - sobald
+    // geladen - auch alle Unterordner (ab 1.2.4).
+    const sampleList = Array.isArray(samples) ? samples : [];
+    let groups = [{
+      path: '',
+      dirs: sampleList.filter((x) => x.kind === 'dir').map((x) => x.name),
+      files: sampleList.filter((x) => x.kind !== 'dir').map((x) => x.name),
+    }];
+    let groupsLoaded = !loadGroups;
+    const refreshers = [];
+    if (loadGroups) {
+      loadGroups().then((loaded) => {
+        if (Array.isArray(loaded) && loaded.length) groups = loaded;
+        groupsLoaded = true;
+        refreshers.forEach((fn) => fn());
+      }).catch(() => {
+        groupsLoaded = true;
+        refreshers.forEach((fn) => fn());
+      });
+    }
 
     function input(value, placeholder, cls) {
       const el = document.createElement('input');
@@ -435,6 +458,11 @@ window.AANameRules = (() => {
       const preview = document.createElement('ul');
       preview.className = 'name-rule-preview';
 
+      // Beliebigen Namen ausprobieren (ab 1.2.4)
+      const tryInput = input('', 'z. B. GBO_2026-05-17_So_mp3_a', 'name-rule-try');
+      const tryResult = document.createElement('p');
+      tryResult.className = 'panel-hint name-rule-try-result';
+
       const remove = document.createElement('button');
       remove.type = 'button';
       remove.className = 'panel-button panel-button--danger';
@@ -450,7 +478,9 @@ window.AANameRules = (() => {
         labelled('Anzeige', display),
         labelled('Werte ersetzen (optional, je Zeile „alt = neu“)', map),
         labelled('Gilt für', applies),
-        spacesWrap, status, preview, remove
+        spacesWrap, status, preview,
+        labelled('Namen ausprobieren (optional)', tryInput), tryResult,
+        remove
       );
       list.appendChild(box);
 
@@ -480,31 +510,56 @@ window.AANameRules = (() => {
         status.classList.toggle('is-error', err !== '');
         preview.textContent = '';
         if (err || v.pattern === '') return;
-        let shown = 0;
-        // Mit allen Namen des Ordners, damit {x:mehrere} wie in der Liste wirkt
+        // Mit allen Namen je Ordner, damit {x:mehrere} wie in der Liste wirkt
         const rulesNow = [v];
-        const byKind = {
-          dir: applyAll(rulesNow, sampleList.filter((x) => x.kind === 'dir').map((x) => x.name), 'dir'),
-          file: applyAll(rulesNow, sampleList.filter((x) => x.kind === 'file').map((x) => x.name), 'file'),
-        };
-        sampleList.forEach((s) => {
-          if (shown >= 6) return;
-          const out = byKind[s.kind === 'dir' ? 'dir' : 'file'].get(s.name);
-          if (out === null || out === undefined) return;
-          shown++;
+        const hits = [];
+        let total = 0;
+        groups.forEach((g) => {
+          [['dir', g.dirs || []], ['file', g.files || []]].forEach(([kind, names]) => {
+            if (!names.length) return;
+            applyAll(rulesNow, names, kind).forEach((out, name) => {
+              if (out === null || out === undefined) return;
+              total++;
+              if (hits.length < 8) hits.push({ name, out, where: g.path });
+            });
+          });
+        });
+        hits.forEach((h) => {
           const li = document.createElement('li');
-          li.textContent = s.name + ' → ' + out;
+          li.textContent = h.name + ' → ' + h.out;
+          if (h.where) {
+            const small = document.createElement('span');
+            small.className = 'name-rule-where';
+            small.textContent = '  (in ' + h.where + ')';
+            li.appendChild(small);
+          }
           preview.appendChild(li);
         });
-        if (shown === 0) {
-          const li = document.createElement('li');
-          li.textContent = sampleList.length
-            ? 'Im geöffneten Ordner passt noch kein Name zu diesem Muster.'
-            : 'Vorschau: im geöffneten Ordner sind keine Namen zum Ausprobieren.';
-          preview.appendChild(li);
+        const li = document.createElement('li');
+        li.className = 'name-rule-sum';
+        if (total === 0) {
+          li.textContent = groupsLoaded
+            ? 'Hier und in den Unterordnern passt noch kein Name zu diesem Muster – unten einen Namen ausprobieren.'
+            : 'Unterordner werden noch durchsucht …';
+        } else {
+          li.textContent = total + (total === 1 ? ' Name passt' : ' Namen passen')
+            + (groupsLoaded ? ' (hier und in den Unterordnern).' : ' – Unterordner werden noch durchsucht …');
+        }
+        preview.appendChild(li);
+        // Einzelnen Namen ausprobieren (ohne Nachbarn: {x:mehrere} bleibt sichtbar)
+        const t = tryInput.value.trim();
+        if (t !== '') {
+          const asDir = v.applies !== 'files' ? apply(rulesNow, t, 'dir') : null;
+          const asFile = v.applies !== 'folders' ? apply(rulesNow, t.replace(/\.[a-z0-9]{2,5}$/i, ''), 'file') : null;
+          const out = asDir || asFile;
+          tryResult.textContent = out ? '→ ' + out : 'passt nicht zum Muster';
+          tryResult.classList.toggle('is-error', !out);
+        } else {
+          tryResult.textContent = '';
         }
       };
-      [pattern, display, map].forEach((el) => el.addEventListener('input', refresh));
+      [pattern, display, map, tryInput].forEach((el) => el.addEventListener('input', refresh));
+      refreshers.push(refresh);
       [applies, spaces].forEach((el) => el.addEventListener('change', refresh));
       refresh();
     }

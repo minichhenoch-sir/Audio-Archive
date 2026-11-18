@@ -187,6 +187,12 @@ const AudioArchive = (() => {
         + 'path=' + encodeURIComponent(path || ''), location.href).href;
     },
 
+    /** Namen samt Unterordnern fuer die Muster-Vorschau (ab 1.2.4). */
+    namesUrl(path, source) {
+      return new URL(this.api('names') + '?' + this.sourceQuery(source)
+        + 'path=' + encodeURIComponent(path || ''), location.href).href;
+    },
+
     listUrl(path, source) {
       return new URL(this.api('list') + '?' + this.sourceQuery(source)
         + 'path=' + encodeURIComponent(path || ''), location.href).href;

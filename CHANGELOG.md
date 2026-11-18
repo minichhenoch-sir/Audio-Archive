@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.2.4 – 2026-11-18
+
+### Changed
+- Preview of display patterns includes the names of all subfolders (grouped
+  per folder, so `{x:mehrere}` works as in the list), shows how many names
+  match, and has a field to try any name
+
 ## 1.2.3 – 2026-11-18
 
 ### Added

@@ -1817,7 +1817,11 @@ body.has-bg-image #audioarchive .explorer-row.active {
 #audioarchive .name-rule-map { resize: vertical; font-family: inherit; }
 #audioarchive .name-rule-pattern,
 #audioarchive .name-rule-display { font-variant-ligatures: none; }
-#audioarchive .name-rule-status.is-error { color: var(--color-danger); }
+#audioarchive .name-rule-status.is-error,
+#audioarchive .name-rule-try-result.is-error { color: var(--color-danger); }
+#audioarchive .name-rule-where { opacity: 0.7; }
+#audioarchive .name-rule-sum { list-style: none; margin-left: -18px; margin-top: 4px; font-style: italic; }
+#audioarchive .name-rule-try-result { margin: -4px 0 8px; font-weight: 600; }
 #audioarchive .name-rule-preview {
   margin: 0 0 8px;
   padding-left: 18px;
