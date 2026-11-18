@@ -2171,3 +2171,29 @@ Reihenfolge der echten Namen; Suche „Mai 2026“, „Sonntag Vormittag“,
 „Testsprecher“ findet, „GBO“ nicht. Markierung in Liste und Baum folgt dem
 Titelwechsel. Keine Skriptfehler.
 Einspielen: Container-Neustart (PHP geändert); keine Datenbankänderung.
+
+## 1.2.3: Namensmuster – Teil nur bei mehreren gleichen Namen
+
+Wunsch von Henoch (Chat, 17.11.2026, 22:37): Gibt es an einem Datum nur
+einen Gottesdienst (nur a, b oder c), soll man sagen können, dass dann
+nichts angehängt wird.
+
+- Neuer Zusatz `{x:mehrere}`: x entfällt, wenn im selben Ordner kein Name
+  derselben Regel existiert, der in allen anderen Platzhaltern gleich ist
+  und sich nur in x unterscheidet. Optionale Klammern `[ … ]` entfallen,
+  wenn alle Platzhalter darin leer sind. Zusätze kommasepariert.
+- Engine (JS und PHP gleich): `match()`, `applyAll(regeln, namen, art)`
+  gruppiert je Regel und Platzhalter (O(n)), `render(..., hidden)`.
+  JS merkt die Ergebnisse je Regelliste (`context`), sodass `apply()` für
+  Pfad, Seitenleiste und Player denselben Namen liefert;
+  `remember()` übernimmt die vom Server berechneten Namen der Suchtreffer.
+- App: `seedNames()` in `renderEntries()`, beim Laden der Seitenleiste und
+  in der Offline-Suche; `rememberShown()` für Server-Suchtreffer.
+- Server: Suche rechnet je Ordner einmal `applyAll` (Ordner, Dateien) und
+  sucht im so angezeigten Pfad; Treffer bekommen `shown`. Ordner der
+  Freigabe selbst: `NameRules::showFolder()` mit den Nachbarn im
+  übergeordneten Ordner (Titel des Links, „Mit mir geteilt“).
+- Formular-Vorschau rechnet mit allen Namen des Ordners.
+
+Beispiel: Anzeige `{T}.{M} {Tag}[ {Zeit:mehrere}]` → „10.05 Sonntag“,
+„17.05 Sonntag Vormittag“, „17.05 Sonntag Nachmittag“.

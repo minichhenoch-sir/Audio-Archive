@@ -128,7 +128,7 @@ class PlayerPage {
             return 'Aufnahmen';
         }
         // Namensmuster der Freigabe gelten auch fuer ihren Ordner (ab 1.2.1)
-        return NameRules::show($share['settings']['nameRules'] ?? [], $folder->getName(), 'dir');
+        return NameRules::showFolder($share['settings']['nameRules'] ?? [], $folder);
     }
 
     /**

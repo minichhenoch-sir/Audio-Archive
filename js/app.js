@@ -1077,6 +1077,30 @@
     return share && Array.isArray(share.nameRules) ? share.nameRules : [];
   }
 
+  /*
+   * Namen eines ganzen Ordners auf einmal berechnen (ab 1.2.3): Erst mit
+   * den Nachbarn ist klar, ob ein {x:mehrere}-Teil gebraucht wird. Die
+   * Ergebnisse merkt sich AANameRules; fileLabel() und prettyFolderName()
+   * finden sie dann auch fuer Pfad, Seitenleiste und Player.
+   */
+  function seedNames(entries, source) {
+    const rules = nameRulesFor(source);
+    if (!rules.length || !Array.isArray(entries)) return;
+    window.AANameRules.applyAll(rules, entries.filter((e) => e.type === 'dir').map((e) => e.name), 'dir');
+    window.AANameRules.applyAll(rules, entries.filter((e) => e.type !== 'dir').map((e) => e.name), 'file');
+  }
+
+  /** Suchtreffer: Namen, die der Server schon mit Nachbarn berechnet hat. */
+  function rememberShown(list, source) {
+    const rules = nameRulesFor(source);
+    if (!rules.length) return;
+    list.forEach((e) => {
+      if (e && Object.prototype.hasOwnProperty.call(e, 'shown')) {
+        window.AANameRules.remember(rules, e.name, e.type === 'dir' ? 'dir' : 'file', e.shown);
+      }
+    });
+  }
+
   /** Angezeigter Name einer Aufnahme (ohne Endung) nach den Mustern. */
   function fileLabel(entry, source = entry.source || view.source) {
     const rules = nameRulesFor(source);
@@ -2136,6 +2160,8 @@
   }
 
   function renderEntries() {
+    // Namensmuster mit Blick auf alle Namen dieses Ordners (ab 1.2.3)
+    seedNames(currentEntries, view.source);
     listContainer.innerHTML = '';
     listContainer.classList.remove('entering');
     void listContainer.offsetWidth; // Reflow erzwingen, damit die Animation neu startet
@@ -2441,6 +2467,7 @@
       for (const folderPath of Object.keys(folders)) {
         let entries = await offlineEntriesFromCache(folderPath, view.source);
         if (entries === null) entries = offlineEntriesFor(folderPath, view.source);
+        seedNames(entries, view.source);
         entries.forEach((e) => {
           if (!inBase(e.path)) return;
           if (found.some((f) => f.path === e.path)) return;
@@ -2496,6 +2523,8 @@
             const data = await res.json();
             if (mySeq !== seq) return; // inzwischen weitergetippt
             list = Array.isArray(data.results) ? data.results : [];
+            // Vom Server mit Blick auf die Nachbarn berechnete Namen ({x:mehrere}, ab 1.2.3)
+            rememberShown(list, view.source);
             done = data.complete !== false;
             limited = data.limited === true;
             unread = Number(data.unread) || 0;
@@ -3774,6 +3803,7 @@
       }
       try {
         const dirs = await fetchChildren(node.source, node.path);
+        seedNames(dirs.map((d) => ({ type: 'dir', name: d.name })), node.source);
         node.children.innerHTML = '';
         dirs.forEach((dir) => {
           const child = createNode(node.source, dir.path, prettyFolderName(dir.name, node.source), dir.hasChildren, folderSvg, false);

@@ -4,6 +4,15 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.2.3 – 2026-11-18
+
+### Added
+- Display patterns: `{x:mehrere}` shows a part only if the same folder has
+  another name that differs just in that part (e.g. morning and evening
+  service on the same day); text in `[ … ]` is dropped when all its
+  placeholders are empty. Several options with a comma: `{x:mehrere,groß}`
+- Search results carry the displayed name computed by the server
+
 ## 1.2.2 – 2026-11-17
 
 ### Added

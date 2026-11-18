@@ -24,7 +24,8 @@ class NameRules {
     private static array $compiled = [];
 
     /**
-     * Anzeigename nach den Regeln, oder null wenn keine passt.
+     * Anzeigename nach den Regeln, oder null wenn keine passt. Ohne Blick
+     * auf die Nachbarn - {x:mehrere} bleibt sichtbar; dafuer applyAll().
      *
      * @param list<array> $rules
      * @param string $kind 'file' oder 'dir'
@@ -33,8 +34,7 @@ class NameRules {
         if ($rules === [] || $name === '') {
             return null;
         }
-        // Fertige Namen merken (ab 1.2.2): In der Suche kommen dieselben
-        // Ordner in jedem Pfad darunter wieder vor
+        // Fertige Namen merken (ab 1.2.2)
         $key = md5(serialize($rules)) . '|' . $kind . '|' . $name;
         if (array_key_exists($key, self::$results)) {
             return self::$results[$key];
@@ -42,14 +42,73 @@ class NameRules {
         if (count(self::$results) > 20000) {
             self::$results = [];
         }
-        return self::$results[$key] = self::applyUncached($rules, $name, $kind);
+        $m = self::match($rules, $name, $kind);
+        $shown = $m === null ? null : self::render($m['rule'], $m['slots'], $m['values'], $name, []);
+        return self::$results[$key] = ($shown === '' ? null : $shown);
     }
 
     /** @var array<string, string|null> */
     private static array $results = [];
 
-    private static function applyUncached(array $rules, string $name, string $kind): ?string {
-        foreach ($rules as $rule) {
+    /**
+     * Alle Namen eines Ordners auf einmal (ab 1.2.3): wie apply(), dazu
+     * {x:mehrere} - x entfaellt, wenn kein Nachbar sich nur in x unterscheidet.
+     *
+     * @param list<string> $names
+     * @return array<string, string|null>
+     */
+    public static function applyAll(array $rules, array $names, string $kind): array {
+        $out = [];
+        if ($rules === []) {
+            return $out;
+        }
+        $found = [];
+        foreach ($names as $name) {
+            $name = (string)$name;
+            if ($name === '') {
+                continue;
+            }
+            $m = self::match($rules, $name, $kind);
+            if ($m === null) {
+                $out[$name] = null;
+            } else {
+                $found[] = ['name' => $name, 'm' => $m];
+            }
+        }
+        $groupKey = static function (array $f, string $x): string {
+            $parts = [(string)$f['m']['index'], $x];
+            foreach ($f['m']['slots'] as $slot) {
+                $n = self::lower($slot['name']);
+                if ($n !== $x) {
+                    $parts[] = self::lower((string)$f['m']['values'][$n]);
+                }
+            }
+            return implode("\x01", $parts);
+        };
+        $groups = [];
+        foreach ($found as $f) {
+            foreach (self::multiOf((string)($f['m']['rule']['display'] ?? '')) as $x) {
+                if (array_key_exists($x, $f['m']['values'])) {
+                    $groups[$groupKey($f, $x)][self::lower((string)$f['m']['values'][$x])] = true;
+                }
+            }
+        }
+        foreach ($found as $f) {
+            $hidden = [];
+            foreach (self::multiOf((string)($f['m']['rule']['display'] ?? '')) as $x) {
+                if (array_key_exists($x, $f['m']['values']) && count($groups[$groupKey($f, $x)] ?? []) < 2) {
+                    $hidden[$x] = true;
+                }
+            }
+            $shown = self::render($f['m']['rule'], $f['m']['slots'], $f['m']['values'], $f['name'], $hidden);
+            $out[$f['name']] = $shown === '' ? null : $shown;
+        }
+        return $out;
+    }
+
+    /** @return array{rule: array, index: int, slots: list<array>, values: array<string, string>}|null */
+    private static function match(array $rules, string $name, string $kind): ?array {
+        foreach ($rules as $index => $rule) {
             $pattern = (string)($rule['pattern'] ?? '');
             if ($pattern === '') {
                 continue;
@@ -66,15 +125,73 @@ class NameRules {
             foreach ($c['slots'] as $i => $slot) {
                 $values[self::lower($slot['name'])] = $m[$i + 1] ?? '';
             }
-            $shown = self::render($rule, $c['slots'], $values, $name);
-            return $shown !== '' ? $shown : null;
+            return ['rule' => $rule, 'index' => (int)$index, 'slots' => $c['slots'], 'values' => $values];
         }
         return null;
+    }
+
+    /** @var array<string, list<string>> */
+    private static array $multi = [];
+
+    /** @return list<string> Platzhalter mit {x:mehrere} (klein) */
+    private static function multiOf(string $display): array {
+        if (!array_key_exists($display, self::$multi)) {
+            $set = [];
+            if (preg_match_all(self::TOKEN, $display, $all, PREG_SET_ORDER)) {
+                foreach ($all as $m) {
+                    if (self::splitOpt($m[2] ?? '')['multi']) {
+                        $set[self::lower(trim($m[1]))] = true;
+                    }
+                }
+            }
+            self::$multi[$display] = array_keys($set);
+        }
+        return self::$multi[$display];
+    }
+
+    /** @return array{multi: bool, fmt: string} */
+    private static function splitOpt(string $raw): array {
+        $parts = array_values(array_filter(array_map(
+            static fn ($p) => self::lower(trim($p)), explode(',', $raw)
+        ), static fn ($p) => $p !== ''));
+        $fmt = '';
+        foreach ($parts as $p) {
+            if ($p !== 'mehrere') {
+                $fmt = $p;
+                break;
+            }
+        }
+        return ['multi' => in_array('mehrere', $parts, true), 'fmt' => $fmt];
     }
 
     /** Name nach den Regeln, sonst unveraendert. */
     public static function show(array $rules, string $name, string $kind): string {
         return self::apply($rules, $name, $kind) ?? $name;
+    }
+
+    /**
+     * Name eines Ordners samt Blick auf seine Nachbarn im uebergeordneten
+     * Ordner ({x:mehrere}, ab 1.2.3) - fuer den Ordner einer Freigabe.
+     */
+    public static function showFolder(array $rules, \OCP\Files\Folder $folder): string {
+        $name = $folder->getName();
+        if ($rules === [] || $name === '') {
+            return $name;
+        }
+        try {
+            $names = [];
+            foreach ($folder->getParent()->getDirectoryListing() as $sibling) {
+                if ($sibling instanceof \OCP\Files\Folder && !str_starts_with($sibling->getName(), '.')) {
+                    $names[] = $sibling->getName();
+                }
+            }
+            if (!in_array($name, $names, true)) {
+                $names[] = $name;
+            }
+            return self::applyAll($rules, $names, 'dir')[$name] ?? $name;
+        } catch (\Throwable $e) {
+            return self::show($rules, $name, 'dir');
+        }
     }
 
     /** Pfad (a/b/c) Abschnitt fuer Abschnitt; der letzte ist $lastKind. */
@@ -158,7 +275,8 @@ class NameRules {
     /** @var array<string, array> zerlegte Werte-Listen (ab 1.2.2) */
     private static array $maps = [];
 
-    private static function render(array $rule, array $slots, array $values, string $original): string {
+    /** @param array<string, true> $hidden Platzhalter (klein), die entfallen */
+    private static function render(array $rule, array $slots, array $values, string $original, array $hidden): string {
         $mapText = (string)($rule['map'] ?? '');
         $map = self::$maps[$mapText] ??= self::parseMap($mapText);
         $types = [];
@@ -166,9 +284,12 @@ class NameRules {
             $types[self::lower($slot['name'])] = $slot['type'];
         }
         $spaces = ($rule['spaces'] ?? true) !== false;
-        $out = preg_replace_callback(self::TOKEN, static function (array $m) use ($values, $types, $map, $spaces, $original): string {
-            $lower = self::lower(trim($m[1]));
-            $opt = self::lower(trim($m[2] ?? ''));
+        $one = static function (string $rawName, string $rawOpt) use ($values, $types, $map, $spaces, $original, $hidden): string {
+            $lower = self::lower(trim($rawName));
+            if (isset($hidden[$lower])) {
+                return '';
+            }
+            $opt = self::splitOpt($rawOpt)['fmt'];
             if (array_key_exists($lower, $values)) {
                 $value = (string)$values[$lower];
             } elseif ($lower === 'name') {
@@ -193,8 +314,26 @@ class NameRules {
                 $value = (string)preg_replace('/_+/u', ' ', $value);
             }
             return self::applyCase($value, $opt);
+        };
+        $part = static function (string $text) use ($one): array {
+            $had = false;
+            $filled = false;
+            $out = (string)preg_replace_callback(self::TOKEN, static function (array $m) use ($one, &$had, &$filled): string {
+                $had = true;
+                $v = $one($m[1], $m[2] ?? '');
+                if ($v !== '') {
+                    $filled = true;
+                }
+                return $v;
+            }, $text);
+            return [$out, $had, $filled];
+        };
+        // [ … ] entfaellt, wenn alle Platzhalter darin leer sind
+        $outer = (string)preg_replace_callback('/\[([^\[\]]*)\]/u', static function (array $m) use ($part): string {
+            [$out, $had, $filled] = $part($m[1]);
+            return $had && !$filled ? '' : $out;
         }, (string)($rule['display'] ?? ''));
-        return trim((string)preg_replace('/\s+/u', ' ', (string)$out));
+        return trim((string)preg_replace('/\s+/u', ' ', $part($outer)[0]));
     }
 
     /** @return array{all: array<string, string>, byName: array<string, array<string, string>>} */

@@ -566,8 +566,6 @@ class ListController extends Controller {
          * Dateinamen. Titel, Kuenstler und Album aus der Datei zaehlen weiter.
          */
         $rules = is_array($scope['share'] ?? null) ? ($scope['share']['settings']['nameRules'] ?? []) : [];
-        $shownPath = static fn (string $rel, string $kind): string => $rules === []
-            ? $rel : NameRules::showPath($rules, $rel, $kind);
 
         $dirs = [];
         $files = [];
@@ -579,10 +577,11 @@ class ListController extends Controller {
         $unread = 0;
         $folders = 0;
         $seenFiles = 0;
-        $queue = [[$start, $base]];
+        // Dritter Wert: angezeigter Pfad unterhalb des Startordners (Muster)
+        $queue = [[$start, $base, '']];
 
         while ($queue !== []) {
-            [$folder, $relative] = array_shift($queue);
+            [$folder, $relative, $shownRelative] = array_shift($queue);
             if (++$folders > self::SEARCH_MAX_FOLDERS) {
                 $complete = false;
                 break;
@@ -599,6 +598,26 @@ class ListController extends Controller {
                 $listing,
                 fn ($c) => !($c instanceof Folder) && $this->audioFolder->isAllowedFile($c)
             )));
+            // Angezeigte Namen dieses Ordners mit Blick auf die Nachbarn
+            // ({x:mehrere}, ab 1.2.3) - je Ordner einmal
+            $shownDirs = [];
+            $shownFiles = [];
+            if ($rules !== []) {
+                $dirNames = [];
+                $fileNames = [];
+                foreach ($listing as $c) {
+                    if (str_starts_with($c->getName(), '.')) {
+                        continue;
+                    }
+                    if ($c instanceof Folder) {
+                        $dirNames[] = $c->getName();
+                    } else {
+                        $fileNames[] = NameRules::withoutExtension($c->getName());
+                    }
+                }
+                $shownDirs = NameRules::applyAll($rules, $dirNames, 'dir');
+                $shownFiles = NameRules::applyAll($rules, $fileNames, 'file');
+            }
             foreach ($listing as $child) {
                 $name = $child->getName();
                 if (str_starts_with($name, '.')) {
@@ -606,14 +625,19 @@ class ListController extends Controller {
                 }
                 $childRelative = ltrim($relative . '/' . $name, '/');
                 if ($child instanceof Folder) {
-                    $subfolders[] = [$child, $childRelative];
-                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $shownPath($below($childRelative), 'dir'))) {
+                    $shownName = $rules === [] ? null : ($shownDirs[$name] ?? null);
+                    $shownChild = ltrim($shownRelative . '/' . ($shownName ?? $name), '/');
+                    $subfolders[] = [$child, $childRelative, $shownChild];
+                    $dirHay = $rules === [] ? $below($childRelative) : $shownChild;
+                    if (count($dirs) < self::SEARCH_MAX_RESULTS && self::matches($terms, $dirHay)) {
                         $dirs[] = [
                             'type' => 'dir',
                             'name' => $name,
                             'path' => $childRelative,
                             'count' => null,
                             'added' => self::folderAdded($child),
+                            // Angezeigter Name (Namensmuster, ab 1.2.3)
+                            ...($rules !== [] ? ['shown' => $shownName] : []),
                         ];
                     }
                     continue;
@@ -626,7 +650,9 @@ class ListController extends Controller {
                     break 2;
                 }
                 /** @var File $child */
-                $haystack = $shownPath($below($childRelative), 'file');
+                $shownFile = $rules === [] ? null : ($shownFiles[NameRules::withoutExtension($name)] ?? null);
+                $haystack = $rules === [] ? $below($childRelative)
+                    : ltrim($shownRelative . '/' . ($shownFile ?? $name), '/');
                 if (!self::matches($terms, $haystack)) {
                     // Angaben aus der Datei: zwischengespeichert, sonst nur mit Zeit
                     $meta = $known[(int)$child->getId()] ?? null;
@@ -646,7 +672,11 @@ class ListController extends Controller {
                     }
                 }
                 // Bekannte Angaben weitergeben statt erneut nachzuschlagen (ab 0.34.0)
-                $files[] = $this->fileEntry($child, $folder, $root, $childRelative, $folderCover, $known[(int)$child->getId()] ?? null);
+                $entry = $this->fileEntry($child, $folder, $root, $childRelative, $folderCover, $known[(int)$child->getId()] ?? null);
+                if ($rules !== []) {
+                    $entry['shown'] = $shownFile;
+                }
+                $files[] = $entry;
             }
             usort($subfolders, static fn ($a, $b) => strnatcasecmp($a[1], $b[1]));
             foreach ($subfolders as $sub) {

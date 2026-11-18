@@ -27,6 +27,12 @@
  *                       {Datum:Tag} 12 · {x:groß} · {x:klein} ·
  *                       {x:Anfang} erster Buchstabe gross
  *            {Name} ist der ganze urspruengliche Name.
+ *            {x:mehrere} (ab 1.2.3): x nur zeigen, wenn es im selben Ordner
+ *            einen Namen gibt, der sich nur in x unterscheidet (z. B.
+ *            Vormittag/Abend am selben Tag) - sonst entfaellt x.
+ *            Mehrere Zusaetze mit Komma: {x:mehrere,groß}.
+ *            [ … ] (ab 1.2.3): Text in eckigen Klammern entfaellt ganz,
+ *            wenn alle Platzhalter darin leer sind:  {Tag}[ – {Zeit:mehrere}]
  *
  *   Werte    Ersetzungen, eine je Zeile:  GDB = Gottesdienst
  *            Gilt fuer alle Platzhalter; nur fuer einen bestimmten:
@@ -164,14 +170,24 @@ window.AANameRules = (() => {
     return maps.get(key);
   }
 
-  function render(rule, slots, values, original) {
+  /** Zusaetze eines Platzhalters: {x:mehrere,groß} -> { multi, fmt } */
+  function splitOpt(raw) {
+    const parts = String(raw || '').split(',').map((p) => p.trim().toLowerCase()).filter(Boolean);
+    return { multi: parts.includes('mehrere'), fmt: parts.find((p) => p !== 'mehrere') || '' };
+  }
+
+  /**
+   * Anzeige einer Regel. hidden: Platzhalter (klein), die wegen
+   * {x:mehrere} entfallen.
+   */
+  function render(rule, slots, values, original, hidden) {
     const map = mapFor(rule.map);
     const types = {};
     slots.forEach((s) => { types[s.name.toLowerCase()] = s.type; });
-    const out = String(rule.display || '').replace(TOKEN, (all, rawName, rawOpt) => {
-      const name = rawName.trim();
-      const lower = name.toLowerCase();
-      const opt = (rawOpt || '').trim().toLowerCase();
+    const one = (rawName, rawOpt) => {
+      const lower = rawName.trim().toLowerCase();
+      if (hidden && hidden.has(lower)) return '';
+      const opt = splitOpt(rawOpt).fmt;
       let value;
       if (Object.prototype.hasOwnProperty.call(values, lower)) value = values[lower];
       else if (lower === 'name') value = original;
@@ -188,8 +204,39 @@ window.AANameRules = (() => {
       }
       if (rule.spaces !== false) value = value.replace(/_+/g, ' ');
       return applyCase(value, opt);
+    };
+    const part = (text) => {
+      let had = false;
+      let filled = false;
+      const out = text.replace(TOKEN, (all, n, o) => {
+        had = true;
+        const v = one(n, o);
+        if (v !== '') filled = true;
+        return v;
+      });
+      return { out, had, filled };
+    };
+    // [ … ] entfaellt, wenn alle Platzhalter darin leer sind
+    const outer = String(rule.display || '').replace(/\[([^\[\]]*)\]/g, (all, inner) => {
+      const r = part(inner);
+      return r.had && !r.filled ? '' : r.out;
     });
-    return out.replace(/\s+/g, ' ').trim();
+    return part(outer).out.replace(/\s+/g, ' ').trim();
+  }
+
+  /** Platzhalter mit {x:mehrere} in der Anzeige einer Regel (klein). */
+  const multiCache = new Map();
+  function multiOf(display) {
+    const key = String(display || '');
+    if (!multiCache.has(key)) {
+      const set = new Set();
+      key.replace(TOKEN, (all, n, o) => {
+        if (splitOpt(o).multi) set.add(n.trim().toLowerCase());
+        return all;
+      });
+      multiCache.set(key, set);
+    }
+    return multiCache.get(key);
   }
 
   function applyCase(value, opt) {
@@ -203,22 +250,30 @@ window.AANameRules = (() => {
    * Anzeigename nach den Regeln. kind: 'file' oder 'dir'.
    * Liefert null, wenn keine Regel passt.
    */
+  // Namen, die mit Blick auf die Nachbarn im selben Ordner berechnet
+  // wurden ({x:mehrere}, ab 1.2.3): je Regelliste kind|name -> Anzeige
+  const context = new WeakMap();
+
   function apply(rules, name, kind) {
     if (!Array.isArray(rules) || rules.length === 0 || !name) return null;
+    const ctx = context.get(rules);
+    const key = kind + '|' + name;
+    if (ctx && ctx.has(key)) return ctx.get(key);
     let memo = results.get(rules);
     if (!memo) {
       memo = new Map();
       results.set(rules, memo);
     }
-    const key = kind + '|' + name;
     if (memo.has(key)) return memo.get(key);
-    const shown = applyUncached(rules, name, kind);
+    const m = match(rules, name, kind);
+    const shown = m ? (render(m.rule, m.slots, m.values, String(name), null) || null) : null;
     if (memo.size > 20000) memo.clear();
     memo.set(key, shown);
     return shown;
   }
 
-  function applyUncached(rules, name, kind) {
+  /** Erste passende Regel: { rule, slots, values } oder null. */
+  function match(rules, name, kind) {
     for (const rule of rules) {
       if (!rule || !rule.pattern) continue;
       const applies = rule.applies || 'both';
@@ -229,10 +284,70 @@ window.AANameRules = (() => {
       if (!m) continue;
       const values = {};
       c.slots.forEach((s, i) => { values[s.name.toLowerCase()] = m[i + 1]; });
-      const shown = render(rule, c.slots, values, String(name));
-      return shown !== '' ? shown : null;
+      return { rule, slots: c.slots, values };
     }
     return null;
+  }
+
+  /**
+   * Alle Namen eines Ordners auf einmal (ab 1.2.3): Erst hier ist bekannt,
+   * ob es zu einem Namen Nachbarn gibt, die sich nur in einem
+   * {x:mehrere}-Teil unterscheiden. Die Ergebnisse merkt sich apply() fuer
+   * Pfad, Seitenleiste und Player.
+   * @returns {Map<string, string|null>}
+   */
+  function applyAll(rules, names, kind) {
+    const out = new Map();
+    if (!Array.isArray(rules) || rules.length === 0) return out;
+    const found = [];
+    names.forEach((name) => {
+      if (!name) return;
+      const m = match(rules, name, kind);
+      if (m) found.push({ name, m });
+      else out.set(name, null);
+    });
+    // Je Regel und Platzhalter x: Gruppen gleicher uebriger Werte -> verschiedene x
+    const groups = new Map();
+    const groupKey = (f, x) => rules.indexOf(f.m.rule) + '\u0001' + x + '\u0001'
+      + f.m.slots.map((s) => s.name.toLowerCase()).filter((n) => n !== x)
+        .map((n) => String(f.m.values[n]).toLowerCase()).join('\u0001');
+    found.forEach((f) => {
+      multiOf(f.m.rule.display).forEach((x) => {
+        if (!(x in f.m.values)) return;
+        const k = groupKey(f, x);
+        if (!groups.has(k)) groups.set(k, new Set());
+        groups.get(k).add(String(f.m.values[x]).toLowerCase());
+      });
+    });
+    let ctx = context.get(rules);
+    if (!ctx) {
+      ctx = new Map();
+      context.set(rules, ctx);
+    }
+    if (ctx.size > 20000) ctx.clear();
+    found.forEach((f) => {
+      const hidden = new Set();
+      multiOf(f.m.rule.display).forEach((x) => {
+        if (!(x in f.m.values)) return;
+        const g = groups.get(groupKey(f, x));
+        if (!g || g.size < 2) hidden.add(x);
+      });
+      const shown = render(f.m.rule, f.m.slots, f.m.values, String(f.name), hidden) || null;
+      out.set(f.name, shown);
+      ctx.set(kind + '|' + f.name, shown);
+    });
+    return out;
+  }
+
+  /** Vom Server berechneten Namen uebernehmen (Suchtreffer, ab 1.2.3). */
+  function remember(rules, name, kind, shown) {
+    if (!Array.isArray(rules) || rules.length === 0 || !name) return;
+    let ctx = context.get(rules);
+    if (!ctx) {
+      ctx = new Map();
+      context.set(rules, ctx);
+    }
+    ctx.set(kind + '|' + name, shown || null);
   }
 
   // ------------------------------------------------------------------
@@ -241,7 +356,9 @@ window.AANameRules = (() => {
 
   const HELP = 'Platzhalter im Muster: {x} beliebiger Text · {x:3} genau 3 Zeichen · {x:Zahl} · '
     + '{x:Buchstaben} · {x:Wort} · {x:Datum}. In der Anzeige dieselben Namen, dazu {Datum:kurz}, '
-    + '{Datum:Jahr}, {Datum:Monat}, {x:groß}, {x:klein}, {x:Anfang} und {Name} für den ganzen Namen.';
+    + '{Datum:Jahr}, {Datum:Monat}, {x:groß}, {x:klein}, {x:Anfang} und {Name} für den ganzen Namen. '
+    + '{x:mehrere} zeigt x nur, wenn es im selben Ordner einen gleichen Namen mit anderem x gibt; '
+    + 'Text in [ ] entfällt, wenn alle Platzhalter darin leer sind.';
 
   /**
    * Baut die Eingabe fuer eine Freigabe.
@@ -263,7 +380,7 @@ window.AANameRules = (() => {
     root.appendChild(hint);
     root.appendChild(list);
 
-    const sampleList = Array.isArray(samples) ? samples.slice(0, 40) : [];
+    const sampleList = Array.isArray(samples) ? samples.slice(0, 2000) : [];
 
     function input(value, placeholder, cls) {
       const el = document.createElement('input');
@@ -364,10 +481,16 @@ window.AANameRules = (() => {
         preview.textContent = '';
         if (err || v.pattern === '') return;
         let shown = 0;
+        // Mit allen Namen des Ordners, damit {x:mehrere} wie in der Liste wirkt
+        const rulesNow = [v];
+        const byKind = {
+          dir: applyAll(rulesNow, sampleList.filter((x) => x.kind === 'dir').map((x) => x.name), 'dir'),
+          file: applyAll(rulesNow, sampleList.filter((x) => x.kind === 'file').map((x) => x.name), 'file'),
+        };
         sampleList.forEach((s) => {
-          if (shown >= 4) return;
-          const out = apply([v], s.name, s.kind);
-          if (out === null) return;
+          if (shown >= 6) return;
+          const out = byKind[s.kind === 'dir' ? 'dir' : 'file'].get(s.name);
+          if (out === null || out === undefined) return;
           shown++;
           const li = document.createElement('li');
           li.textContent = s.name + ' → ' + out;
@@ -411,5 +534,5 @@ window.AANameRules = (() => {
     };
   }
 
-  return { apply, compile, editor };
+  return { apply, applyAll, remember, compile, editor };
 })();

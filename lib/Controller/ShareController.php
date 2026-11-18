@@ -353,7 +353,7 @@ class ShareController extends Controller {
                 'source' => 'in:' . $share['id'],
                 // Ohne eigenen Titel: Ordnername, nach den Namensmustern (ab 1.2.1)
                 'label' => $settings['title'] !== '' ? $settings['title']
-                    : ($folder !== null ? NameRules::show($settings['nameRules'] ?? [], $folder->getName(), 'dir') : 'Freigabe'),
+                    : ($folder !== null ? NameRules::showFolder($settings['nameRules'] ?? [], $folder) : 'Freigabe'),
                 'folderName' => $folder !== null ? $folder->getName() : '',
                 'creator' => $share['creator'],
                 'creatorName' => $this->userManager->getDisplayName($share['creator']) ?? $share['creator'],

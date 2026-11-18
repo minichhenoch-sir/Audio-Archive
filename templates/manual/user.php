@@ -269,6 +269,10 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li>In der Anzeige: dieselben Namen, dazu <code>{Datum:kurz}</code> (12.05.2026), <code>{Datum:Jahr}</code>,
     <code>{Datum:Monat}</code>, <code>{x:groß}</code>, <code>{x:klein}</code>, <code>{x:Anfang}</code> und
     <code>{Name}</code> für den ganzen ursprünglichen Namen.</li>
+    <li><code>{x:mehrere}</code>: x erscheint nur, wenn es im selben Ordner einen Namen gibt, der sich nur in x
+    unterscheidet – etwa Vormittag und Abend am selben Tag. Gibt es an dem Tag nur einen, entfällt x. Text in eckigen
+    Klammern <code>[ … ]</code> entfällt ganz, wenn alle Platzhalter darin leer sind. Mehrere Zusätze mit Komma:
+    <code>{x:mehrere,groß}</code>.</li>
     <li>Werte ersetzen: eine Zeile je Wert, <code>alt = neu</code>; nur für einen Platzhalter:
     <code>Kürzel.GDB = Gottesdienst</code>.</li>
     <li>Jede Regel gilt für Dateien, Ordner oder beides. Mehrere Regeln sind möglich – die erste passende gilt,
@@ -276,7 +280,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li>Weitere Beispiele: Muster <code>{Datum}_mp3</code> mit Anzeige <code>{Datum}</code> macht aus
     <code>2026_05_mp3</code> „Mai 2026“. Muster <code>{Ort:3}_{J:2}{M:2}{T:2}_{Tag}_mp3_{Zeit}</code> mit Anzeige
     <code>{T}.{M} {Tag} {Zeit}</code> und den Werten <code>Tag.So = Sonntag</code>, <code>Zeit.a = Vormittag</code> macht aus
-    <code>GBO_260517_So_mp3_a</code> „17.05 Sonntag Vormittag“.</li>
+    <code>GBO_260517_So_mp3_a</code> „17.05 Sonntag Vormittag“. Mit der Anzeige
+    <code>{T}.{M} {Tag}[ {Zeit:mehrere}]</code> steht „Vormittag“ nur dabei, wenn es am selben Tag noch einen
+    weiteren Gottesdienst gibt – sonst nur „17.05 Sonntag“.</li>
     <li>Ordner-Regeln wirken überall, wo Ordner erscheinen: in der Liste, im Pfad, in der Seitenleiste, im Titel
     des Links (ohne eigenen Titel), im Player und bei „Mit mir geteilt“.</li>
     <li>Die <strong>Suche</strong> findet auf solchen Freigaben die <strong>angezeigten</strong> Namen – nicht mehr die
