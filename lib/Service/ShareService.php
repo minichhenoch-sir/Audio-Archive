@@ -854,7 +854,33 @@ class ShareService {
             if (is_array($rule['builder'] ?? null)) {
                 $json = json_encode($rule['builder'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if (is_string($json) && strlen($json) <= 20000) {
-                    $clean['builder'] = json_decode($json, true);
+                    $builder = json_decode($json, true);
+                    // Werte je Teil (ab 1.5.2): nur Text -> Text, leere weg. Ein
+                    // leeres {} wurde sonst als [] gespeichert, und der Browser
+                    // verlor spaeter dort eingetragene Werte.
+                    if (array_key_exists('values', $builder)) {
+                        $values = [];
+                        foreach (is_array($builder['values']) ? $builder['values'] : [] as $id => $map) {
+                            if (!is_array($map)) {
+                                continue;
+                            }
+                            $pairs = [];
+                            foreach ($map as $from => $to) {
+                                if (trim((string)$from) !== '' && is_scalar($to)) {
+                                    $pairs[(string)$from] = (string)$to;
+                                }
+                            }
+                            if ($pairs !== []) {
+                                $values[(string)$id] = $pairs;
+                            }
+                        }
+                        if ($values === []) {
+                            unset($builder['values']);
+                        } else {
+                            $builder['values'] = $values;
+                        }
+                    }
+                    $clean['builder'] = $builder;
                 }
             }
             $out[] = $clean;

@@ -4,6 +4,13 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.5.2 – 2026-11-19
+
+### Fixed
+- Display names: values such as "Do" → "Donnerstag" that were entered for a
+  part which had no values when the share was first saved were lost on the
+  next save. Values are now always kept when a share is edited again
+
 ## 1.5.1 – 2026-11-19
 
 ### Changed

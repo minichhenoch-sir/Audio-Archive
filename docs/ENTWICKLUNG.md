@@ -2408,3 +2408,29 @@ Bild blau in der Nextcloud-Optik.
 Geprüft in Sandbox-NC 34.0.3: Bilder zeigen „Version 1.5.1“, Anleitung neu
 erzeugt (`manual-check.sh`: alles passt), `info.xml` gegen XML geprüft.
 Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## 1.5.2: Werte in den Namen bleiben beim erneuten Bearbeiten
+
+Meldung von Henoch (Chat, 19.11.2026, 10:07): Werte wie „Do → Donnerstag“
+musste er nach dem Speichern bei jedem Bearbeiten der Freigabe neu eingeben.
+
+- **Ursache:** Der Baukasten speichert Werte je Teil als Zuordnung
+  (`builder.values = {<teil-id>: {"Do": "Donnerstag"}}`). Hatte ein Teil beim
+  Speichern noch keine Werte, machte PHP (`json_decode(…, true)` →
+  `json_encode`) aus dem leeren `{}` eine leere Liste `[]`. Beim nächsten
+  Bearbeiten übernahm das Formular diese Liste; neu eingetragene Werte hingen
+  dann als Eigenschaften an einer Liste, und `JSON.stringify` lässt die weg –
+  gespeichert wurde wieder `[]`. Im Test mit 1.5.1 nachgestellt.
+- **Browser (`js/name-rules.js`):** Werte werden beim Öffnen immer in eine
+  Zuordnung umgewandelt (`asMap`), auch bereits so gespeicherte Freigaben.
+- **Server (`ShareService::normalizeNameRules`):** Werte nur noch Text → Text,
+  leere Teile fallen weg, ganz leer → `values` entfällt.
+- `docs/screenshots.py` setzt die Namensregeln der Demo-Freigabe zurück und
+  entfernt weitere Freigaben in den Demo-Ordnern (Bilder bleiben gleich, auch
+  wenn vorher in der Test-Nextcloud probiert wurde).
+
+Geprüft in Sandbox-NC 34.0.3 mit Playwright: Teil ohne Werte gespeichert,
+wieder geöffnet, „+ Wert“ → gespeichert → Server hat den Wert, erneut
+geöffnet (ohne und mit Neuladen) → Werte da; zweiter Durchgang ebenso.
+Altbestand mit `[]` (mit 1.5.1 gespeichert) wird richtig geöffnet und
+gespeichert. Einspielen: Container-Neustart; keine Datenbankänderung.

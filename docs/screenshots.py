@@ -135,7 +135,14 @@ class Session:
 
 
 def ensure_share(admin):
-    """Freigabe des Demo-Ordners an alle angemeldeten Nutzer, Kennung zurueck."""
+    """Freigabe des Demo-Ordners an alle angemeldeten Nutzer, Kennung zurueck.
+
+    Weitere Freigaben in den Demo-Ordnern (z. B. von Tests) werden entfernt,
+    damit die Tabelle der Verwaltung auf Bild 4 immer gleich aussieht.
+    """
+    for s in admin.api('GET', '/api/shares').get('shares', []):
+        if str(s.get('path', '')).startswith(SHARE_FOLDER + '/'):
+            admin.api('POST', f"/api/shares/{s['id']}/delete", {})
     for s in admin.api('GET', '/api/shares?source=home&path=' + SHARE_FOLDER).get('shares', []):
         if s.get('kind') == 'internal' and s.get('path') == SHARE_FOLDER:
             return s['id']
@@ -149,7 +156,8 @@ def ensure_share(admin):
 
 def set_share_design(admin, share_id, design):
     share = next(s for s in admin.api('GET', '/api/shares')['shares'] if s['id'] == share_id)
-    settings = dict(share['settings'], design=design)
+    # Ohne Namensregeln, damit die Bilder die Dateinamen der Demo zeigen
+    settings = dict(share['settings'], design=design, nameRules=[])
     admin.api('POST', f'/api/shares/{share_id}', {'settings': settings})
 
 

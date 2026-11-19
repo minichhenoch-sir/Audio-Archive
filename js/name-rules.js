@@ -612,6 +612,9 @@ window.AANameRules = (() => {
     return out;
   }
 
+  /** Objekt oder Liste aus JSON -> einfache Zuordnung ({} statt []). */
+  const asMap = (v) => (v && typeof v === 'object' ? Object.assign({}, v) : {});
+
   const cleanName = (n) => String(n || '').replace(/[{}:,\[\]".=]/g, '').trim();
   const cleanText = (t) => String(t || '').replace(/[{}\[\]"]/g, '');
 
@@ -879,7 +882,11 @@ window.AANameRules = (() => {
       if (b) {
         b.parts.forEach((p) => { if (!p.id) p.id = newId(); });
         if (!Array.isArray(b.show)) b.show = defaultShow(b);
-        if (!b.values || typeof b.values !== 'object') b.values = {};
+        // Werte als Zuordnung, nie als Liste (bis 1.5.1 kam ein leeres {} vom
+        // Server als [] zurueck; in eine Liste eingetragene Werte gingen beim
+        // Speichern verloren - Vikunja, Henoch 19.11.2026)
+        b.values = asMap(b.values);
+        Object.keys(b.values).forEach((id) => { b.values[id] = asMap(b.values[id]); });
       }
       const isNew = !rule;
 
@@ -1278,7 +1285,7 @@ window.AANameRules = (() => {
       /** Werte uebersetzen direkt im Teil (ab 1.5.0): So → Sonntag, + Wert. */
       function valuesFor(part) {
         const box = el('div', 'nb-values');
-        const vals = b.values[part.id] = b.values[part.id] || {};
+        const vals = b.values[part.id] = asMap(b.values[part.id]);
         box.appendChild(el('span', 'nb-values-head', 'Anzeigen als'));
         const keys = [...new Set([...foundValues(part), ...Object.keys(vals)])].slice(0, 60);
         keys.forEach((k) => {
