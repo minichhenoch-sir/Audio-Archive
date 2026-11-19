@@ -2370,7 +2370,7 @@ speichert und wechselt), ohne Änderungen kein Dialog, neuer Link bleibt offen,
 Handy-Breite 390 px.
 Einspielen: Container-Neustart; keine Datenbankänderung.
 
-## Bildschirmfotos für den Store (nach 1.5.0, ohne neue Version)
+## 1.5.1: Store-Bilder aktuell
 
 Wunsch von Henoch (Chat, 19.11.2026, 08:25): Die Store-Bilder stammten noch
 von 1.0.0 (unten „Version 1.0.0“, Verwaltung mit den seit 1.3.0 entfernten
@@ -2394,5 +2394,17 @@ Bild blau in der Nextcloud-Optik.
 - Das Skript schreibt `screenshots/version.txt`; **`release.sh` bricht ab**,
   wenn sie nicht zur Version in `info.xml` passt – so kann keine Version mit
   alten Bildern in den Store.
-- Die Bilder liegen nicht im Archiv; der Store lädt sie über die Adressen in
-  `info.xml` von GitHub (`main`). Neue Bilder brauchen deshalb nur einen Push.
+- **Store-Zwischenspeicher:** Der Store zeigt die Bilder über
+  `usercontent.apps.nextcloud.com/<Adresse in Base64>` mit
+  `Expires: 2038` – nach dem Push lieferte er weiter das alte Bild (GitHub
+  schon das neue). Deshalb zeigen die Adressen in `info.xml` ab 1.5.1 auf den
+  Tag der Version (`…/v<version>/screenshots/…`) statt auf `main`. Das Skript
+  setzt den Tag selbst, `release.sh` bricht ab, wenn eine Adresse nicht auf
+  `v<version>` zeigt. Neue Bilder kommen damit nur mit einer neuen Version in
+  den Store.
+- Testpasswort des Administrators wie in `docs/manual-pdf.py`: `admin`
+  (abweichend mit `AA_ADMIN_PASS`).
+
+Geprüft in Sandbox-NC 34.0.3: Bilder zeigen „Version 1.5.1“, Anleitung neu
+erzeugt (`manual-check.sh`: alles passt), `info.xml` gegen XML geprüft.
+Einspielen: Container-Neustart; keine Datenbankänderung.

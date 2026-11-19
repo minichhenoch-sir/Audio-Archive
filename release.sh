@@ -23,6 +23,10 @@ grep -q "^## $V" CHANGELOG.md || { echo "CHANGELOG.md hat keinen Abschnitt ## $V
 # Test-Nextcloud erzeugt, sonst zeigen sie eine alte Oberflaeche und Version
 SHOTS=$(tr -d '[:space:]' < screenshots/version.txt 2>/dev/null || true)
 [ "$SHOTS" = "$V" ] || { echo "Bildschirmfotos sind von ${SHOTS:-unbekannt}, nicht $V - docs/screenshots.py ausfuehren"; exit 1; }
+# ... und die Adressen in info.xml muessen auf diesen Tag zeigen (Store-Zwischenspeicher)
+if grep '<screenshot' appinfo/info.xml | grep -v "/$TAG/screenshots/" | grep -q .; then
+    echo "info.xml: Bild-Adressen zeigen nicht auf $TAG - docs/screenshots.py ausfuehren"; exit 1
+fi
 
 # Anleitung (ab 1.0.3): Die PDFs muessen zum Stand der Seiten passen
 # (Pruefsumme in manual/pdf-quellen.txt, erzeugt von docs/manual-pdf.py)

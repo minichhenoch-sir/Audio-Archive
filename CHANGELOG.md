@@ -4,6 +4,12 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.5.1 – 2026-11-19
+
+### Changed
+- New screenshots for the App Store showing the current version, the first
+  one in Nextcloud's own look
+
 ## 1.5.0 – 2026-11-18
 
 ### Changed

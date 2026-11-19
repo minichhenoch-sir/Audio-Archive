@@ -36,7 +36,7 @@ Optional: ffmpeg in the Nextcloud container for MP3 conversion; a working backgr
 
 Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
     ]]></description>
-    <version>1.5.0</version>
+    <version>1.5.1</version>
     <!-- "agpl": SPDX identifiers are only accepted by the App Store for min-version >= 31 -->
     <licence>agpl</licence>
     <author homepage="https://github.com/minichhenoch-sir">Henoch Minich</author>
@@ -47,10 +47,13 @@ Die Oberfläche ist derzeit nur auf **Deutsch**; Englisch ist geplant.
     <bugs>https://github.com/minichhenoch-sir/Audio-Archive/issues</bugs>
     <repository type="git">https://github.com/minichhenoch-sir/Audio-Archive.git</repository>
 
-    <screenshot small-thumbnail="https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/main/screenshots/1-library-small.png">https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/main/screenshots/1-library.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/main/screenshots/2-player-phone.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/main/screenshots/3-share.png</screenshot>
-    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/main/screenshots/4-admin.png</screenshot>
+    <!-- Bild-Adressen mit dem Tag der Version: Der Store speichert Bilder
+         unbegrenzt zwischen, gleiche Adresse = altes Bild. docs/screenshots.py
+         setzt den Tag selbst, release.sh prueft ihn (ab 1.5.1). -->
+    <screenshot small-thumbnail="https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/v1.5.1/screenshots/1-library-small.png">https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/v1.5.1/screenshots/1-library.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/v1.5.1/screenshots/2-player-phone.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/v1.5.1/screenshots/3-share.png</screenshot>
+    <screenshot>https://raw.githubusercontent.com/minichhenoch-sir/Audio-Archive/v1.5.1/screenshots/4-admin.png</screenshot>
 
     <dependencies>
         <php min-version="8.1"/>

@@ -6,7 +6,9 @@ echter Nextcloud"), in der die aktuelle Fassung der App aktiv ist. Legt
 Demo-Aufnahmen, eine Testnutzerin und eine Freigabe an alle an (mehrfach
 aufrufbar) und schreibt die vier Bilder aus appinfo/info.xml nach
 screenshots/. So zeigen sie immer die Oberflaeche und Versionsnummer der
-Version, die gerade ausgeliefert wird.
+Version, die gerade ausgeliefert wird. Setzt ausserdem die Bild-Adressen in
+appinfo/info.xml auf den Tag v<version> (der Store speichert Bilder unbegrenzt
+zwischen, eine gleichbleibende Adresse zeigte dort fuer immer das alte Bild).
 
     python3 docs/screenshots.py --nc ~/nc/server
     python3 docs/screenshots.py --nc ~/nc/server --url http://127.0.0.1:8080/index.php
@@ -17,6 +19,7 @@ Bild 2 und 3 die Gestaltung "Modern", Bild 4 die Verwaltung.
 """
 import argparse
 import json
+import re
 import os
 import subprocess
 from datetime import datetime
@@ -27,7 +30,7 @@ from playwright.sync_api import sync_playwright
 
 ROOT = Path(__file__).resolve().parent.parent
 APP = '/apps/audioarchive'
-ADMIN = ('admin', os.environ.get('AA_ADMIN_PASS', 'Admin-Test-123!'))
+ADMIN = ('admin', os.environ.get('AA_ADMIN_PASS', 'admin'))  # wie docs/manual-pdf.py
 LISTENER = ('anna', 'Anna-Demo-Pass-42!', 'Anna')
 SHARE_FOLDER = 'Aufnahmen'
 SHARE_TITLE = 'Gemeinsame Aufnahmen'
@@ -257,6 +260,16 @@ def main():
     version = (ROOT / 'appinfo' / 'info.xml').read_text().split('<version>')[1].split('<')[0]
     # release.sh prueft diese Datei: Bilder muessen zur Version passen
     (out / 'version.txt').write_text(version + '\n')
+    # Bild-Adressen in info.xml auf den Tag dieser Version (ab 1.5.1): Der
+    # Store speichert Bilder unbegrenzt zwischen - unter gleicher Adresse
+    # bliebe dort das alte Bild stehen
+    info = ROOT / 'appinfo' / 'info.xml'
+    text = info.read_text()
+    new = re.sub(r'(raw\.githubusercontent\.com/[^/]+/[^/]+/)[^/]+(/screenshots/)',
+                 lambda m: m.group(1) + 'v' + version + m.group(2), text)
+    if new != text:
+        info.write_text(new)
+        print(f'info.xml: Bild-Adressen auf v{version} gesetzt')
     print(f'Bildschirmfotos fuer {version} in {out}:')
     for f in sorted(out.glob('*.png')):
         print(f'  {f.name}  {Image.open(f).size}')
