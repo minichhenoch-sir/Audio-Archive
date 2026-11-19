@@ -2369,3 +2369,30 @@ Ansicht, Verlassen → Dialog (Abbrechen bleibt, Verwerfen wechselt, Speichern
 speichert und wechselt), ohne Änderungen kein Dialog, neuer Link bleibt offen,
 Handy-Breite 390 px.
 Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## Bildschirmfotos für den Store (nach 1.5.0, ohne neue Version)
+
+Wunsch von Henoch (Chat, 19.11.2026, 08:25): Die Store-Bilder stammten noch
+von 1.0.0 (unten „Version 1.0.0“, Verwaltung mit den seit 1.3.0 entfernten
+Quellen). Sie sollen bei jeder Version aus dem Test neu entstehen; das erste
+Bild blau in der Nextcloud-Optik.
+
+- **`docs/screenshots.py`** (nur Entwicklung, nicht im Store-Archiv): legt in
+  der Test-Nextcloud Demo-Aufnahmen mit Cover, die Testnutzerin „Anna“ und
+  eine Freigabe „Gemeinsame Aufnahmen“ an alle an (mehrfach aufrufbar) und
+  schreibt die vier Bilder aus `info.xml` nach `screenshots/`:
+  1. Bibliothek am Rechner, eingebettet in Nextcloud, Gestaltung
+     „Klassisch“ (Standard-Blau) – plus `1-library-small.png`
+  2. installierte App am Telefon: Liste und Vollbild-Player nebeneinander
+     (Gestaltung „Modern“)
+  3. „Diesen Ordner teilen“ → „Neuer Link“ mit den Tabs
+  4. Einstellungen der Verwaltung
+- Aufruf: `python3 docs/screenshots.py --nc <nextcloud-verzeichnis>`
+  (Adresse mit `--url`, Standard `http://127.0.0.1:8080/index.php`).
+  Chromium bekommt `LANG/LC_ALL=de_DE`, sonst zeigen Datumsfelder
+  `mm/dd/yyyy`.
+- Das Skript schreibt `screenshots/version.txt`; **`release.sh` bricht ab**,
+  wenn sie nicht zur Version in `info.xml` passt – so kann keine Version mit
+  alten Bildern in den Store.
+- Die Bilder liegen nicht im Archiv; der Store lädt sie über die Adressen in
+  `info.xml` von GitHub (`main`). Neue Bilder brauchen deshalb nur einen Push.

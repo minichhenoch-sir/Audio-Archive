@@ -19,6 +19,11 @@ OUT="build/audioarchive-$V.tar.gz"
 git rev-parse -q --verify "refs/tags/$TAG" >/dev/null || { echo "Tag $TAG fehlt"; exit 1; }
 grep -q "^## $V" CHANGELOG.md || { echo "CHANGELOG.md hat keinen Abschnitt ## $V"; exit 1; }
 
+# Bildschirmfotos fuer den Store (ab 1.5.0): mit docs/screenshots.py in der
+# Test-Nextcloud erzeugt, sonst zeigen sie eine alte Oberflaeche und Version
+SHOTS=$(tr -d '[:space:]' < screenshots/version.txt 2>/dev/null || true)
+[ "$SHOTS" = "$V" ] || { echo "Bildschirmfotos sind von ${SHOTS:-unbekannt}, nicht $V - docs/screenshots.py ausfuehren"; exit 1; }
+
 # Anleitung (ab 1.0.3): Die PDFs muessen zum Stand der Seiten passen
 # (Pruefsumme in manual/pdf-quellen.txt, erzeugt von docs/manual-pdf.py)
 WANT=$(php -r 'require "lib/Service/ManualContent.php"; echo \OCA\AudioArchive\Service\ManualContent::sourcesHash(".");')

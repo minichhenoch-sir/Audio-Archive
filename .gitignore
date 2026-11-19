@@ -2,3 +2,4 @@
 __MACOSX/
 *.zip
 /build/
+__pycache__/
