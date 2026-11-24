@@ -2434,3 +2434,36 @@ wieder geöffnet, „+ Wert“ → gespeichert → Server hat den Wert, erneut
 geöffnet (ohne und mit Neuladen) → Werte da; zweiter Durchgang ebenso.
 Altbestand mit `[]` (mit 1.5.1 gespeichert) wird richtig geöffnet und
 gespeichert. Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## 1.5.3: Griff oben im Vollbild-Player bündig und im Kartenton
+
+Meldung von Henoch (Chat, 24.11.2026, mit zwei Bildschirmfotos vom Telefon,
+Gestaltung „Klassisch“): Mit aufgeklappten „Angaben“ und nach unten
+gescrollt stand oben ein heller Balken mit dem Doppelpfeil; darüber und
+links/rechts daneben lief das Cover sichtbar durch.
+
+- **Ursache 1 – Lücken:** Der Kopf (`.player-expanded-head`) ist `sticky`
+  mit `top: 0` und `width: 100%`. Die Karte hat innen `8px 24px` Abstand –
+  der Kopf blieb deshalb 8 px unter ihrer Oberkante stehen und war seitlich
+  je 24 px kürzer. Im Test gemessen: Kopf bei x 24–388 / y +8 statt 0–412.
+- **Ursache 2 – Farbe:** Mit offenen Angaben bekommt der Kopf die Grundfarbe
+  der Karte. Über der Karte liegt aber noch der unscharfe Cover-Grund
+  (`::before`, in „Klassisch“ 25 % Deckkraft) und ein Verlauf (`::after`).
+  Die Karte wirkt dadurch getönt, der Kopf nicht – in „Klassisch“ ein heller,
+  in den Glas-Gestaltungen ein fast schwarzer Balken.
+- **Korrektur (`css/style.css`):** Innenabstand der Karte als Variablen
+  `--aa-sheet-pad-top` / `--aa-sheet-pad-x`. Der Kopf zieht sich mit
+  negativem Rand darüber (`top`, `margin`, `width`, `padding` gleichen ihn
+  aus), steht also bündig an Oberkante und Seiten; ohne offene Angaben bleibt
+  alles an derselben Stelle. Im Kopf liegen mit offenen Angaben dieselben
+  `::before`/`::after` wie auf der Karte, `position: fixed` und damit
+  deckungsgleich; die vorhandene `mask` des Kopfs schneidet sie auf seine
+  Fläche zu und lässt sie nach unten auslaufen. Quer (Griff schwebt dort
+  absolut) sind die Variablen 0 – unverändert.
+
+Geprüft in Sandbox-NC 34.0.3 mit Playwright, Telefon 412×892 und 360×640,
+„Klassisch“ und „Modern“: Kopf bündig (0–412, Oberkante der Karte), gleicher
+Farbton wie die Karte, Cover verschwindet weich darunter. Geschlossene
+Angaben: Lage aller Teile unverändert. Quer (892×412): Bild pixelgleich zu
+1.5.2. Store-Bilder und Anleitung neu erzeugt.
+Einspielen: Container-Neustart; keine Datenbankänderung.

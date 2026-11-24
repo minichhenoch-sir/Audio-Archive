@@ -1236,7 +1236,11 @@ body.has-bg-image #audioarchive .explorer-row.active {
   align-items: center;
   justify-content: center;
   gap: 4px;
-  padding: 8px 24px calc(var(--safe-bottom) + 32px);
+  /* Innenabstand oben und seitlich als Variablen: Der Griff oben braucht
+     dieselben Werte, um bis an den Kartenrand zu reichen (ab 1.5.3) */
+  --aa-sheet-pad-top: 8px;
+  --aa-sheet-pad-x: 24px;
+  padding: var(--aa-sheet-pad-top) var(--aa-sheet-pad-x) calc(var(--safe-bottom) + 32px);
   /* Deckend: Die Liste scheint nicht DURCH die Karte, sie liegt daneben
      im freien Streifen. Die Leistenfarbe liegt auf fast Schwarz - so
      bleibt der Farbton der Gestaltung erhalten. */
@@ -1359,7 +1363,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
 }
 
 /* Unscharfes Cover als Hintergrund, abgedunkelt fuer lesbare Schrift */
-#audioarchive .player-bar.is-expanded.has-cover::before {
+#audioarchive .player-bar.is-expanded.has-cover::before,
+#audioarchive .player-bar.is-expanded.has-cover.show-details .player-expanded-head::before {
   content: "";
   position: absolute;
   inset: -60px;
@@ -1370,7 +1375,8 @@ body.has-bg-image #audioarchive .explorer-row.active {
   opacity: 0.55;
   z-index: -1;
 }
-#audioarchive .player-bar.is-expanded.has-cover::after {
+#audioarchive .player-bar.is-expanded.has-cover::after,
+#audioarchive .player-bar.is-expanded.has-cover.show-details .player-expanded-head::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -1384,12 +1390,16 @@ body.has-bg-image #audioarchive .explorer-row.active {
   justify-content: center;
   gap: 8px;
   position: sticky;
-  top: 0;
+  /* Bis an den Rand der Karte (ab 1.5.3): Der Kopf reicht ueber ihren
+     Innenabstand hinaus und bleibt an der Oberkante selbst stehen. Bis
+     1.5.2 blieb er 8 px darunter stehen und war seitlich 24 px kuerzer -
+     beim Scrollen lief das Cover sichtbar ueber und neben ihm durch. */
+  top: calc(-1 * var(--aa-sheet-pad-top, 0px));
   z-index: 2;
   flex: none;
-  width: 100%;
-  margin: 0 0 6px;
-  padding: 10px 12px 8px;
+  width: calc(100% + 2 * var(--aa-sheet-pad-x, 0px));
+  margin: calc(-1 * var(--aa-sheet-pad-top, 0px)) calc(-1 * var(--aa-sheet-pad-x, 0px)) 6px;
+  padding: calc(10px + var(--aa-sheet-pad-top, 0px)) calc(12px + var(--aa-sheet-pad-x, 0px)) 8px;
 }
 
 /* Im Vollbild steht nur der Griff oben - die Beschriftung waere doppelt,
@@ -3010,8 +3020,10 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 #audioarchive.aa-design-nextcloud .player-bar.is-expanded .player-cover {
   box-shadow: 0 12px 36px var(--color-box-shadow, rgba(77, 77, 77, 0.35));
 }
-#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover::before { opacity: 0.25; }
-#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover::after {
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover::before,
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover.show-details .player-expanded-head::before { opacity: 0.25; }
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover::after,
+#audioarchive.aa-design-nextcloud .player-bar.is-expanded.has-cover.show-details .player-expanded-head::after {
   background: linear-gradient(180deg, transparent, var(--aa-nc-bg));
   opacity: 0.6;
 }
@@ -3247,13 +3259,19 @@ html.aa-standalone:has(.aa-design-nextcloud) {
 /* Mit aufgeklappten Angaben scrollt der Vollbild-Player. Hintergrund und
    Kopfzeile sollen dabei stehen bleiben, nicht mitwandern. */
 #audioarchive .player-bar.is-expanded.has-cover::before,
-#audioarchive .player-bar.is-expanded.has-cover::after { position: fixed; }
+#audioarchive .player-bar.is-expanded.has-cover::after,
+#audioarchive .player-bar.is-expanded.has-cover.show-details .player-expanded-head::before,
+#audioarchive .player-bar.is-expanded.has-cover.show-details .player-expanded-head::after { position: fixed; }
 /* Beim Scrollen bleibt der Griff oben stehen. Damit der Titel nicht
    dahinter durchscheint, liegt darunter die Farbe der Karte selbst -
    nach unten weich auslaufend (mask statt Farbverlauf, so stimmt der
-   Farbton in jeder Gestaltung). */
+   Farbton in jeder Gestaltung).
+   Ab 1.5.3 liegt im Kopf ausserdem derselbe unscharfe Cover-Grund wie auf
+   der Karte (::before/::after oben, fest am Bildschirm, also deckungs-
+   gleich). Bis 1.5.2 fehlte er: Der Kopf war deutlich heller (Nextcloud)
+   bzw. dunkler (Glas) als die Karte und wirkte wie ein aufgeklebter Balken. */
 #audioarchive .player-bar.is-expanded.show-details .player-expanded-head {
-  padding: 10px 12px 20px;
+  padding: calc(10px + var(--aa-sheet-pad-top, 0px)) calc(12px + var(--aa-sheet-pad-x, 0px)) 20px;
   background: linear-gradient(var(--glass-dark-bg-strong), var(--glass-dark-bg-strong)), #0e0b08;
   -webkit-mask-image: linear-gradient(180deg, #000 68%, transparent);
   mask-image: linear-gradient(180deg, #000 68%, transparent);
@@ -3364,6 +3382,10 @@ html.aa-standalone:has(.aa-design-nextcloud) {
     padding-bottom: calc(var(--safe-bottom) + 16px);
     padding-left: max(16px, env(safe-area-inset-left, 0px));
     padding-right: max(16px, env(safe-area-inset-right, 0px));
+    /* Der Griff schwebt quer absolut (unten) - kein Ausgleich fuer den
+       Innenabstand noetig */
+    --aa-sheet-pad-top: 0px;
+    --aa-sheet-pad-x: 0px;
   }
   #audioarchive .player-bar.is-expanded .player-info { margin-bottom: 0; }
   #audioarchive .player-bar.is-expanded .player-progress { margin-bottom: 0; }

@@ -4,6 +4,14 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.5.3 – 2026-11-24
+
+### Fixed
+- Full-screen player with the details open: when scrolling, the close
+  button at the top showed as a separate bar in a different colour, and the
+  cover could be seen sliding by above and beside it. The bar now reaches
+  the edges of the card and has the same background as the card
+
 ## 1.5.2 – 2026-11-19
 
 ### Fixed
