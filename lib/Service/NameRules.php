@@ -180,16 +180,27 @@ class NameRules {
         $p = self::cleanPath($path);
         $where = is_array($rule['where'] ?? null) ? $rule['where'] : null;
         $area = $where !== null ? self::cleanPath((string)($where['path'] ?? '')) : '';
+        $when = self::whenOf($rule);
         if ($area !== '') {
-            $sub = ($where['sub'] ?? true) !== false;
+            // Mit Bedingung (ab 1.6.0) liegen die Namen immer in Unterordnern
+            $sub = $when !== null || ($where['sub'] ?? true) !== false;
             $slash = strrpos($p, '/');
             $parent = $slash === false ? '' : substr($p, 0, $slash);
             if ($sub ? !str_starts_with($p, $area . '/') : $parent !== $area) {
                 return false;
             }
         }
+        $base = self::depth($area);
+        if ($when !== null) {
+            $at = $base + $when['level'];
+            $segs = explode('/', $p);
+            if (count($segs) <= $at || !self::folderMatches($when['pattern'], $segs[$at - 1])) {
+                return false;
+            }
+            $base = $at;
+        }
         $level = (int)($rule['level'] ?? 0);
-        if ($level > 0 && self::depth($p) - self::depth($area) !== $level) {
+        if ($level > 0 && self::depth($p) - $base !== $level) {
             return false;
         }
         foreach (is_array($rule['except'] ?? null) ? $rule['except'] : [] as $e) {
@@ -199,6 +210,34 @@ class NameRules {
             }
         }
         return true;
+    }
+
+    /** Bedingung einer Regel (ab 1.6.0): ['level' => int, 'pattern' => string] oder null. */
+    private static function whenOf(array $rule): ?array {
+        $w = is_array($rule['when'] ?? null) ? $rule['when'] : null;
+        $pattern = $w !== null ? trim((string)($w['pattern'] ?? '')) : '';
+        if ($pattern === '') {
+            return null;
+        }
+        return ['level' => max(1, min(20, (int)($w['level'] ?? 1))), 'pattern' => $pattern];
+    }
+
+    /** @var array<string, string|null> */
+    private static array $folderRes = [];
+
+    /** Urspruenglicher Ordnername passt zum Bedingungs-Muster (* = beliebiger Text, { } wie Muster). */
+    private static function folderMatches(string $pattern, string $name): bool {
+        if (!array_key_exists($pattern, self::$folderRes)) {
+            if (str_contains($pattern, '{')) {
+                $c = self::compile($pattern);
+                self::$folderRes[$pattern] = $c === null ? null : $c['re'];
+            } else {
+                $re = '/^' . implode('.*', array_map(static fn (string $t): string => self::literal($t), explode('*', $pattern))) . '$/iu';
+                self::$folderRes[$pattern] = @preg_match($re, '') === false ? null : $re;
+            }
+        }
+        $re = self::$folderRes[$pattern];
+        return $re !== null && preg_match($re, $name) === 1;
     }
 
     private static function overrideFor(array $rules, string $kind, string $path): ?string {

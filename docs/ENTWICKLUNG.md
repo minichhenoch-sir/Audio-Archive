@@ -2467,3 +2467,43 @@ Farbton wie die Karte, Cover verschwindet weich darunter. Geschlossene
 Angaben: Lage aller Teile unverändert. Quer (892×412): Bild pixelgleich zu
 1.5.2. Store-Bilder und Anleitung neu erzeugt.
 Einspielen: Container-Neustart; keine Datenbankänderung.
+
+## 1.6.0: Ordner bleibt beim Neuladen, Bedingung für Namensregeln, Bilder der Anleitung
+
+Wünsche von Henoch (Chat, 27.11.2026):
+
+- **Neuladen behält den Ordner:** `showMain()` nimmt `history.state.view`,
+  wenn kein Sprung (`#source=`, `#open=`, `#share=`) in der Adresse steht.
+  Der Verlaufseintrag überlebt das Neuladen, ein Neustart der installierten
+  App beginnt dagegen oben (so gewünscht). Gibt es den Ordner nicht mehr,
+  meldet `loadLibrary()` jetzt `false`, und die App beginnt oben.
+- **Wischen nach unten:** eigene Umsetzung in `app.js` (body scrollt nie,
+  `overscroll-behavior` ist aus, die installierte App kennt es ohnehin
+  nicht). Nur ganz oben in der Liste, nicht in Seitenleiste, Eingabefeldern
+  oder bei offenem Teilen-/Darstellungs-Formular (sonst gingen Eingaben
+  verloren). Ab 72 px (gedämpft) `location.reload()`.
+- **„Meine Freigaben“ in der Seitenleiste:** öffnet den Ordner mit der Liste
+  seiner Freigaben (die angetippte hervorgehoben), nicht mehr das Formular.
+- **Bedingung für Namensregeln:** neues Feld `when: { level, pattern }`.
+  Die Regel gilt nur unterhalb von Ordnern auf dieser Ebene (ab `where`
+  bzw. der Freigabe), deren ursprünglicher Name passt; `*` = beliebiger
+  Text, mit `{ }` die Muster-Schreibweise. `level` zählt dann ab diesem
+  Ordner. In `name-rules.js` und `NameRules.php` gleich umgesetzt,
+  `ShareService::normalizeNameRules()` übernimmt das Feld.
+- **Regel-Editor übersichtlicher:** eine Zeile je Regel (Nummer, Beispiel →
+  Ergebnis, Kurzangabe wo sie gilt und wie viele Namen passen), immer nur
+  eine offen; Ausnahmen, Sprache, Ausprobieren und Schreibweise unter
+  „Weitere Einstellungen“. Tab überspringt die kleinen Knöpfe
+  (`tabIndex = -1`, außer „Zerlegen“); im Feld „anzeigen als“ der neuen
+  Zeile legt Tab den Wert an und springt in die nächste leere Zeile.
+- **Bilder der Anleitung:** waren noch von 1.0.0. `docs/screenshots.py`
+  erzeugt sie jetzt bei jeder Version mit, in zwei Sätzen: Modern
+  (`img/manual/`, auch in den PDFs) und Klassisch (`img/manual/klassisch/`).
+  `ManualController::imageSet()` wählt nach der eigenen Gestaltung, sonst
+  der Vorgabe der Verwaltung. Klassisch ist im Standard-Blau aufgenommen –
+  eine eigene Nextcloud-Farbe sieht man in den Bildern nicht.
+
+Geprüft in der Test-Nextcloud 34.0.3 (Playwright): Neuladen und Zurück,
+Wischen (lang lädt neu, kurz nicht), Seitenleiste, Bedingung über den Link
+(„GD_*“ ja, „Jugend“ nein), Speichern und erneutes Laden der Regel, Tab-Reihenfolge,
+Bilderwahl der Anleitung, `manual-check.sh`.

@@ -50,6 +50,10 @@
  *            Unterordner); path '' = ganze Freigabe
  *   level    nur Namen auf dieser Ebene unterhalb von where (1 = direkt darin)
  *   except   Ordner/Dateien (Pfade), fuer die die Regel nicht gilt
+ *   when     { level, pattern } (ab 1.6.0): Regel gilt nur unterhalb von
+ *            Ordnern auf dieser Ebene (ab where bzw. der Freigabe), deren
+ *            urspruenglicher Name zum Muster passt; * = beliebiger Text,
+ *            mit { } wie beim Muster. level zaehlt dann ab diesem Ordner.
  *   builder  Zustand des Baukastens (nur fuer das Formular)
  *   { kind: 'name', target: 'dir'|'file', path, name }  eigener Name fuer
  *            genau einen Ordner bzw. eine Datei - geht allen Regeln vor
@@ -360,6 +364,32 @@ window.AANameRules = (() => {
     return !!rule && rule.kind === 'name';
   }
 
+  /** Bedingung einer Regel (ab 1.6.0) oder null. */
+  function whenOf(rule) {
+    const w = rule && rule.when && typeof rule.when === 'object' ? rule.when : null;
+    if (!w || String(w.pattern || '').trim() === '') return null;
+    return { level: Math.max(1, Math.min(20, parseInt(w.level, 10) || 1)), pattern: String(w.pattern).trim() };
+  }
+
+  /**
+   * Passt ein urspruenglicher Ordnername zum Bedingungs-Muster? * steht fuer
+   * beliebigen Text; mit { } gilt die Schreibweise der Muster.
+   */
+  const folderRes = new Map();
+  function folderMatches(pattern, name) {
+    let re = folderRes.get(pattern);
+    if (re === undefined) {
+      if (pattern.includes('{')) {
+        const c = compile(pattern);
+        re = c.error ? null : c.re;
+      } else {
+        re = new RegExp('^' + pattern.split('*').map(literal).join('.*') + '$', 'iu');
+      }
+      folderRes.set(pattern, re);
+    }
+    return !!re && re.test(String(name));
+  }
+
   /** Gilt die Regel fuer den Namen an diesem Pfad? */
   function ruleCovers(rule, kind, path) {
     const applies = rule.applies || 'both';
@@ -367,13 +397,22 @@ window.AANameRules = (() => {
     const p = cleanPath(path);
     const where = rule.where && typeof rule.where === 'object' ? rule.where : null;
     const area = where ? cleanPath(where.path) : '';
+    const when = whenOf(rule);
     if (area !== '') {
-      const sub = where.sub !== false;
+      // Mit Bedingung liegen die Namen immer in Unterordnern
+      const sub = when ? true : where.sub !== false;
       const parent = p.includes('/') ? p.slice(0, p.lastIndexOf('/')) : '';
       if (sub ? !p.startsWith(area + '/') : parent !== area) return false;
     }
+    let base = depthOf(area);
+    if (when) {
+      const at = base + when.level;
+      const segs = p.split('/');
+      if (segs.length <= at || !folderMatches(when.pattern, segs[at - 1])) return false;
+      base = at;
+    }
     const level = parseInt(rule.level, 10) || 0;
-    if (level > 0 && depthOf(p) - depthOf(area) !== level) return false;
+    if (level > 0 && depthOf(p) - base !== level) return false;
     if (Array.isArray(rule.except)) {
       for (const e of rule.except) {
         const x = cleanPath(e);
@@ -728,6 +767,9 @@ window.AANameRules = (() => {
   function smallButton(text, title, onClick, cls) {
     const b = el('button', 'nb-mini ' + (cls || ''), text);
     b.type = 'button';
+    // Tab geht nur von Feld zu Feld (ab 1.6.0, Wunsch des Nutzers); die
+    // Hauptaktion (nb-primary) bleibt erreichbar
+    if (!/\bnb-primary\b/.test(cls || '')) b.tabIndex = -1;
     if (title) {
       b.title = title;
       b.setAttribute('aria-label', title);
@@ -892,8 +934,17 @@ window.AANameRules = (() => {
 
       const box = el('details', 'name-rule');
       box.open = !!open;
+      // Kompakte Zeile je Regel (ab 1.6.0): Nummer, Beispiel → Ergebnis, wo
       const summary = el('summary', 'name-rule-summary');
+      const sumNum = el('span', 'nr-num');
+      const sumMain = el('span', 'nr-main');
+      const sumMeta = el('span', 'nr-meta');
+      summary.append(sumNum, sumMain, sumMeta);
       box.appendChild(summary);
+      // Immer nur eine Regel offen - die uebrigen bleiben eine Zeile
+      box.addEventListener('toggle', () => {
+        if (box.open) items.forEach((it) => { if (it.box !== box) it.box.open = false; });
+      });
       const body = el('div', 'name-rule-body');
       box.appendChild(body);
       list.appendChild(box);
@@ -932,6 +983,7 @@ window.AANameRules = (() => {
       sampleRow.append(sampleInput, takeSample);
       step1.append(sampleRow, sampleList2);
       sampleInput.addEventListener('keydown', (ev) => { if (ev.key === 'Enter') { ev.preventDefault(); takeSample.click(); } });
+      sampleInput.title = 'Enter zerlegt den Namen';
 
       // ---- 2. Teile
       const step2 = el('div', 'nb-step');
@@ -939,7 +991,7 @@ window.AANameRules = (() => {
       const step3 = el('div', 'nb-step');
       // ---- 5. Gilt fuer
       const step5 = el('div', 'nb-step');
-      step5.appendChild(el('p', 'nb-step-title', 'Wo die Regel gilt'));
+      step5.appendChild(el('p', 'nb-step-title', '4. Wo die Regel gilt'));
       const applies = select([['both', 'Dateien und Ordner'], ['files', 'nur Dateien'], ['folders', 'nur Ordner']],
         ['files', 'folders'].includes(r.applies) ? r.applies : 'both');
       const wherePath = input(r.where && r.where.path ? r.where.path : '', 'ganze Freigabe (leer lassen) oder Ordner wählen', 'nb-where');
@@ -955,6 +1007,12 @@ window.AANameRules = (() => {
       const exceptList = el('ul', 'nb-chips');
       const exceptInput = input('', 'Ordner oder Aufnahme wählen', 'nb-except');
       exceptInput.setAttribute('list', listId + '-items');
+      exceptInput.addEventListener('keydown', (ev) => {
+        if (ev.key === 'Enter') {
+          ev.preventDefault();
+          exceptAdd.click();
+        }
+      });
       const exceptAdd = smallButton('+ Ausnahme', 'Ausnahme hinzufügen', () => {
         const v = exceptInput.value.trim().replace(/^\/+|\/+$/g, '');
         if (v && !except.includes(v)) except.push(v);
@@ -977,11 +1035,49 @@ window.AANameRules = (() => {
       renderExcept();
       const exceptRow = el('div', 'nb-row');
       exceptRow.append(exceptInput, exceptAdd);
+      // Bedingung (ab 1.6.0): nur unter Ordnern, deren Name zum Muster passt
+      const whenR = r.when && typeof r.when === 'object' ? r.when : {};
+      const whenLevel = select([1, 2, 3, 4, 5, 6].map((n) => [String(n), 'Ebene ' + n]),
+        String(Math.min(6, Math.max(1, parseInt(whenR.level, 10) || 1))), 'nb-when-level');
+      const whenPattern = input(whenR.pattern || '', 'leer = ohne Bedingung, z. B. Gottesdienst*', 'nb-when');
+      const whenListEl = el('datalist');
+      whenListEl.id = listId + '-when-' + newId();
+      whenPattern.setAttribute('list', whenListEl.id);
+      const fillWhenList = () => {
+        whenListEl.textContent = '';
+        const area = wherePath.value.trim().replace(/^\/+|\/+$/g, '');
+        const depth = (area ? area.split('/').length : 0) + (parseInt(whenLevel.value, 10) || 1);
+        const names = new Set();
+        allFolders().forEach((f) => {
+          if (area && !f.startsWith(area + '/')) return;
+          const segs = f.split('/');
+          if (segs.length === depth && names.size < 200) names.add(segs[depth - 1]);
+        });
+        [...names].sort((a, c) => a.localeCompare(c, undefined, { numeric: true }))
+          .forEach((n) => whenListEl.appendChild(Object.assign(el('option'), { value: n })));
+      };
+      fillWhenList();
+      const whenRow = el('div', 'nb-row nb-when-row');
+      whenRow.append(whenLevel, el('span', 'panel-hint', 'heißt'), whenPattern, whenListEl);
+      const whenHint = 'Ursprünglicher Ordnername; * steht für beliebigen Text (z. B. „GD_*“). Die Regel gilt dann in '
+        + 'diesen Ordnern, Ebene 1 = Ordner direkt in der Freigabe bzw. im gewählten Ordner.';
+      const levelHint = el('span', 'panel-hint nb-field-hint');
+      const levelWrap = labelled('Ebene', level);
+      levelWrap.appendChild(levelHint);
+      const syncWhen = () => {
+        const on = whenPattern.value.trim() !== '';
+        sub.disabled = on;
+        subWrap.classList.toggle('is-disabled', on);
+        levelHint.textContent = on
+          ? 'Gezählt ab dem passenden Ordner: Ebene 1 = direkt darin.'
+          : 'Ebene 1 = direkt im gewählten Ordner bzw. in der Freigabe.';
+      };
+      syncWhen();
       step5.append(
         labelled('Gilt für', applies),
         labelled('Nur in diesem Ordner', wherePath, 'Leer = in der ganzen Freigabe.'), subWrap,
-        labelled('Ebene', level, 'Ebene 1 = direkt im gewählten Ordner bzw. in der Freigabe.'),
-        labelled('Ausnahmen', exceptRow), exceptList
+        labelled('Nur wenn der Ordner auf', whenRow, whenHint),
+        levelWrap
       );
 
       // ---- Sprache fuer Monats-/Tagesnamen
@@ -1038,9 +1134,15 @@ window.AANameRules = (() => {
       });
       actions.append(up, remove);
 
-      body.append(step1, step2, step3, langWrap, step5,
-        el('p', 'nb-step-title', 'Vorschau'), status, preview, labelled('Namen ausprobieren', tryInput), tryResult,
-        expert, actions);
+      // Selten Gebrauchtes eingeklappt (ab 1.6.0, uebersichtlicher)
+      const more = el('details', 'nb-more');
+      more.appendChild(el('summary', '', 'Weitere Einstellungen'));
+      more.append(labelled('Ausnahmen', exceptRow), exceptList, langWrap,
+        labelled('Namen ausprobieren', tryInput), tryResult, expert);
+      if (except.length) more.open = true;
+
+      body.append(step1, step2, step3, step5,
+        el('p', 'nb-step-title', 'Vorschau'), status, preview, more, actions);
 
       /** Regel, wie sie gespeichert wird. */
       const current = () => {
@@ -1052,6 +1154,8 @@ window.AANameRules = (() => {
         const wp = wherePath.value.trim().replace(/^\/+|\/+$/g, '');
         if (wp) base.where = { path: wp, sub: sub.checked };
         if (level.value !== '0') base.level = parseInt(level.value, 10);
+        const wpat = whenPattern.value.trim();
+        if (wpat) base.when = { level: parseInt(whenLevel.value, 10) || 1, pattern: wpat };
         if (except.length) base.except = except.slice();
         if (b) {
           const g = generate(b);
@@ -1077,6 +1181,7 @@ window.AANameRules = (() => {
           expertNote.appendChild(document.createTextNode(' '));
           expertNote.appendChild(rebuild);
           expert.open = true;
+          more.open = true;
           step2.appendChild(el('p', 'panel-hint', isNew || r.pattern
             ? 'Noch kein Beispiel zerlegt.' : ''));
           return;
@@ -1297,6 +1402,14 @@ window.AANameRules = (() => {
             vals[k] = to.value;
             syncGenerated();
           });
+          // Enter wie Tab: in die naechste Zeile (ab 1.6.0)
+          to.addEventListener('keydown', (ev) => {
+            if (ev.key !== 'Enter') return;
+            ev.preventDefault();
+            const fields = [...box.querySelectorAll('input')];
+            const nx = fields[fields.indexOf(to) + 1];
+            if (nx) nx.focus();
+          });
           row.appendChild(to);
           box.appendChild(row);
         });
@@ -1315,13 +1428,21 @@ window.AANameRules = (() => {
           refresh();
         });
         [from, to].forEach((x) => x.addEventListener('keydown', (ev) => {
-          if (ev.key === 'Enter') {
+          // Enter, oder Tab im letzten Feld: Wert anlegen und gleich in die
+          // naechste leere Zeile (ab 1.6.0, Wunsch des Nutzers)
+          const tabOut = ev.key === 'Tab' && !ev.shiftKey && x === to && from.value.trim() !== '';
+          if (ev.key === 'Enter' || tabOut) {
             ev.preventDefault();
+            if (from.value.trim()) b.focusValue = part.id;
             addBtn.click();
           }
         }));
         addRow.append(from, to, addBtn);
         box.appendChild(addRow);
+        if (b.focusValue === part.id) {
+          delete b.focusValue;
+          setTimeout(() => from.focus(), 0);
+        }
         return box;
       }
 
@@ -1361,8 +1482,10 @@ window.AANameRules = (() => {
         status.textContent = err;
         status.classList.toggle('is-error', err !== '');
         preview.textContent = '';
-        summary.textContent = 'Regel ' + (items.indexOf(item) + 1) + ': ' + (b ? b.sample : (v.pattern || 'neu'));
+        sumMain.textContent = (b ? b.sample : (v.pattern || 'Neue Regel'));
+        sumMeta.textContent = describe(v, null);
         if (err || v.pattern === '') {
+          if (err) sumMeta.textContent = err;
           renumber();
           return;
         }
@@ -1384,7 +1507,10 @@ window.AANameRules = (() => {
           if (h.where) li.appendChild(el('span', 'name-rule-where', '  (in ' + h.where + ')'));
           preview.appendChild(li);
         });
-        if (hits.length) summary.textContent += ' → ' + hits[0].out;
+        // In der Zeile das eigene Beispiel zeigen, sonst den ersten Treffer
+        const own = b ? hits.find((h) => String(h.name).replace(/\.[a-z0-9]{2,5}$/i, '') === b.sample) : null;
+        if (own || hits.length) sumMain.textContent += ' → ' + (own || hits[0]).out;
+        sumMeta.textContent = describe(v, total);
         const sum = el('li', 'name-rule-sum');
         if (total === 0) {
           sum.textContent = groupsLoaded
@@ -1403,6 +1529,7 @@ window.AANameRules = (() => {
           delete loose.where;
           delete loose.level;
           delete loose.except;
+          delete loose.when;
           const asDir = v.applies !== 'files' ? apply([loose], t, 'dir') : null;
           const asFile = v.applies !== 'folders' ? apply([loose], t.replace(/\.[a-z0-9]{2,5}$/i, ''), 'file') : null;
           const out = asDir || asFile;
@@ -1418,7 +1545,18 @@ window.AANameRules = (() => {
         renderValues();
         refresh();
       }));
-      wherePath.addEventListener('input', refresh);
+      wherePath.addEventListener('input', () => {
+        fillWhenList();
+        refresh();
+      });
+      whenLevel.addEventListener('change', () => {
+        fillWhenList();
+        refresh();
+      });
+      whenPattern.addEventListener('input', () => {
+        syncWhen();
+        refresh();
+      });
       spaces.addEventListener('change', refresh);
       lang.addEventListener('change', () => {
         renderBuilder();
@@ -1427,6 +1565,7 @@ window.AANameRules = (() => {
       });
       refreshers.push(() => {
         fillSamples();
+        fillWhenList();
         renderValues();
         refresh();
       });
@@ -1436,9 +1575,22 @@ window.AANameRules = (() => {
 
     function renumber() {
       items.forEach((it, i) => {
-        const s = it.box.querySelector('.name-rule-summary');
-        if (s) s.textContent = s.textContent.replace(/^Regel \d+/, 'Regel ' + (i + 1));
+        const n = it.box.querySelector('.nr-num');
+        if (n) n.textContent = String(i + 1);
       });
+    }
+
+    /** Kurzbeschreibung einer Regel fuer die Zeile (ab 1.6.0). */
+    function describe(v, total) {
+      const bits = [];
+      if (v.applies === 'files') bits.push('nur Dateien');
+      if (v.applies === 'folders') bits.push('nur Ordner');
+      if (v.where && v.where.path) bits.push('in „' + v.where.path + '“');
+      if (v.when) bits.push('wenn Ebene ' + v.when.level + ' „' + v.when.pattern + '“');
+      if (v.level) bits.push('Ebene ' + v.level);
+      if (v.except && v.except.length) bits.push(v.except.length + (v.except.length === 1 ? ' Ausnahme' : ' Ausnahmen'));
+      if (total !== null && total !== undefined) bits.push(total === 1 ? '1 Name' : total + ' Namen');
+      return bits.join(' · ');
     }
 
     const patternRules = (Array.isArray(rules) ? rules : []).filter((x) => x && !isOverride(x));

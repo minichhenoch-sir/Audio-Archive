@@ -4,6 +4,27 @@ All notable changes to this project are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Detailed German
 notes for every version: [docs/ENTWICKLUNG.md](docs/ENTWICKLUNG.md).
 
+## 1.6.0 – 2026-11-27
+
+### Added
+- Pull down at the top of the list to reload, also in the installed app
+- Display names: a rule can be limited to folders whose original name matches
+  a pattern on a chosen level (e.g. level 1 is `GD_*`); `*` stands for any
+  text. "Level" then counts from that folder
+
+### Changed
+- Reloading the page keeps the folder you are in (a restart of the installed
+  app still begins at the top)
+- Tapping one of "My shares" in the sidebar opens the folder with its list of
+  shares instead of the edit form
+- Display-name rules are shown as a compact list, one line per rule; only
+  one rule is open at a time, and rarely used settings are under
+  "More settings"
+- The Tab key moves from field to field and skips the small buttons; in the
+  values list, Tab in the last field adds the value and moves to a new line
+- The pictures in the manual show the current version again and are
+  refreshed with every release
+
 ## 1.5.3 – 2026-11-24
 
 ### Fixed

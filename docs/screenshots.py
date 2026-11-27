@@ -16,6 +16,11 @@ zwischen, eine gleichbleibende Adresse zeigte dort fuer immer das alte Bild).
 Braucht: php (occ), ffmpeg, Python-Playwright mit Chromium.
 Bild 1 zeigt die Gestaltung "Klassisch" (Nextcloud-Optik, Standard-Blau),
 Bild 2 und 3 die Gestaltung "Modern", Bild 4 die Verwaltung.
+
+Ab 1.6.0 entstehen dabei auch die Bilder der Anleitung neu (1000 px breit):
+Bibliothek, Telefon, Teilen-Formular und Verwaltung, je einmal in "Modern"
+(img/manual/) und "Klassisch" (img/manual/klassisch/). Danach
+docs/manual-pdf.py laufen lassen, damit die PDFs sie zeigen.
 """
 import argparse
 import json
@@ -230,6 +235,85 @@ def shot_share(browser, url, out):
     s.close()
 
 
+MANUAL = ROOT / 'img' / 'manual'
+
+
+def save_jpg(png, target, width=1000):
+    """PNG (Bytes oder Pfad) als JPEG in Anleitungsgroesse speichern."""
+    import io
+    img = Image.open(io.BytesIO(png) if isinstance(png, bytes) else png).convert('RGB')
+    if img.width != width:
+        img = img.resize((width, round(img.height * width / img.width)), Image.LANCZOS)
+    img.save(target, 'JPEG', quality=85, optimize=True, progressive=True)
+
+
+def phone_pair(browser, url, share_id, design):
+    """Telefon: Liste und Vollbild-Player nebeneinander (PNG-Bytes je Seite)."""
+    phone = dict(viewport={'width': 390, 'height': 844}, device_scale_factor=2,
+                 is_mobile=True, has_touch=True)
+    s = Session(browser, url, LISTENER[0], LISTENER[1], **phone)
+    s.api('POST', '/api/user/settings', {'design': design})
+    open_recording(s.page, url + APP + '/app', f'in:{share_id}',
+                   'Konzerte/Adventskonzert 2025/02 Tochter Zion.mp3', at=48)
+    left = s.page.screenshot()
+    s.page.click('#btn-expand')
+    s.page.wait_for_timeout(1500)
+    right = s.page.screenshot()
+    s.close()
+    return left, right
+
+
+def shot_manual(browser, url, admin, share_id, out):
+    """Bilder der Anleitung (ab 1.6.0) - vorher noch von 1.0.0.
+
+    Zwei Saetze: Modern (img/manual/, auch fuer die PDFs) und Klassisch
+    (img/manual/klassisch/). Die Anleitung zeigt den, der zur Gestaltung
+    des Lesers passt (ManualController::imageSet).
+    """
+    import tempfile
+    view = {'viewport': {'width': 1000, 'height': 750}}
+    for design, target in (('custom', MANUAL), ('nextcloud', MANUAL / 'klassisch')):
+        target.mkdir(parents=True, exist_ok=True)
+        # Die Freigabe bringt ihre eigene Gestaltung mit - passend setzen
+        set_share_design(admin, share_id, design)
+        # Bibliothek in der App
+        s = Session(browser, url, LISTENER[0], LISTENER[1], **view)
+        s.api('POST', '/api/user/settings', {'design': design})
+        open_recording(s.page, url + APP + '/app', f'in:{share_id}',
+                       'Vorträge 2026/2026_02 Februar/02 Dankbarkeit.mp3')
+        save_jpg(s.page.screenshot(), target / 'library.jpg')
+        s.close()
+        # Ordner teilen: neuer Link mit den Tabs
+        s = Session(browser, url, *ADMIN, **view)
+        s.api('POST', '/api/user/settings', {'design': design})
+        open_recording(s.page, url + APP + '/app', 'home',
+                       SHARE_FOLDER + '/Vorträge 2026/2026_02 Februar/01 Neu anfangen.mp3', play=False)
+        s.page.click('#share-btn')
+        s.page.locator('#share-panel button', has_text='Neuer Link').first.click()
+        s.page.wait_for_timeout(1200)
+        s.page.mouse.move(0, 0)
+        save_jpg(s.page.screenshot(), target / 'share.jpg')
+        s.close()
+        # Telefon
+        left, right = phone_pair(browser, url, share_id, design)
+        with tempfile.TemporaryDirectory() as tmp:
+            compose_side_by_side(left, right, Path(tmp) / 'phone.png')
+            save_jpg(Path(tmp) / 'phone.png', target / 'player-phone.jpg')
+        # Verwaltung (sieht in beiden gleich aus: Nextcloud selbst)
+        s = Session(browser, url, *ADMIN, **view)
+        s.page.goto(url + '/settings/admin/audioarchive')
+        s.page.wait_for_load_state('networkidle')
+        s.page.wait_for_timeout(1000)
+        save_jpg(s.page.screenshot(), target / 'admin.jpg')
+        s.close()
+    set_share_design(admin, share_id, 'custom')
+    # Danach wieder Modern fuer beide Testkonten
+    for user, password in ((LISTENER[0], LISTENER[1]), ADMIN):
+        s = Session(browser, url, user, password)
+        s.api('POST', '/api/user/settings', {'design': 'custom'})
+        s.close()
+
+
 def shot_admin(browser, url, out):
     """Bild 4: Einstellungen der Verwaltung in Nextcloud."""
     s = Session(browser, url, *ADMIN, viewport={'width': 1200, 'height': 900})
@@ -263,6 +347,7 @@ def main():
         shot_phone(browser, args.url, share_id, out)
         shot_share(browser, args.url, out)
         shot_admin(browser, args.url, out)
+        shot_manual(browser, args.url, admin, share_id, out)
         admin.close()
         browser.close()
     version = (ROOT / 'appinfo' / 'info.xml').read_text().split('<version>')[1].split('<')[0]
@@ -281,6 +366,9 @@ def main():
     print(f'Bildschirmfotos fuer {version} in {out}:')
     for f in sorted(out.glob('*.png')):
         print(f'  {f.name}  {Image.open(f).size}')
+    print(f'Bilder der Anleitung in {MANUAL}:')
+    for f in sorted(MANUAL.glob('**/*.jpg')):
+        print(f'  {f.relative_to(MANUAL)}  {Image.open(f).size}')
 
 
 if __name__ == '__main__':

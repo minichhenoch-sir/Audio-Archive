@@ -100,7 +100,9 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     </tbody>
   </table>
   <p>In der installierten App fehlt die Browserleiste. Zum Neuladen gibt es deshalb oben
-  den Knopf <strong>„Seite neu laden“</strong> (kreisförmiger Pfeil).</p>
+  den Knopf <strong>„Seite neu laden“</strong> (kreisförmiger Pfeil). Am Telefon geht es auch so: ganz oben in der
+  Liste mit dem Finger <strong>nach unten ziehen</strong> und loslassen, sobald der Pfeil hell wird. Nach dem Neuladen
+  bleibst du im selben Ordner; startest du die App neu, beginnt sie oben.</p>
 </section>
 
 <section id="finden" class="m-section">
@@ -111,7 +113,8 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
   <strong>Ordnerbaum</strong> (auf schmalen Bildschirmen über das Symbol ☰ oben links). Dort findest du:</p>
   <ul>
     <li><strong>„Meine Dateien“</strong> – Aufnahmen aus deinen eigenen Nextcloud-Dateien,</li>
-    <li><strong>„Meine Freigaben“</strong> – Ordner, die du selbst geteilt hast,</li>
+    <li><strong>„Meine Freigaben“</strong> – Ordner, die du selbst geteilt hast. Ein Tipp öffnet den Ordner und
+      zeigt seine Freigaben; zum Ändern dort auf „Bearbeiten“ tippen,</li>
     <li><strong>„Mit mir geteilt“</strong> – Ordner, die andere in dieser App mit dir geteilt haben. Dazu gehören
       auch die Aufnahmen, die für alle angemeldeten Nutzer freigegeben sind (🌐, z.&nbsp;B. das gemeinsame Archiv) –
       mit ihnen startet die App,</li>
@@ -276,8 +279,15 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li><strong>Was soll angezeigt werden?</strong> Teile per „+“ hinzufügen, mit ← → ordnen, mit ✕ entfernen,
     mit „+ Text“ eigenen Text einfügen. Beim Datum das Format wählen – aus der Liste oder als eigenes Format.</li>
     <li><strong>Wo die Regel gilt:</strong> Dateien und/oder Ordner, die ganze Freigabe oder nur ein bestimmter Ordner
-    (mit oder ohne Unterordner), alle Ebenen oder nur eine Ebene, dazu Ausnahmen.</li>
+    (mit oder ohne Unterordner), alle Ebenen oder nur eine Ebene. Mit <strong>„Nur wenn der Ordner auf Ebene … heißt“</strong>
+    gilt die Regel nur in Ordnern, deren ursprünglicher Name passt – <code>*</code> steht dabei für beliebigen Text.
+    Beispiel: Ebene 1 heißt <code>GD_*</code> → die Regel gilt in „GD_2025“ und „GD_2026“, aber nicht in „Jugend“.
+    „Ebene“ zählt dann ab diesem Ordner (Ebene 1 = direkt darin).</li>
   </ol>
+  <p>Jede Regel ist eine Zeile mit Beispiel, Ergebnis und kurzer Angabe, wo sie gilt; ein Tipp klappt sie zum
+  Bearbeiten auf (immer nur eine). Ausnahmen, Sprache, „Namen ausprobieren“ und die Schreibweise für Fortgeschrittene
+  stehen unter <strong>„Weitere Einstellungen“</strong>. Mit der <strong>Tab-Taste</strong> geht es von Feld zu
+  Feld; im leeren Feld „anzeigen als“ legt Tab den neuen Wert an und springt in die nächste Zeile.</p>
   <table class="m-table">
     <tbody>
       <tr><td>Beispielname</td><td><code>GBO_2026-05-17_So_mp3_a</code></td></tr>
@@ -314,7 +324,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <li><strong>Eigene Namen:</strong> Unter „Eigene Namen für einzelne Ordner oder Aufnahmen“ einen Ordner oder eine
     Aufnahme wählen und den Namen eintragen, der erscheinen soll. Das geht allen Regeln vor.</li>
     <li>Mehrere Regeln sind möglich – die erste passende gilt (mit „↑ Nach oben“ ordnen), passt keine, bleibt der
-    Name. Jede Regel zeigt eine <strong>Vorschau</strong> mit Namen aus dem Ordner und allen Unterordnern; im Feld
+    Name. Ausnahmen trägst du unter „Weitere Einstellungen“ ein. Jede Regel zeigt eine <strong>Vorschau</strong> mit Namen aus dem Ordner und allen Unterordnern; im Feld
     „Namen ausprobieren“ lässt sich jeder Name testen. Die Übersicht aller Bausteine steht auch im Formular
     („Übersicht: alle Bausteine“).</li>
     <li>Ordner-Regeln wirken überall, wo Ordner erscheinen: in der Liste, im Pfad, in der Seitenleiste, im Titel
@@ -378,7 +388,7 @@ $on = static fn (string $key) => $features === null ? null : ($features[$key] ??
     <dt>Ich werde wieder nach dem Passwort gefragt.</dt>
     <dd>Die Anmeldung ist abgelaufen oder das Passwort wurde geändert. Einfach neu eingeben.</dd>
     <dt>Die installierte App zeigt etwas Altes.</dt>
-    <dd>Oben auf „Seite neu laden“ (kreisförmiger Pfeil) tippen.</dd>
+    <dd>Oben auf „Seite neu laden“ (kreisförmiger Pfeil) tippen oder ganz oben in der Liste nach unten ziehen.</dd>
     <dt>Der Link funktioniert nicht mehr.</dt>
     <dd>Der Link ist abgelaufen oder wurde geändert. Bitte bei der Person nachfragen, von der du ihn hast.</dd>
     <dt>Ein Knopf aus dieser Anleitung fehlt.</dt>

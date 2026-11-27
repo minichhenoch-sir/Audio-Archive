@@ -965,6 +965,17 @@
     // Explorer immer sauber im Hauptordner öffnen: angemeldet zuerst der
     // gemeinsame Ordner, sofern eingerichtet, sonst die eigenen Dateien
     view = { source: startSource(), path: '' };
+    // Nach dem Neuladen (Browser oder Wischen nach unten) im selben Ordner
+    // bleiben (ab 1.6.0): der Verlaufseintrag ueberlebt das Neuladen, ein
+    // Neustart der installierten App beginnt dagegen oben.
+    const saved = history.state && history.state.view;
+    const hasJump = /^#(source|open|share)=/.test(location.hash);
+    let restored = false;
+    if (!hasJump && saved && typeof saved.source === 'string' && saved.source !== ''
+      && typeof saved.path === 'string') {
+      view = { source: saved.source, path: saved.path };
+      restored = true;
+    }
     // Sprung aus der Verwaltung: #source=src:<id> (ab 0.32.0)
     const sourceJump = /^#source=(src:\d{1,9})$/.exec(location.hash);
     if (sourceJump && AudioArchive.extraSources.some((s) => s.id === sourceJump[1])) {
@@ -999,6 +1010,7 @@
     if (offlineMode) {
       const available = offlineSources();
       if (!available.has(view.source) && available.size > 0) {
+        restored = false;
         view.source = available.has('shared') ? 'shared'
           : (available.has('home') ? 'home' : Array.from(available)[0]);
       }
@@ -1006,11 +1018,19 @@
     // Basis-Historie-Eintrag setzen (ersetzt den aktuellen Eintrag, statt
     // einen neuen zu erzeugen) - Ausgangspunkt für die Zurück-Geste/-Taste.
     const startFolder = openTarget && !offlineMode
-      ? openTarget.slice(0, Math.max(0, openTarget.lastIndexOf('/'))) : '';
+      ? openTarget.slice(0, Math.max(0, openTarget.lastIndexOf('/')))
+      : (restored ? view.path : '');
     view.path = startFolder;
     history.replaceState({ view }, '');
-    loadLibrary(startFolder, view.source).then(() => {
+    const startSourceId = view.source;
+    loadLibrary(startFolder, view.source).then((ok) => {
       if (openTarget && !offlineMode) highlightRow(view.source + '|' + openTarget);
+      // Gemerkter Ordner nicht mehr da (geloescht, Freigabe beendet): oben beginnen
+      if (restored && ok === false && view.source === startSourceId) {
+        view = { source: startSource(), path: '' };
+        history.replaceState({ view }, '');
+        loadLibrary('', view.source);
+      }
     });
     Tree.init();
     if (resumeApi) resumeApi.show();
@@ -1342,6 +1362,93 @@
     view = target;
     loadLibrary(view.path, view.source);
   });
+
+  // ------------------------------------------------------------------
+  // Wischen nach unten zum Neuladen (ab 1.6.0). Der Browser macht das von
+  // sich aus nicht (body scrollt nie, overscroll ist abgeschaltet) und die
+  // installierte App kennt es gar nicht. Nur ganz oben in der Liste und nur,
+  // wenn nichts anderes (Seitenleiste, Eingabefeld, Player) gerade dran ist.
+  // Nach dem Neuladen bleibt der Ordner (siehe showMain).
+  // ------------------------------------------------------------------
+  (() => {
+    if (!mainScreen || !('ontouchstart' in window)) return;
+    const TRIGGER = 72; // px gezogen (nach Daempfung) bis zum Neuladen
+    const MAX = 110;
+    const indicator = document.createElement('div');
+    indicator.className = 'aa-ptr glass-pill';
+    indicator.setAttribute('aria-hidden', 'true');
+    indicator.innerHTML = '<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" '
+      + 'stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 12a8 8 0 1 1-2.34-5.66"/>'
+      + '<path d="M20 4v5h-5"/></svg>';
+    (document.getElementById('audioarchive') || document.body).appendChild(indicator);
+    let startY = null;
+    let startX = 0;
+    let dist = 0;
+    let busy = false;
+
+    const blocked = (target) => {
+      if (!(target instanceof Element)) return true;
+      if (target.closest('input, textarea, select, [contenteditable="true"], #sidebar, .sidebar-backdrop')) return true;
+      if (document.getElementById('audioarchive')?.classList.contains('aa-sidebar-open')) return true;
+      // Offene Formulare (Teilen, eigene Darstellung): sonst gingen Eingaben verloren
+      if (mainScreen.querySelector('#share-panel:not([hidden]), #user-settings:not([hidden])')) return true;
+      // Ein Bereich darueber ist selbst nach unten gescrollt: der scrollt zuerst
+      for (let n = target; n && n !== mainScreen; n = n.parentElement) {
+        if (n.scrollTop > 0) return true;
+      }
+      return false;
+    };
+
+    const show = (d, armed) => {
+      indicator.style.transform = 'translate(-50%, ' + (d - 52) + 'px) rotate(' + (d * 3) + 'deg)';
+      indicator.style.opacity = String(Math.min(1, d / TRIGGER));
+      indicator.classList.toggle('is-armed', armed);
+    };
+    const reset = () => {
+      startY = null;
+      dist = 0;
+      indicator.classList.add('is-back');
+      indicator.style.transform = '';
+      indicator.style.opacity = '';
+      indicator.classList.remove('is-armed');
+      setTimeout(() => indicator.classList.remove('is-back'), 250);
+    };
+
+    mainScreen.addEventListener('touchstart', (e) => {
+      if (busy || mainScreen.hidden || e.touches.length !== 1 || mainScreen.scrollTop > 0) return;
+      if (blocked(e.target)) return;
+      startY = e.touches[0].clientY;
+      startX = e.touches[0].clientX;
+      dist = 0;
+    }, { passive: true });
+
+    mainScreen.addEventListener('touchmove', (e) => {
+      if (startY === null) return;
+      const dy = e.touches[0].clientY - startY;
+      const dx = Math.abs(e.touches[0].clientX - startX);
+      // Nach oben oder eher seitwaerts: kein Neuladen
+      if (dy <= 0 || mainScreen.scrollTop > 0 || (dist === 0 && dx > dy)) {
+        if (dist > 0) reset(); else startY = null;
+        return;
+      }
+      dist = Math.min(MAX, dy * 0.5);
+      show(dist, dist >= TRIGGER);
+    }, { passive: true });
+
+    const end = () => {
+      if (startY === null) return;
+      if (dist >= TRIGGER) {
+        busy = true;
+        indicator.classList.add('is-loading');
+        show(TRIGGER, true);
+        setTimeout(() => location.reload(), 120);
+        return;
+      }
+      reset();
+    };
+    mainScreen.addEventListener('touchend', end, { passive: true });
+    mainScreen.addEventListener('touchcancel', reset, { passive: true });
+  })();
 
   // ------------------------------------------------------------------
   // Session-Status beim App-Start prüfen
@@ -2208,7 +2315,7 @@
           : (data.error || 'Fehler beim Laden der Aufnahmen.');
         Look.reset();
         renderBreadcrumb();
-        return;
+        return false;
       }
 
       view = { source, path: data.path || '' };
@@ -4218,7 +4325,7 @@
     const zipBtn = document.getElementById('zip-btn');
     const panel = document.getElementById('share-panel');
 
-    // Nach dem Oeffnen aus "Meine Freigaben": diese Freigabe bearbeiten,
+    // Nach dem Oeffnen aus "Meine Freigaben": diese Freigabe in der Liste hervorheben,
     // sobald ihr Ordner geladen ist
     let pendingShareId = null;
     let current = []; // Freigaben des geoeffneten Ordners
@@ -5220,10 +5327,9 @@
         if (pendingShareId !== null) {
           const id = pendingShareId;
           pendingShareId = null;
-          fetchForFolder().then((list) => {
-            const share = list.find((s) => s.id === id);
-            if (share) openForm(share); else openList();
-          }).catch(() => openList());
+          // Ab 1.6.0 nur die Liste mit dieser Freigabe hervorgehoben, nicht
+          // gleich das Formular - bearbeitet wird ueber "Bearbeiten"
+          openList(id);
           return;
         }
         // Formular bleibt offen, solange man im geteilten Ordner bleibt (ab 1.5.0)
@@ -5231,7 +5337,7 @@
         close();
       },
 
-      /** Aus "Meine Freigaben": zum Ordner wechseln und die Freigabe oeffnen. */
+      /** Aus "Meine Freigaben": zum Ordner wechseln und die Freigaben dort zeigen. */
       openFromList(share) {
         // Weitergeteilt (ab 0.26.0): der Ordner liegt unter "Mit mir geteilt"
         const source = share.via ? 'in:' + share.via.id

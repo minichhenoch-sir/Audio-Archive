@@ -59,7 +59,7 @@ class ManualContent {
             'lib/Service/ManualContent.php',
             'js/style-tokens.js',
         ];
-        foreach (['templates/manual/*.php', 'img/manual/*'] as $pattern) {
+        foreach (['templates/manual/*.php', 'img/manual/*.*', 'img/manual/*/*.*'] as $pattern) {
             foreach (glob($appDir . '/' . $pattern) ?: [] as $path) {
                 $files[] = substr($path, strlen($appDir) + 1);
             }

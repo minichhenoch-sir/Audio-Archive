@@ -118,11 +118,30 @@ class ManualController extends Controller {
             'adminUrl' => $this->urlGenerator->linkToRoute($route('admin')),
             'showAdminLink' => !$isAdmin && $loggedIn && $this->isAdmin(),
             'cssUrl' => $this->urlGenerator->linkTo(Application::APP_ID, 'css/manual.css') . '?v=' . rawurlencode($version . '-' . $this->cssVersion()),
-            'imgBase' => $this->urlGenerator->linkTo(Application::APP_ID, 'img/manual/'),
+            'imgBase' => $this->urlGenerator->linkTo(Application::APP_ID, 'img/manual/' . $this->imageSet($generic)),
             'faviconUrl' => $this->urlGenerator->linkTo(Application::APP_ID, 'img/app.svg'),
             ...$this->ncRange(),
         ], TemplateResponse::RENDER_AS_BLANK);
         return $response;
+    }
+
+    /**
+     * Bilder in der Gestaltung, die man selbst sieht (ab 1.6.0): eigene Wahl,
+     * sonst die Vorgabe der Verwaltung. Klassisch hat eigene Bilder in
+     * img/manual/klassisch/, alle anderen zeigen Modern. Die mitgelieferten
+     * PDFs (allgemeine Fassung) zeigen immer Modern.
+     */
+    private function imageSet(bool $generic): string {
+        if ($generic) {
+            return '';
+        }
+        $user = $this->userSession->getUser();
+        $design = $user !== null ? $this->appearance->userDesignPreference($user->getUID()) : '';
+        if ($design === '') {
+            $design = $this->appearance->adminDesign();
+        }
+        return $design === Application::DESIGN_NEXTCLOUD && is_dir(dirname(__DIR__, 2) . '/img/manual/klassisch')
+            ? 'klassisch/' : '';
     }
 
     /**

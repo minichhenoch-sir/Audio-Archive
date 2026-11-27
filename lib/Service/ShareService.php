@@ -845,6 +845,13 @@ class ShareService {
             if ($level > 0) {
                 $clean['level'] = min($level, 20);
             }
+            // Ab 1.6.0: nur unterhalb von Ordnern, deren Name zum Muster passt
+            if (is_array($rule['when'] ?? null) && trim((string)($rule['when']['pattern'] ?? '')) !== '') {
+                $clean['when'] = [
+                    'level' => max(1, min(20, (int)($rule['when']['level'] ?? 1))),
+                    'pattern' => mb_substr(trim((string)$rule['when']['pattern']), 0, 300),
+                ];
+            }
             if (is_array($rule['except'] ?? null)) {
                 $except = array_values(array_filter(array_map($path, $rule['except']), static fn ($p) => $p !== ''));
                 if ($except !== []) {

@@ -1841,13 +1841,7 @@ body.has-bg-image #audioarchive .explorer-row.active {
 }
 
 /* Baukasten fuer Namensmuster (ab 1.4.0, Vikunja #72) */
-#audioarchive details.name-rule > summary.name-rule-summary {
-  cursor: pointer;
-  font-weight: 600;
-  overflow-wrap: anywhere;
-  padding: 2px 0;
-}
-#audioarchive details.name-rule[open] > summary.name-rule-summary { margin-bottom: 8px; }
+/* Zeile der Regel: siehe "kompakte Liste" (ab 1.6.0) weiter unten */
 #audioarchive .nb-step { margin: 0 0 12px; }
 #audioarchive .nb-step-title {
   margin: 0 0 6px;
@@ -3766,3 +3760,84 @@ body > .aa-comment-notice {
 #audioarchive #install-now-row[hidden],
 #audioarchive #install-help-manual[hidden] { display: none !important; }
 #audioarchive .install-now { font-weight: 700; }
+
+/* Wischen nach unten zum Neuladen (ab 1.6.0) */
+#audioarchive .aa-ptr {
+  position: fixed;
+  top: calc(env(safe-area-inset-top, 0px) + 8px);
+  left: 50%;
+  z-index: 60;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-cream);
+  opacity: 0;
+  transform: translate(-50%, -52px);
+  pointer-events: none;
+}
+#audioarchive .aa-ptr.is-back { transition: transform 0.25s ease, opacity 0.25s ease; }
+#audioarchive .aa-ptr.is-armed { color: var(--color-ink); background: var(--color-cream); }
+#audioarchive .aa-ptr.is-loading svg { animation: aa-ptr-spin 0.8s linear infinite; }
+@keyframes aa-ptr-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) {
+  #audioarchive .aa-ptr.is-loading svg { animation: none; }
+}
+
+/* Namensregeln als kompakte Liste (ab 1.6.0): eine Zeile je Regel */
+#audioarchive .name-rule { padding: 0; }
+#audioarchive .name-rule > .name-rule-summary {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  cursor: pointer;
+  list-style: none;
+}
+#audioarchive .name-rule > .name-rule-summary::-webkit-details-marker { display: none; }
+#audioarchive .name-rule > .name-rule-summary::after {
+  content: '▸';
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  opacity: 0.6;
+  transition: transform 0.15s ease;
+}
+#audioarchive .name-rule[open] > .name-rule-summary::after { transform: rotate(90deg); }
+#audioarchive .name-rule[open] > .name-rule-summary { border-bottom: 1px solid var(--glass-light-border); }
+#audioarchive .nr-num {
+  grid-row: 1 / span 2;
+  min-width: 24px;
+  height: 24px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: calc(0.8 * var(--aa-rem));
+  background: var(--glass-light-border);
+}
+#audioarchive .nr-main {
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+#audioarchive .nr-meta {
+  grid-column: 2;
+  min-width: 0;
+  font-size: calc(0.78 * var(--aa-rem));
+  color: var(--color-ink-soft);
+  overflow-wrap: anywhere;
+}
+#audioarchive .nr-meta:empty { display: none; }
+#audioarchive .name-rule > .name-rule-body { padding: 10px 12px; }
+#audioarchive .nb-more { margin: 8px 0; }
+#audioarchive .nb-more > summary { cursor: pointer; font-weight: 600; }
+#audioarchive .nb-more[open] > summary { margin-bottom: 8px; }
+#audioarchive .nb-when-row > .nb-when-level { flex: 0 0 auto; width: auto; }
+#audioarchive .nb-when-row > .panel-hint { align-self: center; }
+#audioarchive .panel-choice.is-disabled { opacity: 0.5; }
